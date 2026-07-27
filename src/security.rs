@@ -37,9 +37,7 @@ impl SecretScanner {
                 },
                 SecretPattern {
                     name: "private_key",
-                    regex: Regex::new(
-                        r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
-                    )?,
+                    regex: Regex::new(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")?,
                 },
                 SecretPattern {
                     name: "named_secret",

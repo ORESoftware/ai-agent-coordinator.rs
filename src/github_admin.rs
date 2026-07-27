@@ -229,13 +229,7 @@ impl GithubRepositoryAdmin {
                 )));
             }
 
-            return Ok(result_from_github(
-                request,
-                api_url,
-                existing,
-                false,
-                true,
-            ));
+            return Ok(result_from_github(request, api_url, existing, false, true));
         }
 
         let create_url = format!(
@@ -275,11 +269,7 @@ impl GithubRepositoryAdmin {
             })?;
 
         Ok(result_from_github(
-            request,
-            api_url,
-            repository,
-            true,
-            false,
+            request, api_url, repository, true, false,
         ))
     }
 
@@ -290,9 +280,12 @@ impl GithubRepositoryAdmin {
         validate_organization(&request.organization)?;
         validate_repository_name(&request.name)?;
 
-        if !self.settings.allowed_orgs.iter().any(|allowed| {
-            allowed.eq_ignore_ascii_case(request.organization.as_str())
-        }) {
+        if !self
+            .settings
+            .allowed_orgs
+            .iter()
+            .any(|allowed| allowed.eq_ignore_ascii_case(request.organization.as_str()))
+        {
             return Err(AppError::Forbidden(format!(
                 "organization {:?} is not present in {}",
                 request.organization, ADMIN_ALLOWED_ORGS_ENV
@@ -481,9 +474,9 @@ fn validate_repository_name(value: &str) -> Result<(), AppError> {
         || value.ends_with(".git")
         || value.starts_with('.')
         || value.ends_with('.')
-        || !value.bytes().all(|byte| {
-            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
-        })
+        || !value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.'))
     {
         return Err(AppError::BadRequest(
             "repository name must contain only ASCII letters, numbers, hyphens, underscores, and interior dots"
@@ -524,7 +517,10 @@ mod tests {
             client: Client::new(),
             settings: Arc::new(Settings {
                 enabled,
-                allowed_orgs: allowed_orgs.iter().map(|value| (*value).to_owned()).collect(),
+                allowed_orgs: allowed_orgs
+                    .iter()
+                    .map(|value| (*value).to_owned())
+                    .collect(),
                 api_base_url: DEFAULT_API_BASE_URL.to_owned(),
                 api_version: DEFAULT_API_VERSION.to_owned(),
                 user_agent: DEFAULT_USER_AGENT.to_owned(),

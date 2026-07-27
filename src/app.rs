@@ -44,12 +44,7 @@ impl AppState {
         let database = Database::open(&config.database.path)?;
         let providers = ProviderRegistry::from_config(&config)?;
         let scanner = SecretScanner::new()?;
-        let gateway = ModelGateway::new(
-            config.clone(),
-            database.clone(),
-            providers,
-            scanner,
-        );
+        let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
         let api_token = config.api_token();
         let github_webhook_secret = config.github_webhook_secret();
@@ -96,17 +91,11 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/heartbeat", post(heartbeat_job))
         .route("/v1/jobs/:id/complete", post(complete_job))
         .route("/v1/jobs/:id/cancel", post(cancel_job))
-        .route(
-            "/v1/github/repositories",
-            post(create_github_repository),
-        )
+        .route("/v1/github/repositories", post(create_github_repository))
         .route("/webhooks/github", post(github_webhook))
         .layer(DefaultBodyLimit::max(max_request_bytes))
         .layer(PropagateRequestIdLayer::new(request_id_header.clone()))
-        .layer(SetRequestIdLayer::new(
-            request_id_header,
-            MakeRequestUuid,
-        ))
+        .layer(SetRequestIdLayer::new(request_id_header, MakeRequestUuid))
         .layer(TraceLayer::new_for_http())
         .layer(middleware::from_fn(add_no_store))
         .with_state(state)
@@ -263,11 +252,7 @@ async fn github_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<Value>, AppError> {
-    webhooks::verify_signature(
-        &headers,
-        &body,
-        state.github_webhook_secret.as_deref(),
-    )?;
+    webhooks::verify_signature(&headers, &body, state.github_webhook_secret.as_deref())?;
     let response = webhooks::enqueue_from_github(
         &state.database,
         &headers,
