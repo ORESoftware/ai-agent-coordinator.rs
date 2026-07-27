@@ -1,9 +1,7 @@
 use ai_agent_coordinator::{
     config::WorkerConfig,
     db::Database,
-    jobs::{
-        ClaimJobRequest, CompleteJobRequest, CompletionOutcome, CreateJobRequest, JobStatus,
-    },
+    jobs::{ClaimJobRequest, CompleteJobRequest, CompletionOutcome, CreateJobRequest, JobStatus},
 };
 use serde_json::json;
 

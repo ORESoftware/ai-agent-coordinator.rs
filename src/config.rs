@@ -48,14 +48,10 @@ impl Config {
         if self.server.max_concurrent_model_requests == 0 {
             bail!("server.max_concurrent_model_requests must be greater than zero");
         }
-        if self.workers.default_org_concurrency == 0
-            || self.workers.default_repo_concurrency == 0
-        {
+        if self.workers.default_org_concurrency == 0 || self.workers.default_repo_concurrency == 0 {
             bail!("default worker concurrency limits must be greater than zero");
         }
-        if self.budgets.default_org_daily_usd <= 0.0
-            || self.budgets.default_repo_daily_usd <= 0.0
-        {
+        if self.budgets.default_org_daily_usd <= 0.0 || self.budgets.default_repo_daily_usd <= 0.0 {
             bail!("default daily budgets must be greater than zero");
         }
 
@@ -66,9 +62,7 @@ impl Config {
                     model.provider
                 );
             }
-            if model.input_cost_per_million_usd < 0.0
-                || model.output_cost_per_million_usd < 0.0
-            {
+            if model.input_cost_per_million_usd < 0.0 || model.output_cost_per_million_usd < 0.0 {
                 bail!("model {model_id:?} has a negative price");
             }
         }
@@ -93,9 +87,7 @@ impl Config {
             }
             for fallback in fallbacks {
                 if !self.models.contains_key(fallback) {
-                    bail!(
-                        "routing.fallbacks[{model_id:?}] refers to unknown model {fallback:?}"
-                    );
+                    bail!("routing.fallbacks[{model_id:?}] refers to unknown model {fallback:?}");
                 }
             }
         }
@@ -111,7 +103,9 @@ impl Config {
     }
 
     pub fn api_token(&self) -> Option<String> {
-        env::var(&self.auth.token_env).ok().filter(|v| !v.is_empty())
+        env::var(&self.auth.token_env)
+            .ok()
+            .filter(|v| !v.is_empty())
     }
 
     pub fn github_webhook_secret(&self) -> Option<String> {

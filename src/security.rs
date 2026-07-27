@@ -37,14 +37,12 @@ impl SecretScanner {
                 },
                 SecretPattern {
                     name: "private_key",
-                    regex: Regex::new(
-                        r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----",
-                    )?,
+                    regex: Regex::new(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")?,
                 },
                 SecretPattern {
                     name: "named_secret",
                     regex: Regex::new(
-                        r#"(?i)(?:api[_-]?key|access[_-]?token|auth[_-]?token|password|secret)\s*[:=]\s*["']?[^\s,"']{8,}"#,
+                        r#"(?i)(?:api[_-]?key|access[_-]?token|auth[_-]?token|token|password|secret)\s*[:=]\s*["']?[^\s,"']{8,}"#,
                     )?,
                 },
             ],
@@ -112,6 +110,22 @@ mod tests {
         });
         let report = scanner.scan_and_redact(&mut value, true);
         assert_eq!(report.matches, 2);
+        assert_eq!(
+            report.categories,
+            vec!["github_token".to_owned(), "named_secret".to_owned()]
+        );
         assert!(!value.to_string().contains("ghp_"));
+    }
+
+    #[test]
+    fn redacts_generic_named_token_assignments() {
+        let scanner = SecretScanner::new().unwrap();
+        let mut value = json!({
+            "message": "token=abcdefghijk123456"
+        });
+        let report = scanner.scan_and_redact(&mut value, true);
+        assert_eq!(report.matches, 1);
+        assert_eq!(report.categories, vec!["named_secret".to_owned()]);
+        assert!(!value.to_string().contains("abcdefghijk123456"));
     }
 }
