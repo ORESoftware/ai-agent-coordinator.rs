@@ -41,13 +41,12 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn init_tracing(json_logs: bool) {
-    let filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("ai_agent_coordinator=info,tower_http=info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        EnvFilter::new("ai_agent_coordinator=info,tower_http=info")
+    });
     let registry = tracing_subscriber::registry().with(filter);
     if json_logs {
-        registry
-            .with(tracing_subscriber::fmt::layer().json())
-            .init();
+        registry.with(tracing_subscriber::fmt::layer().json()).init();
     } else {
         registry.with(tracing_subscriber::fmt::layer()).init();
     }

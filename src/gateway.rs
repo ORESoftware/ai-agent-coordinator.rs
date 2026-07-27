@@ -255,8 +255,8 @@ impl ModelGateway {
                 .await
             {
                 Ok(mut response) => {
-                    let (prompt_tokens, completion_tokens) =
-                        response_usage(&response).unwrap_or((input_tokens, output_tokens));
+                    let (prompt_tokens, completion_tokens) = response_usage(&response)
+                        .unwrap_or((input_tokens, output_tokens));
                     let actual_cost = model.estimated_cost_usd(prompt_tokens, completion_tokens);
                     self.database
                         .record_usage(&UsageRecord {
@@ -374,7 +374,9 @@ impl ModelGateway {
             return false;
         }
 
-        if context.sensitivity == Sensitivity::Confidential && trust == ProviderTrust::Public {
+        if context.sensitivity == Sensitivity::Confidential
+            && trust == ProviderTrust::Public
+        {
             return false;
         }
 

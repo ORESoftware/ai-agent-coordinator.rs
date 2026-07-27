@@ -99,9 +99,9 @@ impl OpenAiCompatibleProvider {
         body: &Value,
     ) -> Result<Value, ProviderError> {
         let mut forwarded = body.clone();
-        let object = forwarded.as_object_mut().ok_or_else(|| {
-            ProviderError::InvalidResponse("request body is not an object".into())
-        })?;
+        let object = forwarded
+            .as_object_mut()
+            .ok_or_else(|| ProviderError::InvalidResponse("request body is not an object".into()))?;
         object.insert("model".to_owned(), Value::String(upstream_model.to_owned()));
         object.remove("coordinator");
 

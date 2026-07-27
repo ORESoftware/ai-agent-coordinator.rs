@@ -3,7 +3,11 @@ use hmac::{Hmac, Mac};
 use serde_json::{json, Value};
 use sha2::Sha256;
 
-use crate::{db::Database, error::AppError, jobs::CreateJobRequest};
+use crate::{
+    db::Database,
+    error::AppError,
+    jobs::CreateJobRequest,
+};
 
 pub fn verify_signature(
     headers: &HeaderMap,
@@ -65,10 +69,8 @@ pub fn enqueue_from_github(
             Some("github_issue")
         }
         "pull_request"
-            if matches!(
-                action.as_str(),
-                "opened" | "reopened" | "synchronize" | "labeled"
-            ) && has_any_label(&labels, review_trigger_labels) =>
+            if matches!(action.as_str(), "opened" | "reopened" | "synchronize" | "labeled")
+                && has_any_label(&labels, review_trigger_labels) =>
         {
             Some("github_pr_review")
         }
@@ -99,11 +101,7 @@ pub fn enqueue_from_github(
         repo,
         task_type: task_type.to_owned(),
         payload,
-        priority: if task_type == "github_ci_failure" {
-            50
-        } else {
-            0
-        },
+        priority: if task_type == "github_ci_failure" { 50 } else { 0 },
         max_attempts: 3,
         available_at: None,
         budget_usd: None,
