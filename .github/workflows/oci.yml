@@ -1,0 +1,140 @@
+name: OCI
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/oci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Dockerfile'
+      - 'coordinator.example.yaml'
+      - 'src/**'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/oci.yml'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'Dockerfile'
+      - 'coordinator.example.yaml'
+      - 'src/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_NAME: ghcr.io/oresoftware/ai-agent-coordinator
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/oci.yml
+      - name: Build image
+        run: docker build --pull --tag "coordinator-ci:${GITHUB_SHA}" .
+      - name: Smoke-test locked-down container
+        shell: bash
+        env:
+          COORDINATOR_API_TOKEN: ci-coordinator-token
+        run: |
+          set -euo pipefail
+          container=ai-agent-coordinator-ci
+          cleanup() {
+            docker logs "$container" || true
+            docker rm --force "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach \
+            --name "$container" \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700 \
+            --publish 127.0.0.1:18080:8080 \
+            --env COORDINATOR_API_TOKEN \
+            --env GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS=declarative-migrations \
+            "coordinator-ci:${GITHUB_SHA}"
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == 60 ]]; then
+              echo 'coordinator did not become ready' >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent --show-error http://127.0.0.1:18080/healthz >/dev/null
+          curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null
+
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            http://127.0.0.1:18080/v1/models)
+          test "$status" = 401
+
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"organization":"declarative-migrations","name":"declarative-migrations-monorepo","visibility":"private","initialization":"readme"}' \
+            http://127.0.0.1:18080/v1/github/repositories)
+          RESPONSE="$response" python3 - <<'PY'
+          import json
+          import os
+
+          payload = json.loads(os.environ['RESPONSE'])['repository']
+          assert payload['dry_run'] is True
+          assert payload['created'] is False
+          assert payload['existing'] is False
+          assert payload['full_name'] == 'declarative-migrations/declarative-migrations-monorepo'
+          assert payload['visibility'] == 'private'
+          assert payload['initialization'] == 'readme'
+          PY
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Log in to GHCR
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Create isolated Buildx builder
+        run: |
+          docker buildx create --name coordinator-builder --driver docker-container --use
+          docker buildx inspect --bootstrap
+      - name: Publish immutable and channel tags
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=mode=max \
+            --sbom=true \
+            --push \
+            --tag "${IMAGE_NAME}:sha-${GITHUB_SHA}" \
+            --tag "${IMAGE_NAME}:main" \
+            .
