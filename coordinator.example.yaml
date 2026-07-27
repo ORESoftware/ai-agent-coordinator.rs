@@ -1,0 +1,143 @@
+server:
+  bind: 0.0.0.0:8080
+  max_concurrent_model_requests: 24
+
+database:
+  path: ./data/coordinator.db
+
+auth:
+  required: true
+  token_env: COORDINATOR_API_TOKEN
+
+github:
+  webhook_secret_env: GITHUB_WEBHOOK_SECRET
+  issue_trigger_labels:
+    - agent:run
+  review_trigger_labels:
+    - agent:review
+  auto_enqueue_failed_workflows: true
+
+workers:
+  default_org_concurrency: 5
+  default_repo_concurrency: 2
+  org_concurrency:
+    oresoftware: 8
+  repo_concurrency:
+    oresoftware/ai-agent-coordinator.rs: 3
+
+routing:
+  require_repository_context: true
+  # Cheapest acceptable route first. Use task-specific orders to start with a
+  # stronger model for architecture, security, migrations, and final review.
+  default_order:
+    - local-qwen-coder
+    - mistral-codestral
+    - openrouter-balanced
+    - openai-frontier
+  task_orders:
+    classify:
+      - local-qwen-coder
+      - mistral-codestral
+    repository_summary:
+      - local-qwen-coder
+      - mistral-codestral
+    code_change:
+      - mistral-codestral
+      - openrouter-balanced
+      - openai-frontier
+    architecture:
+      - openai-frontier
+      - openrouter-balanced
+      - mistral-codestral
+    security_review:
+      - openai-frontier
+      - openrouter-balanced
+  fallbacks:
+    openai-frontier:
+      - openrouter-balanced
+      - mistral-codestral
+      - local-qwen-coder
+    openrouter-balanced:
+      - mistral-codestral
+      - local-qwen-coder
+    mistral-codestral:
+      - local-qwen-coder
+
+budgets:
+  default_org_daily_usd: 50.00
+  default_repo_daily_usd: 5.00
+  org_daily_usd:
+    oresoftware: 100.00
+  repo_daily_usd:
+    oresoftware/ai-agent-coordinator.rs: 10.00
+
+security:
+  max_request_bytes: 2097152
+  redact_secrets: true
+  deny_remote_when_secrets_cannot_be_redacted: true
+  restricted_requires_local: true
+
+providers:
+  ollama:
+    kind: openai-compatible
+    base_url: http://host.docker.internal:11434/v1
+    trust: local
+    timeout_seconds: 300
+
+  mistral:
+    kind: openai-compatible
+    base_url: https://api.mistral.ai/v1
+    api_key_env: MISTRAL_API_KEY
+    trust: enterprise
+    timeout_seconds: 180
+
+  openrouter:
+    kind: openai-compatible
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    trust: public
+    timeout_seconds: 180
+    extra_headers:
+      HTTP-Referer: https://fiducia.cloud
+      X-Title: Fiducia AI Agent Coordinator
+
+  openai:
+    kind: openai-compatible
+    base_url: https://api.openai.com/v1
+    api_key_env: OPENAI_API_KEY
+    trust: enterprise
+    timeout_seconds: 180
+
+models:
+  local-qwen-coder:
+    provider: ollama
+    upstream_model: qwen2.5-coder:7b
+    tier: local
+    input_cost_per_million_usd: 0.0
+    output_cost_per_million_usd: 0.0
+    task_types: ["*"]
+
+  mistral-codestral:
+    provider: mistral
+    upstream_model: codestral-latest
+    tier: cheap
+    # Replace sample prices with the current provider prices before production.
+    input_cost_per_million_usd: 1.0
+    output_cost_per_million_usd: 3.0
+    task_types: ["*"]
+
+  openrouter-balanced:
+    provider: openrouter
+    upstream_model: openrouter/auto
+    tier: balanced
+    input_cost_per_million_usd: 3.0
+    output_cost_per_million_usd: 9.0
+    task_types: ["*"]
+
+  openai-frontier:
+    provider: openai
+    upstream_model: REPLACE_WITH_APPROVED_MODEL
+    tier: frontier
+    input_cost_per_million_usd: 5.0
+    output_cost_per_million_usd: 20.0
+    task_types: ["*"]
