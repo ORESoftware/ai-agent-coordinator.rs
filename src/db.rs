@@ -115,7 +115,9 @@ impl Database {
         let connection = self.connection.lock();
         let value: i64 = connection.query_row("SELECT 1", [], |row| row.get(0))?;
         if value != 1 {
-            return Err(anyhow!("database readiness query returned an unexpected value"));
+            return Err(anyhow!(
+                "database readiness query returned an unexpected value"
+            ));
         }
         Ok(())
     }
@@ -365,9 +367,7 @@ impl Database {
                     params![result_json, now.timestamp_millis(), id],
                 )?;
             }
-            CompletionOutcome::Failed
-                if request.retryable && job.attempts < job.max_attempts =>
-            {
+            CompletionOutcome::Failed if request.retryable && job.attempts < job.max_attempts => {
                 let delay = request.retry_delay_seconds.clamp(0, 86_400);
                 let available_at = now + ChronoDuration::seconds(delay);
                 transaction.execute(
