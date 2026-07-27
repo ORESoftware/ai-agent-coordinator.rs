@@ -32,7 +32,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if git diff --quiet -- src Cargo.lock; then
+          if [[ -z "$(git status --porcelain -- src Cargo.lock)" ]]; then
             echo 'Sources and Cargo.lock are already normalized.'
             exit 0
           fi
