@@ -1,0 +1,155 @@
+name: Deployment contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/deployment-contract.yml'
+      - 'deploy/k8s/**'
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IMAGE_REF: ghcr.io/oresoftware/ai-agent-coordinator:sha-d737ce98fbb6f7c82fae598e8938050685633e05
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/deployment-contract.yml
+      - name: Validate namespace-scoped manifest contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' deploy/k8s; then
+            echo 'Git conflict markers are forbidden.' >&2
+            exit 1
+          fi
+          ruby <<'RUBY'
+          require 'yaml'
+
+          root = 'deploy/k8s'
+          kustomization = YAML.safe_load(File.read(File.join(root, 'kustomization.yaml')))
+          expected_files = kustomization.fetch('resources').sort
+          actual_files = Dir[File.join(root, '*.yaml')]
+            .map { |path| File.basename(path) }
+            .reject { |name| name == 'kustomization.yaml' }
+            .sort
+          abort "kustomization resources do not match files: #{expected_files.inspect} != #{actual_files.inspect}" unless expected_files == actual_files
+
+          resources = actual_files.flat_map do |name|
+            YAML.load_stream(File.read(File.join(root, name))).compact
+          end
+          allowed_kinds = %w[Deployment ExternalSecret PersistentVolumeClaim Service]
+          resources.each do |resource|
+            kind = resource.fetch('kind')
+            abort "cluster-scoped or unexpected kind #{kind}" unless allowed_kinds.include?(kind)
+            metadata = resource.fetch('metadata')
+            abort "#{kind} must use ai-agent-coordinator namespace" unless metadata['namespace'] == 'ai-agent-coordinator'
+          end
+          abort 'plaintext Secret objects are forbidden' if resources.any? { |resource| resource['kind'] == 'Secret' }
+
+          deployment = resources.find { |resource| resource['kind'] == 'Deployment' } or abort 'Deployment missing'
+          spec = deployment.fetch('spec')
+          abort 'Deployment must remain single-replica' unless spec['replicas'] == 1
+          abort 'SQLite Deployment must use Recreate' unless spec.dig('strategy', 'type') == 'Recreate'
+          pod_spec = spec.dig('template', 'spec')
+          abort 'service account token must not be mounted' unless pod_spec['automountServiceAccountToken'] == false
+          abort 'wrong tenant service account' unless pod_spec['serviceAccountName'] == 'ai-agent-coordinator'
+          container = pod_spec.fetch('containers').find { |entry| entry['name'] == 'coordinator' } or abort 'coordinator container missing'
+          expected_image = ENV.fetch('IMAGE_REF')
+          abort "image must be pinned to #{expected_image}" unless container['image'] == expected_image
+          security = container.fetch('securityContext')
+          abort 'privilege escalation must be disabled' unless security['allowPrivilegeEscalation'] == false
+          abort 'root filesystem must be read-only' unless security['readOnlyRootFilesystem'] == true
+          abort 'all capabilities must be dropped' unless security.dig('capabilities', 'drop') == ['ALL']
+
+          env = container.fetch('env').to_h { |entry| [entry.fetch('name'), entry['value']] }
+          abort 'repository administration must default disabled' unless env['GITHUB_REPOSITORY_ADMIN_ENABLED'] == 'false'
+          abort 'initial allowlist must be declarative-migrations only' unless env['GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS'] == 'declarative-migrations'
+
+          refs = container.fetch('envFrom').map { |entry| entry.fetch('secretRef') }
+          core = refs.find { |ref| ref['name'] == 'ai-agent-coordinator-core' } or abort 'core secret reference missing'
+          abort 'core secret must not be optional' if core['optional'] == true
+          admin = refs.find { |ref| ref['name'] == 'ai-agent-coordinator-admin' } or abort 'admin secret reference missing'
+          abort 'admin secret must remain optional before activation' unless admin['optional'] == true
+
+          external_secret = resources.find { |resource| resource['kind'] == 'ExternalSecret' } or abort 'ExternalSecret missing'
+          abort 'unexpected secret store' unless external_secret.dig('spec', 'secretStoreRef', 'kind') == 'ClusterSecretStore' && external_secret.dig('spec', 'secretStoreRef', 'name') == 'dd-cluster-secrets'
+          abort 'ExternalSecret target mismatch' unless external_secret.dig('spec', 'target', 'name') == 'ai-agent-coordinator-core'
+          secret_keys = external_secret.dig('spec', 'data').map { |entry| entry['secretKey'] }
+          abort 'only the API token belongs in the bootstrap core secret' unless secret_keys == ['COORDINATOR_API_TOKEN']
+
+          pvc = resources.find { |resource| resource['kind'] == 'PersistentVolumeClaim' } or abort 'PVC missing'
+          abort 'PVC must request ReadWriteOnce' unless pvc.dig('spec', 'accessModes') == ['ReadWriteOnce']
+          RUBY
+      - name: Authenticate to GHCR with read-only package access
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Pull and smoke-test immutable image
+        shell: bash
+        env:
+          COORDINATOR_API_TOKEN: deployment-contract-token
+        run: |
+          set -euo pipefail
+          docker pull "$IMAGE_REF"
+          container=ai-agent-coordinator-deployment-contract
+          cleanup() {
+            docker logs "$container" || true
+            docker rm --force "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach \
+            --name "$container" \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700 \
+            --publish 127.0.0.1:18080:8080 \
+            --env COORDINATOR_API_TOKEN \
+            --env GITHUB_REPOSITORY_ADMIN_ENABLED=false \
+            --env GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS=declarative-migrations \
+            "$IMAGE_REF"
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == 60 ]]; then
+              echo 'published coordinator image did not become ready' >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          curl --fail --silent --show-error http://127.0.0.1:18080/healthz >/dev/null
+          response=$(curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"organization":"declarative-migrations","name":"declarative-migrations-monorepo","visibility":"private","initialization":"readme"}' \
+            http://127.0.0.1:18080/v1/github/repositories)
+          RESPONSE="$response" python3 - <<'PY'
+          import json
+          import os
+
+          repository = json.loads(os.environ['RESPONSE'])['repository']
+          assert repository['dry_run'] is True
+          assert repository['created'] is False
+          assert repository['full_name'] == 'declarative-migrations/declarative-migrations-monorepo'
+          PY
