@@ -21,6 +21,7 @@ use crate::{
     db::Database,
     error::AppError,
     gateway::ModelGateway,
+    github_admin::{CreateRepositoryRequest, GithubRepositoryAdmin},
     jobs::{ClaimJobRequest, CompleteJobRequest, CreateJobRequest, HeartbeatJobRequest},
     providers::ProviderRegistry,
     security::SecretScanner,
@@ -32,6 +33,7 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub database: Database,
     pub gateway: ModelGateway,
+    pub github_repository_admin: GithubRepositoryAdmin,
     api_token: Option<String>,
     github_webhook_secret: Option<String>,
 }
@@ -48,12 +50,14 @@ impl AppState {
             providers,
             scanner,
         );
+        let github_repository_admin = GithubRepositoryAdmin::from_env()?;
         let api_token = config.api_token();
         let github_webhook_secret = config.github_webhook_secret();
         Ok(Self {
             config,
             database,
             gateway,
+            github_repository_admin,
             api_token,
             github_webhook_secret,
         })
@@ -92,6 +96,10 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/heartbeat", post(heartbeat_job))
         .route("/v1/jobs/:id/complete", post(complete_job))
         .route("/v1/jobs/:id/cancel", post(cancel_job))
+        .route(
+            "/v1/github/repositories",
+            post(create_github_repository),
+        )
         .route("/webhooks/github", post(github_webhook))
         .layer(DefaultBodyLimit::max(max_request_bytes))
         .layer(PropagateRequestIdLayer::new(request_id_header.clone()))
@@ -230,6 +238,24 @@ async fn cancel_job(
         .cancel_job(&id)
         .map_err(|error| AppError::BadRequest(error.to_string()))?;
     Ok(Json(json!({"job": job})))
+}
+
+async fn create_github_repository(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<CreateRepositoryRequest>,
+) -> Result<(StatusCode, Json<Value>), AppError> {
+    state.authorize(&headers)?;
+    let result = state
+        .github_repository_admin
+        .create_repository(request)
+        .await?;
+    let status = if result.created {
+        StatusCode::CREATED
+    } else {
+        StatusCode::OK
+    };
+    Ok((status, Json(json!({"repository": result}))))
 }
 
 async fn github_webhook(
