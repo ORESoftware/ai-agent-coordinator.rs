@@ -293,7 +293,8 @@ async fn deliver_next_linear_job(
 
     match state.linear_delivery_worker.deliver_job(&job).await {
         Ok(report) => {
-            let result = serde_json::to_value(&report).map_err(AppError::Internal)?;
+            let result =
+                serde_json::to_value(&report).map_err(|error| AppError::Internal(error.into()))?;
             let completed = state
                 .database
                 .complete_job(
