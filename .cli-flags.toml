@@ -12,14 +12,7 @@ allow_unknown = false
 [env]
 # Credentials are intentionally environment-only. They must never be accepted
 # as command-line values because process arguments are commonly observable.
-ignore = [
-  "COORDINATOR_API_TOKEN",
-  "GITHUB_WEBHOOK_SECRET",
-  "GITHUB_REPOSITORY_ADMIN_TOKEN",
-  "MISTRAL_API_KEY",
-  "OPENROUTER_API_KEY",
-  "OPENAI_API_KEY",
-]
+ignore = ["COORDINATOR_API_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPOSITORY_ADMIN_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"]
 
 [flags.config]
 env = "COORDINATOR_CONFIG"
