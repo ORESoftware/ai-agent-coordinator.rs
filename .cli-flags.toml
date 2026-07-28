@@ -31,13 +31,13 @@ help = "Path to the coordinator YAML configuration file."
 [flags.json-logs]
 env = "COORDINATOR_JSON_LOGS"
 aliases = ["json-logs"]
-type = "boolean"
+type = "bool"
 help = "Emit structured JSON logs."
 
 [flags.repository-admin-enabled]
 env = "GITHUB_REPOSITORY_ADMIN_ENABLED"
 aliases = ["repository-admin-enabled"]
-type = "boolean"
+type = "bool"
 help = "Enable the fail-closed GitHub repository administration adapter."
 
 [flags.repository-admin-allowed-orgs]
