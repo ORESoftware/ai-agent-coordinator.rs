@@ -5,6 +5,7 @@ pub mod error;
 pub mod gateway;
 pub mod github_admin;
 pub mod jobs;
+pub mod linear_delivery;
 pub mod providers;
 pub mod security;
 pub mod webhooks;
