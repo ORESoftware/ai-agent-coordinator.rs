@@ -35,7 +35,7 @@ pub struct AppState {
     pub gateway: ModelGateway,
     pub github_repository_admin: GithubRepositoryAdmin,
     api_token: Option<String>,
-    github_webhook_secret: Option<String>,
+    github_webhook_policy: webhooks::GithubWebhookPolicy,
 }
 
 impl AppState {
@@ -47,14 +47,15 @@ impl AppState {
         let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
         let api_token = config.api_token();
-        let github_webhook_secret = config.github_webhook_secret();
+        let github_webhook_policy =
+            webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
         Ok(Self {
             config,
             database,
             gateway,
             github_repository_admin,
             api_token,
-            github_webhook_secret,
+            github_webhook_policy,
         })
     }
 
@@ -252,11 +253,11 @@ async fn github_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<Value>, AppError> {
-    webhooks::verify_signature(&headers, &body, state.github_webhook_secret.as_deref())?;
-    let response = webhooks::enqueue_from_github(
+    let response = webhooks::process_github_webhook(
         &state.database,
         &headers,
         body,
+        &state.github_webhook_policy,
         &state.config.github.issue_trigger_labels,
         &state.config.github.review_trigger_labels,
         state.config.github.auto_enqueue_failed_workflows,
