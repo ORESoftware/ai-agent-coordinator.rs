@@ -73,7 +73,7 @@ curl --fail-with-body --silent --show-error \
   https://coordinator.example/v1/linear/deliver-next
 ```
 
-A successful delivery completes the durable job. A retryable timeout, rate limit, or server error requeues it with a bounded delay. A permanent policy error fails the job without retry.
+A successful delivery completes the durable job. A retryable timeout, rate limit, or server error requeues it with a bounded delay. A permanent policy error fails the job without retry. The live endpoint refuses to claim work while dry-run is enabled, so planning cannot accidentally consume a queued event.
 
 ## Mutation policy
 
