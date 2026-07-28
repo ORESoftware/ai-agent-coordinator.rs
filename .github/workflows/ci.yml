@@ -88,9 +88,21 @@ jobs:
       - name: Build pinned flags2env
         run: make -B -C vendor/flags-2-env all
       - name: Audit the non-secret CLI contract
+        id: flags_audit
         env:
           FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
-        run: bash scripts/with-flags audit
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/with-flags audit 2>&1 | tee flags-audit.log
+      - name: Upload failing flags audit
+        if: failure() && steps.flags_audit.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flags-audit-output
+          path: flags-audit.log
+          retention-days: 1
+          if-no-files-found: error
       - name: Verify representative CLI-to-environment mappings
         env:
           FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
