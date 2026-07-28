@@ -13,6 +13,22 @@ Usage:
 EOF
 }
 
+reject_secret_flags() {
+  local argument option
+
+  for argument in "$@"; do
+    [[ "$argument" == "--" ]] && break
+    option="${argument%%=*}"
+    case "$option" in
+      --coordinator-api-token|--github-webhook-secret|--github-repository-admin-token|--mistral-api-key|--openrouter-api-key|--openai-api-key)
+        printf '%s\n' \
+          'credential command-line options are not accepted; use environment-based secret injection' >&2
+        exit 64
+        ;;
+    esac
+  done
+}
+
 cached_binary_for_source() {
   local source_dir="$1"
   local revision cache_root build_dir binary
@@ -62,6 +78,7 @@ resolve_binary() {
   return 1
 }
 
+reject_secret_flags "$@"
 flags2env_bin="$(resolve_binary)"
 
 case "${1:-}" in
@@ -93,7 +110,7 @@ if [[ "$found_separator" != true || $# -eq 0 ]]; then
   exit 64
 fi
 
-exports="$("$flags2env_bin" shell-env --config "$config_path" -- "$(basename "$repo_root")" "${flag_args[@]}")"
+exports="$($flags2env_bin shell-env --config "$config_path" -- "$(basename "$repo_root")" "${flag_args[@]}")"
 eval "$exports"
 
 if [[ "${FLAGS2ENV_PARSE_ERRORS:-[]}" != "[]" ]]; then
