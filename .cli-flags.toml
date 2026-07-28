@@ -1,6 +1,13 @@
+# Non-secret command-line flags for ai-agent-coordinator.
+#
+# This is the canonical CLI-to-environment contract used by flags-2-env.
+# Credentials, provider keys, webhook secrets, and repository-administration
+# tokens are deliberately environment/secret-manager only and are never
+# accepted as command-line values.
+
 [help]
-url = "https://github.com/ORESoftware/ai-agent-coordinator.rs"
-columns = ["options", "env", "type", "description"]
+url = "https://github.com/ORESoftware/ai-agent-coordinator.rs/blob/main/docs/cli-flags.md"
+columns = ["options", "env", "type", "default", "description"]
 
 [parse]
 require_equals = true
@@ -10,8 +17,6 @@ errors_env = "FLAGS2ENV_PARSE_ERRORS"
 allow_unknown = false
 
 [env]
-# Credentials are intentionally environment-only. They must never be accepted
-# as command-line values because process arguments are commonly observable.
 ignore = ["COORDINATOR_API_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPOSITORY_ADMIN_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"]
 
 [flags.config]
@@ -19,23 +24,26 @@ env = "COORDINATOR_CONFIG"
 aliases = ["config", "config-path"]
 short = "c"
 type = "string"
+default = "coordinator.yaml"
 help = "Path to the coordinator YAML configuration file."
 
 [flags.json-logs]
 env = "COORDINATOR_JSON_LOGS"
 aliases = ["json-logs"]
 type = "bool"
+default = "false"
 help = "Emit structured JSON logs."
 
 [flags.repository-admin-enabled]
 env = "GITHUB_REPOSITORY_ADMIN_ENABLED"
-aliases = ["repository-admin-enabled"]
+aliases = ["repository-admin-enabled", "github-repository-admin-enabled"]
 type = "bool"
-help = "Enable the fail-closed GitHub repository administration adapter."
+default = "false"
+help = "Enable the fail-closed GitHub repository administration adapter after a reviewed dry run."
 
 [flags.repository-admin-allowed-orgs]
 env = "GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS"
-aliases = ["repository-admin-allowed-orgs"]
+aliases = ["repository-admin-allowed-orgs", "github-repository-admin-allowed-orgs"]
 type = "string"
 help = "Comma-separated exact organization allowlist for repository administration."
 
@@ -43,22 +51,26 @@ help = "Comma-separated exact organization allowlist for repository administrati
 env = "GITHUB_API_BASE_URL"
 aliases = ["github-api-base-url"]
 type = "string"
-help = "HTTPS base URL for the GitHub API."
+default = "https://api.github.com"
+help = "GitHub API base URL; HTTPS is required except loopback HTTP in tests."
 
 [flags.github-api-version]
 env = "GITHUB_API_VERSION"
 aliases = ["github-api-version"]
 type = "string"
+default = "2022-11-28"
 help = "GitHub REST API version header value."
 
 [flags.github-api-user-agent]
 env = "GITHUB_API_USER_AGENT"
 aliases = ["github-api-user-agent"]
 type = "string"
+default = "ai-agent-coordinator"
 help = "User-Agent sent by the GitHub administration adapter."
 
 [flags.rust-log]
 env = "RUST_LOG"
 aliases = ["rust-log", "log-filter"]
 type = "string"
+default = "ai_agent_coordinator=info,tower_http=info"
 help = "Tracing filter used by the coordinator process."
