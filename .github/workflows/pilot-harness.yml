@@ -1,0 +1,54 @@
+name: Cross-organization push pilot harness
+
+on:
+  pull_request:
+    paths:
+      - scripts/pilot_github_push.py
+      - scripts/test_pilot_github_push.py
+      - .github/workflows/pilot-harness.yml
+      - docs/cross-org-pilot.md
+  push:
+    branches: [main]
+    paths:
+      - scripts/pilot_github_push.py
+      - scripts/test_pilot_github_push.py
+      - .github/workflows/pilot-harness.yml
+      - docs/cross-org-pilot.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile pilot scripts
+        run: python -m py_compile scripts/pilot_github_push.py scripts/test_pilot_github_push.py
+      - name: Run pilot harness unit tests
+        run: python -m unittest -v scripts/test_pilot_github_push.py
+      - name: Exercise redacted dry-run output
+        env:
+          PILOT_WEBHOOK_SECRET: test-secret-not-for-production
+        run: |
+          output="$(python scripts/pilot_github_push.py \
+            --endpoint=http://127.0.0.1:8080/webhooks/github \
+            --organization=sonus-auris \
+            --repository=sonus-auris/sonus-auris-site.web \
+            --commit=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa \
+            --issue=DEN-455 \
+            --secret-env=PILOT_WEBHOOK_SECRET \
+            --dry-run)"
+          grep -Fq '"x-hub-signature-256": "[REDACTED:HMAC]"' <<<"$output"
+          ! grep -Fq "$PILOT_WEBHOOK_SECRET" <<<"$output"
