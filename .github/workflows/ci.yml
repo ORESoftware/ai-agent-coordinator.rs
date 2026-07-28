@@ -30,7 +30,22 @@ jobs:
       - name: Build pinned flags2env CLI
         run: make -C tools/flags-2-env all
       - name: Audit CLI-to-environment contract
-        run: tools/flags-2-env/build/flags2env audit .cli-flags.toml
+        id: contract-audit
+        shell: bash
+        run: |
+          set +e
+          tools/flags-2-env/build/flags2env audit .cli-flags.toml >flags2env-audit.log 2>&1
+          status=$?
+          cat flags2env-audit.log
+          exit "$status"
+      - name: Upload flags2env audit diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flags2env-audit
+          path: flags2env-audit.log
+          retention-days: 1
+          if-no-files-found: error
       - name: Verify representative exports and strict parsing
         shell: bash
         env:
