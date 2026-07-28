@@ -45,4 +45,14 @@ fi
 
 exports="$("$bin" shell-env --config "$root/.cli-flags.toml" -- "${flags[@]}")"
 eval "$exports"
+
+if [[ "${FLAGS2ENV_PARSE_ERRORS:-[]}" != "[]" ]]; then
+  echo "flags2env: one or more flag values failed validation" >&2
+  exit 2
+fi
+if [[ "${FLAGS2ENV_UNKNOWN_OPTIONS:-[]}" != "[]" ]]; then
+  echo "flags2env: one or more unknown options were rejected" >&2
+  exit 2
+fi
+
 exec "$@"
