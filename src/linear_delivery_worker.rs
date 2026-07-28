@@ -669,14 +669,22 @@ impl LinearDeliveryWorker {
         if self.config.min_org_interval.is_zero() {
             return;
         }
-        let mut requests = self.org_requests.lock().await;
-        if let Some(last) = requests.get(organization) {
-            let elapsed = last.elapsed();
-            if elapsed < self.config.min_org_interval {
-                sleep(self.config.min_org_interval - elapsed).await;
-            }
+
+        loop {
+            let delay = {
+                let mut requests = self.org_requests.lock().await;
+                match requests.get(organization) {
+                    Some(last) if last.elapsed() < self.config.min_org_interval => {
+                        self.config.min_org_interval - last.elapsed()
+                    }
+                    _ => {
+                        requests.insert(organization.to_owned(), Instant::now());
+                        return;
+                    }
+                }
+            };
+            sleep(delay).await;
         }
-        requests.insert(organization.to_owned(), Instant::now());
     }
 }
 
