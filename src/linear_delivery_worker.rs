@@ -132,12 +132,8 @@ impl LinearDeliveryConfig {
             4 * 1024 * 1024,
         )? as usize;
         let max_retries = parse_u64_env("LINEAR_MAX_RETRIES", 3, 0, 10)? as usize;
-        let min_org_interval = Duration::from_millis(parse_u64_env(
-            "LINEAR_MIN_ORG_INTERVAL_MS",
-            100,
-            0,
-            60_000,
-        )?);
+        let min_org_interval =
+            Duration::from_millis(parse_u64_env("LINEAR_MIN_ORG_INTERVAL_MS", 100, 0, 60_000)?);
 
         if team_key.trim().is_empty() {
             bail!("LINEAR_TEAM_KEY must not be empty");
@@ -176,8 +172,14 @@ impl LinearDeliveryConfig {
             auth_scheme: LinearAuthScheme::ApiKey,
             team_key: "DEN".to_owned(),
             project_names: HashMap::from([
-                ("sonus-auris".to_owned(), "github.com/sonus-auris".to_owned()),
-                ("daedalus-fab".to_owned(), "github.com/daedalus-fab".to_owned()),
+                (
+                    "sonus-auris".to_owned(),
+                    "github.com/sonus-auris".to_owned(),
+                ),
+                (
+                    "daedalus-fab".to_owned(),
+                    "github.com/daedalus-fab".to_owned(),
+                ),
             ]),
             completed_state_ids: HashMap::from([
                 ("sonus-auris".to_owned(), "completed-sonus".to_owned()),
@@ -283,7 +285,10 @@ impl LinearDeliveryWorker {
         })
     }
 
-    pub async fn deliver_job(&self, job: &Job) -> Result<LinearDeliveryReport, LinearDeliveryError> {
+    pub async fn deliver_job(
+        &self,
+        job: &Job,
+    ) -> Result<LinearDeliveryReport, LinearDeliveryError> {
         if self.config.dry_run {
             return self.plan_job(job);
         }
@@ -364,7 +369,9 @@ impl LinearDeliveryWorker {
             "https://github.com/{}/{}/commit/{}",
             job.org, job.repo, directive.commit_id
         );
-        let issue = self.fetch_issue(&job.org, &directive.issue_identifier).await?;
+        let issue = self
+            .fetch_issue(&job.org, &directive.issue_identifier)
+            .await?;
         validate_issue(
             &issue,
             &directive.issue_identifier,
@@ -750,7 +757,9 @@ impl PushEnvelope {
             .payload
             .pointer("/repository/full_name")
             .and_then(Value::as_str)
-            .ok_or_else(|| LinearDeliveryError::policy("push job is missing repository.full_name"))?;
+            .ok_or_else(|| {
+                LinearDeliveryError::policy("push job is missing repository.full_name")
+            })?;
         if repository != format!("{}/{}", job.org, job.repo) {
             return Err(LinearDeliveryError::policy(
                 "push job repository does not match durable job scope",
@@ -761,7 +770,9 @@ impl PushEnvelope {
             .pointer("/coordinator/default_branch")
             .and_then(Value::as_str)
             .filter(|value| !value.trim().is_empty())
-            .ok_or_else(|| LinearDeliveryError::policy("push job is missing default-branch policy"))?
+            .ok_or_else(|| {
+                LinearDeliveryError::policy("push job is missing default-branch policy")
+            })?
             .to_owned();
         let pushed_ref = job
             .payload
@@ -918,7 +929,10 @@ impl LinearMutationLedger {
         if database_path != ":memory:" {
             if let Some(parent) = Path::new(database_path).parent() {
                 std::fs::create_dir_all(parent).with_context(|| {
-                    format!("failed to create Linear ledger directory {}", parent.display())
+                    format!(
+                        "failed to create Linear ledger directory {}",
+                        parent.display()
+                    )
                 })?;
             }
         }
@@ -1221,12 +1235,7 @@ mod tests {
         sync::{Arc, Mutex as StdMutex},
     };
 
-    use axum::{
-        extract::State,
-        http::StatusCode,
-        routing::post,
-        Json, Router,
-    };
+    use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
     use tempfile::TempDir;
     use tokio::net::TcpListener;
 
@@ -1253,9 +1262,7 @@ mod tests {
         (status, Json(response))
     }
 
-    async fn mock_server(
-        responses: Vec<(StatusCode, Value)>,
-    ) -> (Url, Arc<StdMutex<Vec<Value>>>) {
+    async fn mock_server(responses: Vec<(StatusCode, Value)>) -> (Url, Arc<StdMutex<Vec<Value>>>) {
         let state = MockState {
             responses: Arc::new(StdMutex::new(VecDeque::from(responses))),
             requests: Arc::new(StdMutex::new(Vec::new())),
@@ -1391,7 +1398,7 @@ mod tests {
             ),
             (
                 StatusCode::OK,
-                json!({"data": {"issueUpdate": {"success": true, "issue": {"id": "issue-uuid", "identifier": "DEN-455", "state": {"id": "completed-sonus", "name": "Done", "type": "completed"}}}}),
+                json!({"data": {"issueUpdate": {"success": true, "issue": {"id": "issue-uuid", "identifier": "DEN-455", "state": {"id": "completed-sonus", "name": "Done", "type": "completed"}}}}}),
             ),
         ])
         .await;
@@ -1405,7 +1412,10 @@ mod tests {
         assert_eq!(report.directives[0].action, "reference_and_transition");
         let requests = requests.lock().unwrap();
         assert_eq!(requests.len(), 4);
-        assert!(requests[3]["query"].as_str().unwrap().contains("issueUpdate"));
+        assert!(requests[3]["query"]
+            .as_str()
+            .unwrap()
+            .contains("issueUpdate"));
         assert_eq!(
             requests[3]["variables"]["input"]["stateId"],
             "completed-sonus"

@@ -51,8 +51,7 @@ impl AppState {
         let scanner = SecretScanner::new()?;
         let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
-        let linear_delivery_worker =
-            LinearDeliveryWorker::from_env(&config.database.path)?;
+        let linear_delivery_worker = LinearDeliveryWorker::from_env(&config.database.path)?;
         let api_token = config.api_token();
         let github_webhook_policy =
             webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
@@ -247,7 +246,9 @@ async fn plan_linear_delivery(
 ) -> Result<Json<Value>, AppError> {
     state.authorize(&headers)?;
     if !state.linear_delivery_worker.enabled() {
-        return Err(AppError::BadRequest("Linear delivery is disabled".to_owned()));
+        return Err(AppError::BadRequest(
+            "Linear delivery is disabled".to_owned(),
+        ));
     }
     let job = state
         .database
@@ -268,7 +269,9 @@ async fn deliver_next_linear_job(
 ) -> Result<impl IntoResponse, AppError> {
     state.authorize(&headers)?;
     if !state.linear_delivery_worker.enabled() {
-        return Err(AppError::BadRequest("Linear delivery is disabled".to_owned()));
+        return Err(AppError::BadRequest(
+            "Linear delivery is disabled".to_owned(),
+        ));
     }
     if state.linear_delivery_worker.dry_run() {
         return Err(AppError::BadRequest(
