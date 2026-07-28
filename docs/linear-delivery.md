@@ -97,6 +97,10 @@ Linear attachments are keyed by issue and URL, while the coordinator also record
 - Authorization values and response bodies are never logged.
 - Stored errors are generic, bounded, and credential-free.
 
+## Validation before activation
+
+The implementation must pass actionlint, committed Rust formatting, Clippy with warnings denied, locked tests, documentation and release builds, RustSec audit, flags-contract tests, and the locked-down OCI runtime smoke on the exact reviewed head. Live delivery remains disabled until those checks and the dry-run plan both pass.
+
 ## Recovery and rollback
 
 To stop mutations immediately, set either:
