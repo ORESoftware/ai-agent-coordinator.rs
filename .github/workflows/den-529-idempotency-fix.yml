@@ -1,0 +1,76 @@
+name: DEN-529 Idempotency Fix
+
+on:
+  push:
+    branches:
+      - agent/den-529-linear-delivery-worker
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-529-idempotency-fix
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-529-linear-delivery-worker
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt
+      - name: Defer ambiguous comment retries to durable jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/linear_delivery_worker.rs')
+          source = path.read_text()
+
+          replacements = [
+              ('                "issue query",\n            )', '                "issue query",\n                true,\n            )'),
+              ('                "attachment mutation",\n            )', '                "attachment mutation",\n                true,\n            )'),
+              ('                "comment mutation",\n            )', '                "comment mutation",\n                false,\n            )'),
+              ('                "issue state mutation",\n            )', '                "issue state mutation",\n                true,\n            )'),
+              ('        variables: Value,\n        operation: &str,\n    ) -> Result<Value, LinearDeliveryError> {', '        variables: Value,\n        operation: &str,\n        retry_ambiguous: bool,\n    ) -> Result<Value, LinearDeliveryError> {'),
+              (
+                  '''                    if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {\n                        let error = LinearDeliveryError::retryable(\n                            format!("Linear {operation} returned HTTP {status}"),\n                            retry_after.unwrap_or_else(|| retry_delay(attempt)),\n                        );\n                        if attempt < self.config.max_retries {\n                            sleep(error.retry_after).await;\n                            last_error = Some(error);\n                            continue;\n                        }\n                        return Err(error);\n                    }''',
+                  '''                    if status == StatusCode::TOO_MANY_REQUESTS\n                        || (retry_ambiguous && status.is_server_error())\n                    {\n                        let error = LinearDeliveryError::retryable(\n                            format!("Linear {operation} returned HTTP {status}"),\n                            retry_after.unwrap_or_else(|| retry_delay(attempt)),\n                        );\n                        if attempt < self.config.max_retries {\n                            sleep(error.retry_after).await;\n                            last_error = Some(error);\n                            continue;\n                        }\n                        return Err(error);\n                    }\n                    if status.is_server_error() {\n                        return Err(LinearDeliveryError::retryable(\n                            format!("Linear {operation} returned HTTP {status}"),\n                            retry_after.unwrap_or_else(|| retry_delay(attempt)),\n                        ));\n                    }'''
+              ),
+              ('                    if retryable && attempt < self.config.max_retries {', '                    if retryable && retry_ambiguous && attempt < self.config.max_retries {'),
+          ]
+
+          for old, new in replacements:
+              count = source.count(old)
+              if count != 1:
+                  raise SystemExit(f'unexpected replacement match count {count}: {old[:80]!r}')
+              source = source.replace(old, new)
+
+          anchor = '''    #[test]\n    fn claim_request_filters_to_github_push_jobs() {'''
+          test = '''    #[tokio::test]\n    async fn ambiguous_comment_failure_is_deferred_to_the_job_queue() {\n        let (url, requests) = mock_server(vec![\n            (\n                StatusCode::OK,\n                issue_response("github.com/sonus-auris", "started", vec![]),\n            ),\n            (\n                StatusCode::OK,\n                json!({"data": {"attachmentCreate": {"success": true, "attachment": {"id": "attachment", "url": "https://github.com/example"}}}}),\n            ),\n            (\n                StatusCode::INTERNAL_SERVER_ERROR,\n                json!({"errors": [{"message": "ambiguous comment failure"}]}),\n            ),\n            (\n                StatusCode::OK,\n                json!({"data": {"commentCreate": {"success": true, "comment": {"id": "duplicate"}}}}),\n            ),\n        ])\n        .await;\n        let temp = TempDir::new().unwrap();\n        let worker = LinearDeliveryWorker::new(\n            LinearDeliveryConfig::test(url, false),\n            temp.path().join("ledger.db").to_str().unwrap(),\n        )\n        .unwrap();\n\n        let error = worker.deliver_job(&job(false)).await.unwrap_err();\n        assert!(error.retryable);\n        assert_eq!(requests.lock().unwrap().len(), 3);\n    }\n\n'''
+          if source.count(anchor) != 1:
+              raise SystemExit('test insertion anchor mismatch')
+          source = source.replace(anchor, test + anchor)
+          path.write_text(source)
+          PY
+          cargo fmt --all
+          rm .github/workflows/den-529-idempotency-fix.yml
+          git diff --check
+      - name: Commit idempotency hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ORESoftware automation'
+          git config user.email 'alexander.d.mills@gmail.com'
+          git add .github/workflows/den-529-idempotency-fix.yml src tests
+          git commit -m 'Refs DEN-529 defer ambiguous comment retries to durable jobs'
+          git push origin HEAD:agent/den-529-linear-delivery-worker
