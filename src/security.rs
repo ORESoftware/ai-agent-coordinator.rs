@@ -2,6 +2,28 @@ use regex::{Captures, Regex};
 use serde::Serialize;
 use serde_json::Value;
 
+const SENSITIVE_JSON_KEY_CATEGORY: &str = "sensitive_json_key";
+const SENSITIVE_JSON_KEY_EXACT: &[&str] = &[
+    "authorization",
+    "cookie",
+    "password",
+    "passwd",
+    "privatekey",
+    "secret",
+    "setcookie",
+    "token",
+];
+const SENSITIVE_JSON_KEY_SUFFIXES: &[&str] = &[
+    "apikey",
+    "accesstoken",
+    "authtoken",
+    "bearertoken",
+    "clientsecret",
+    "privatekey",
+    "refreshtoken",
+    "webhooksecret",
+];
+
 #[derive(Clone)]
 pub struct SecretScanner {
     patterns: Vec<SecretPattern>,
@@ -87,13 +109,38 @@ impl SecretScanner {
                 }
             }
             Value::Object(values) => {
-                for value in values.values_mut() {
+                for (key, value) in values.iter_mut() {
+                    if is_sensitive_json_key(key) && !value.is_null() {
+                        report.matches += 1;
+                        report
+                            .categories
+                            .push(SENSITIVE_JSON_KEY_CATEGORY.to_owned());
+                        if redact {
+                            *value = Value::String(format!(
+                                "[REDACTED:{SENSITIVE_JSON_KEY_CATEGORY}]"
+                            ));
+                        }
+                        continue;
+                    }
                     self.visit(value, redact, report);
                 }
             }
             Value::Null | Value::Bool(_) | Value::Number(_) => {}
         }
     }
+}
+
+fn is_sensitive_json_key(key: &str) -> bool {
+    let normalized = key
+        .chars()
+        .filter(|character| character.is_ascii_alphanumeric())
+        .flat_map(char::to_lowercase)
+        .collect::<String>();
+
+    SENSITIVE_JSON_KEY_EXACT.contains(&normalized.as_str())
+        || SENSITIVE_JSON_KEY_SUFFIXES
+            .iter()
+            .any(|suffix| normalized.ends_with(suffix))
 }
 
 #[cfg(test)]
@@ -127,5 +174,30 @@ mod tests {
         assert_eq!(report.matches, 1);
         assert_eq!(report.categories, vec!["named_secret".to_owned()]);
         assert!(!value.to_string().contains("abcdefghijk123456"));
+    }
+
+    #[test]
+    fn redacts_values_under_sensitive_json_keys_even_without_token_shapes() {
+        let scanner = SecretScanner::new().unwrap();
+        let mut value = json!({
+            "client_secret": "short",
+            "nested": {
+                "authorization": 7,
+                "cookie": true,
+                "token_count": 42
+            }
+        });
+
+        let report = scanner.scan_and_redact(&mut value, true);
+
+        assert_eq!(report.matches, 3);
+        assert_eq!(report.categories, vec!["sensitive_json_key".to_owned()]);
+        assert_eq!(value["client_secret"], "[REDACTED:sensitive_json_key]");
+        assert_eq!(
+            value["nested"]["authorization"],
+            "[REDACTED:sensitive_json_key]"
+        );
+        assert_eq!(value["nested"]["cookie"], "[REDACTED:sensitive_json_key]");
+        assert_eq!(value["nested"]["token_count"], 42);
     }
 }
