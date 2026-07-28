@@ -13,6 +13,57 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  flags2env:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check out pinned flags-2-env source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: 0c7c1ab91fa55aadab4be9a61c3b5dd3b963201d
+          path: tools/flags-2-env
+          persist-credentials: false
+      - name: Build pinned flags2env CLI
+        run: make -C tools/flags-2-env all
+      - name: Audit CLI-to-environment contract
+        run: tools/flags-2-env/build/flags2env audit .cli-flags.toml
+      - name: Verify representative exports and strict parsing
+        shell: bash
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/tools/flags-2-env/build/flags2env
+        run: |
+          set -euo pipefail
+          bash scripts/with-flags2env.sh \
+            --config=/tmp/coordinator-ci.yaml \
+            --json-logs \
+            --log-filter=ai_agent_coordinator=debug,tower_http=info \
+            --github-repository-admin-enabled=false \
+            --github-repository-admin-allowed-orgs=declarative-migrations,rust-ssr-demos \
+            --github-api-user-agent=ai-agent-coordinator-ci \
+            -- \
+            bash -eu -o pipefail -c '
+              test "$COORDINATOR_CONFIG" = /tmp/coordinator-ci.yaml
+              test "$COORDINATOR_JSON_LOGS" = true
+              test "$RUST_LOG" = ai_agent_coordinator=debug,tower_http=info
+              test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = false
+              test "$GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS" = declarative-migrations,rust-ssr-demos
+              test "$GITHUB_API_BASE_URL" = https://api.github.com
+              test "$GITHUB_API_VERSION" = 2022-11-28
+              test "$GITHUB_API_USER_AGENT" = ai-agent-coordinator-ci
+              test -z "${COORDINATOR_API_TOKEN+x}"
+              test -z "${GITHUB_WEBHOOK_SECRET+x}"
+              test -z "${GITHUB_REPOSITORY_ADMIN_TOKEN+x}"
+            '
+
+          if bash scripts/with-flags2env.sh --not-a-declared-option -- true; then
+            echo "unknown flags must fail closed" >&2
+            exit 1
+          fi
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
