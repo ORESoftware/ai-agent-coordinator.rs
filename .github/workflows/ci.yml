@@ -29,8 +29,26 @@ jobs:
           toolchain: '1.97.0'
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Format
-        run: cargo fmt --all -- --check
+      - name: Apply canonical Rust formatting for validation
+        id: format
+        shell: bash
+        run: |
+          cargo fmt --all
+          if ! git diff --quiet -- src tests; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload canonical formatter output
+        if: steps.format.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rustfmt-output
+          path: |
+            src/**/*.rs
+            tests/**/*.rs
+          retention-days: 1
+          if-no-files-found: error
+      - name: Require committed Rust formatting
+        run: git diff --exit-code -- src tests
       - name: Clippy
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - name: Test
@@ -47,8 +65,111 @@ jobs:
           path: test-output.log
           retention-days: 1
           if-no-files-found: error
+      - name: Documentation
+        run: cargo doc --locked --no-deps
       - name: Release build
         run: cargo build --locked --release
+
+  flags-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout coordinator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Checkout pinned flags-2-env source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: 7f72052994c71e68bcb28c322f0c2e3bac54e544
+          path: vendor/flags-2-env
+          persist-credentials: false
+      - name: Build pinned flags2env
+        run: make -B -C vendor/flags-2-env all
+      - name: Audit the non-secret CLI contract
+        id: flags_audit
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/with-flags audit 2>&1 | tee flags-audit.log
+      - name: Upload failing flags audit
+        if: failure() && steps.flags_audit.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flags-audit-output
+          path: flags-audit.log
+          retention-days: 1
+          if-no-files-found: error
+      - name: Verify representative mappings and long-form aliases
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/with-flags \
+            --config=coordinator.example.yaml \
+            --json-logs=true \
+            --github-repository-admin-enabled=false \
+            --github-repository-admin-allowed-orgs=fiducia-cloud,sonus-auris \
+            --github-api-base-url=https://api.github.com \
+            --github-api-version=2022-11-28 \
+            --github-api-user-agent=ai-agent-coordinator-ci \
+            --log-filter=warn \
+            -- bash -euo pipefail -c '
+              test "$COORDINATOR_CONFIG" = "coordinator.example.yaml"
+              test "$COORDINATOR_JSON_LOGS" = "true"
+              test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = "false"
+              test "$GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS" = "fiducia-cloud,sonus-auris"
+              test "$GITHUB_API_BASE_URL" = "https://api.github.com"
+              test "$GITHUB_API_VERSION" = "2022-11-28"
+              test "$GITHUB_API_USER_AGENT" = "ai-agent-coordinator-ci"
+              test "$RUST_LOG" = "warn"
+              test -z "${COORDINATOR_API_TOKEN+x}"
+              test -z "${GITHUB_WEBHOOK_SECRET+x}"
+              test -z "${GITHUB_REPOSITORY_ADMIN_TOKEN+x}"
+              test -z "${MISTRAL_API_KEY+x}"
+              test -z "${OPENROUTER_API_KEY+x}"
+              test -z "${OPENAI_API_KEY+x}"
+            '
+      - name: Verify fail-closed defaults
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/with-flags -- bash -euo pipefail -c '
+            test "$COORDINATOR_CONFIG" = "coordinator.yaml"
+            test "$COORDINATOR_JSON_LOGS" = "false"
+            test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = "false"
+            test "$GITHUB_API_BASE_URL" = "https://api.github.com"
+            test "$GITHUB_API_VERSION" = "2022-11-28"
+            test "$GITHUB_API_USER_AGENT" = "ai-agent-coordinator"
+            test "$RUST_LOG" = "ai_agent_coordinator=info,tower_http=info"
+          '
+      - name: Prove unknown command-line flags fail closed
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -euo pipefail
+          if bash scripts/with-flags --not-a-declared-option=true -- true; then
+            echo 'unknown flags must fail closed' >&2
+            exit 1
+          fi
+      - name: Prove secret command-line flags are rejected
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set +e
+          output="$(bash scripts/with-flags --coordinator-api-token=must-not-be-accepted -- true 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 64
+          ! grep -Fq 'must-not-be-accepted' <<<"$output"
 
   audit:
     runs-on: ubuntu-latest
