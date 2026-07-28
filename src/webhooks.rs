@@ -37,7 +37,10 @@ pub struct LinearDirective {
 
 impl GithubWebhookPolicy {
     pub fn from_env(default_secret: Option<String>) -> anyhow::Result<Self> {
-        let secret_env_names = parse_mapping(&env::var(ORG_SECRET_ENV_MAP).unwrap_or_default(), ORG_SECRET_ENV_MAP)?;
+        let secret_env_names = parse_mapping(
+            &env::var(ORG_SECRET_ENV_MAP).unwrap_or_default(),
+            ORG_SECRET_ENV_MAP,
+        )?;
         let mut organization_secrets = HashMap::new();
         for (organization, secret_env) in secret_env_names {
             let secret = env::var(&secret_env)
@@ -81,7 +84,11 @@ impl GithubWebhookPolicy {
         self.organization_secrets
             .get(organization)
             .map(String::as_str)
-            .or_else(|| (event != "push").then_some(self.default_secret.as_deref()).flatten())
+            .or_else(|| {
+                (event != "push")
+                    .then_some(self.default_secret.as_deref())
+                    .flatten()
+            })
     }
 
     fn push_default_branch<'a>(&'a self, repository: &str, payload: &'a Value) -> Option<&'a str> {
@@ -104,10 +111,7 @@ impl GithubWebhookPolicy {
     ) -> Self {
         Self {
             default_secret: None,
-            organization_secrets: HashMap::from([(
-                organization.to_owned(),
-                secret.to_owned(),
-            )]),
+            organization_secrets: HashMap::from([(organization.to_owned(), secret.to_owned())]),
             push_allowed_repositories: HashSet::from([allowed_repository.to_owned()]),
             push_default_branches: HashMap::from([(
                 allowed_repository.to_owned(),
@@ -219,11 +223,7 @@ pub fn process_github_webhook(
                 }));
             }
         },
-        _ => (
-            None,
-            0,
-            format!("github:{delivery}:{event}:{action}"),
-        ),
+        _ => (None, 0, format!("github:{delivery}:{event}:{action}")),
     };
 
     let Some(task_type) = task_type else {
@@ -313,12 +313,20 @@ fn push_job_metadata(
             "fork repository pushes are not accepted".to_owned(),
         ));
     }
-    if payload.get("deleted").and_then(Value::as_bool).unwrap_or(false) {
+    if payload
+        .get("deleted")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         return Ok(PushDecision::Ignore(
             "deleted branch pushes are not accepted".to_owned(),
         ));
     }
-    if payload.get("forced").and_then(Value::as_bool).unwrap_or(false) {
+    if payload
+        .get("forced")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
         return Ok(PushDecision::Ignore(
             "force pushes are not accepted".to_owned(),
         ));
@@ -326,7 +334,9 @@ fn push_job_metadata(
 
     let default_branch = policy
         .push_default_branch(repository_full_name, payload)
-        .ok_or_else(|| AppError::BadRequest("push payload is missing repository.default_branch".into()))?
+        .ok_or_else(|| {
+            AppError::BadRequest("push payload is missing repository.default_branch".into())
+        })?
         .to_owned();
     let expected_ref = format!("refs/heads/{default_branch}");
     let pushed_ref = payload
@@ -409,7 +419,11 @@ fn is_commit_identifier(value: &str) -> bool {
 
 fn parse_mapping(value: &str, variable: &str) -> anyhow::Result<HashMap<String, String>> {
     let mut result = HashMap::new();
-    for entry in value.split(',').map(str::trim).filter(|entry| !entry.is_empty()) {
+    for entry in value
+        .split(',')
+        .map(str::trim)
+        .filter(|entry| !entry.is_empty())
+    {
         let (key, mapped_value) = entry
             .split_once('=')
             .with_context(|| format!("invalid {variable} entry {entry:?}; expected key=value"))?;
@@ -491,12 +505,7 @@ mod tests {
     #[test]
     fn signed_default_branch_pushes_enqueue_directives_idempotently() {
         let database = Database::open(":memory:").unwrap();
-        let policy = GithubWebhookPolicy::test_policy(
-            "sonus-auris",
-            SECRET,
-            REPOSITORY,
-            "main",
-        );
+        let policy = GithubWebhookPolicy::test_policy("sonus-auris", SECRET, REPOSITORY, "main");
         let body = Bytes::from(
             serde_json::to_vec(&json!({
                 "ref": "refs/heads/main",
@@ -551,12 +560,7 @@ mod tests {
 
     #[test]
     fn force_pushes_and_non_default_branches_are_ignored() {
-        let policy = GithubWebhookPolicy::test_policy(
-            "sonus-auris",
-            SECRET,
-            REPOSITORY,
-            "main",
-        );
+        let policy = GithubWebhookPolicy::test_policy("sonus-auris", SECRET, REPOSITORY, "main");
         let forced = json!({
             "ref": "refs/heads/main",
             "after": AFTER,
