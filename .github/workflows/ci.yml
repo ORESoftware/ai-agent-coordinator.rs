@@ -191,7 +191,7 @@ jobs:
         run: |
           set +e
           for option in coordinator-api-token linear-api-token; do
-            output="$(bash scripts/with-flags --${option}=must-not-be-accepted -- true 2>&1)"
+            output="$(bash scripts/with-flags "--${option}=must-not-be-accepted" -- true 2>&1)"
             status=$?
             test "$status" -eq 64
             ! grep -Fq 'must-not-be-accepted' <<<"$output"
