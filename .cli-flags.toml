@@ -1,0 +1,80 @@
+# Non-secret command-line flags for ai-agent-coordinator.
+#
+# This file is the single CLI-to-environment contract used by flags-2-env.
+# Credentials, provider keys, webhook secrets, and repository-administration
+# tokens are deliberately env/secret-manager only and are never declared as
+# flags.
+
+[help]
+url = "https://github.com/ORESoftware/ai-agent-coordinator.rs/blob/main/docs/flags2env.md"
+columns = ["options", "env", "type", "default", "description"]
+
+[parse]
+allow_unknown = false
+errors_env = "FLAGS2ENV_PARSE_ERRORS"
+unknown_options_env = "FLAGS2ENV_UNKNOWN_OPTIONS"
+
+[env]
+ignore = [
+  "COORDINATOR_API_TOKEN",
+  "GITHUB_WEBHOOK_SECRET",
+  "GITHUB_REPOSITORY_ADMIN_TOKEN",
+  "MISTRAL_API_KEY",
+  "OPENROUTER_API_KEY",
+  "OPENAI_API_KEY",
+]
+
+[flags.config]
+env = "COORDINATOR_CONFIG"
+aliases = ["config"]
+type = "string"
+default = "coordinator.yaml"
+help = "Path to the coordinator YAML configuration file."
+
+[flags.json-logs]
+env = "COORDINATOR_JSON_LOGS"
+aliases = ["json-logs"]
+type = "bool"
+default = "false"
+help = "Emit structured JSON logs."
+
+[flags.log-filter]
+env = "RUST_LOG"
+aliases = ["log-filter"]
+type = "string"
+default = "ai_agent_coordinator=info,tower_http=info"
+help = "Rust tracing filter used by the coordinator process."
+
+[flags.github-repository-admin-enabled]
+env = "GITHUB_REPOSITORY_ADMIN_ENABLED"
+aliases = ["github-repository-admin-enabled"]
+type = "bool"
+default = "false"
+help = "Enable live GitHub repository administration after a reviewed dry run."
+
+[flags.github-repository-admin-allowed-orgs]
+env = "GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS"
+aliases = ["github-repository-admin-allowed-orgs"]
+type = "string"
+help = "Comma-separated exact GitHub organization allowlist for repository administration."
+
+[flags.github-api-base-url]
+env = "GITHUB_API_BASE_URL"
+aliases = ["github-api-base-url"]
+type = "string"
+default = "https://api.github.com"
+help = "GitHub API base URL; HTTPS is required except loopback HTTP in tests."
+
+[flags.github-api-version]
+env = "GITHUB_API_VERSION"
+aliases = ["github-api-version"]
+type = "string"
+default = "2022-11-28"
+help = "GitHub REST API version header."
+
+[flags.github-api-user-agent]
+env = "GITHUB_API_USER_AGENT"
+aliases = ["github-api-user-agent"]
+type = "string"
+default = "ai-agent-coordinator"
+help = "User-Agent sent by the repository-administration client."
