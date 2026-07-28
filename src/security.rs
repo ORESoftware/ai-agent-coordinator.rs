@@ -116,9 +116,8 @@ impl SecretScanner {
                             .categories
                             .push(SENSITIVE_JSON_KEY_CATEGORY.to_owned());
                         if redact {
-                            *value = Value::String(format!(
-                                "[REDACTED:{SENSITIVE_JSON_KEY_CATEGORY}]"
-                            ));
+                            *value =
+                                Value::String(format!("[REDACTED:{SENSITIVE_JSON_KEY_CATEGORY}]"));
                         }
                         continue;
                     }
