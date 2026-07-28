@@ -34,17 +34,16 @@ jobs:
         shell: bash
         run: |
           cargo fmt --all
-          if ! git diff --quiet -- src tests; then
+          git diff -- src tests > rustfmt.patch
+          if [[ -s rustfmt.patch ]]; then
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
-      - name: Upload canonical formatter output
+      - name: Upload canonical formatter patch
         if: steps.format.outputs.changed == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: rustfmt-output
-          path: |
-            src/**/*.rs
-            tests/**/*.rs
+          name: rustfmt-patch
+          path: rustfmt.patch
           retention-days: 1
           if-no-files-found: error
       - name: Require committed Rust formatting
