@@ -1,0 +1,56 @@
+name: DEN-529 Organization Pacing Fix
+
+on:
+  push:
+    branches:
+      - agent/den-529-linear-delivery-worker
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-529-org-pacing-fix
+  cancel-in-progress: false
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-529-linear-delivery-worker
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt
+      - name: Release pacing lock before sleeping
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/linear_delivery_worker.rs')
+          source = path.read_text()
+          old = '''    async fn wait_for_org_slot(&self, organization: &str) {\n        if self.config.min_org_interval.is_zero() {\n            return;\n        }\n        let mut requests = self.org_requests.lock().await;\n        if let Some(last) = requests.get(organization) {\n            let elapsed = last.elapsed();\n            if elapsed < self.config.min_org_interval {\n                sleep(self.config.min_org_interval - elapsed).await;\n            }\n        }\n        requests.insert(organization.to_owned(), Instant::now());\n    }'''
+          new = '''    async fn wait_for_org_slot(&self, organization: &str) {\n        if self.config.min_org_interval.is_zero() {\n            return;\n        }\n\n        loop {\n            let delay = {\n                let mut requests = self.org_requests.lock().await;\n                match requests.get(organization) {\n                    Some(last) if last.elapsed() < self.config.min_org_interval => {\n                        self.config.min_org_interval - last.elapsed()\n                    }\n                    _ => {\n                        requests.insert(organization.to_owned(), Instant::now());\n                        return;\n                    }\n                }\n            };\n            sleep(delay).await;\n        }\n    }'''
+          count = source.count(old)
+          if count != 1:
+              raise SystemExit(f'unexpected pacing replacement count: {count}')
+          path.write_text(source.replace(old, new))
+          PY
+          cargo fmt --all
+          rm .github/workflows/den-529-org-pacing-fix.yml
+          git diff --check
+      - name: Commit pacing correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ORESoftware automation'
+          git config user.email 'alexander.d.mills@gmail.com'
+          git add .github/workflows/den-529-org-pacing-fix.yml src tests
+          git commit -m 'Refs DEN-529 pace organizations without a global sleep lock'
+          git push origin HEAD:agent/den-529-linear-delivery-worker
