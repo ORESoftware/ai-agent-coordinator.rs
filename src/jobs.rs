@@ -106,6 +106,8 @@ pub struct ClaimJobRequest {
     pub orgs: Vec<String>,
     #[serde(default)]
     pub repositories: Vec<String>,
+    #[serde(default)]
+    pub task_types: Vec<String>,
     #[serde(default = "default_lease_seconds")]
     pub lease_seconds: i64,
 }
@@ -118,6 +120,9 @@ impl ClaimJobRequest {
         if !(15..=3600).contains(&self.lease_seconds) {
             return Err("lease_seconds must be between 15 and 3600".to_owned());
         }
+        if self.task_types.iter().any(|task| task.trim().is_empty()) {
+            return Err("task_types must not contain empty values".to_owned());
+        }
         Ok(())
     }
 
@@ -129,7 +134,12 @@ impl ClaimJobRequest {
                 .repositories
                 .iter()
                 .any(|repo| repo == &job.repo || repo == &full_name);
-        org_allowed && repo_allowed
+        let task_allowed = self.task_types.is_empty()
+            || self
+                .task_types
+                .iter()
+                .any(|task_type| task_type == &job.task_type);
+        org_allowed && repo_allowed && task_allowed
     }
 }
 

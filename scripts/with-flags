@@ -20,7 +20,7 @@ reject_secret_flags() {
     [[ "$argument" == "--" ]] && break
     option="${argument%%=*}"
     case "$option" in
-      --coordinator-api-token|--github-webhook-secret|--github-repository-admin-token|--mistral-api-key|--openrouter-api-key|--openai-api-key)
+      --coordinator-api-token|--github-webhook-secret|--github-repository-admin-token|--linear-api-token|--mistral-api-key|--openrouter-api-key|--openai-api-key)
         printf '%s\n' \
           'credential command-line options are not accepted; use environment-based secret injection' >&2
         exit 64
@@ -110,7 +110,7 @@ if [[ "$found_separator" != true || $# -eq 0 ]]; then
   exit 64
 fi
 
-exports="$($flags2env_bin shell-env --config "$config_path" -- "$(basename "$repo_root")" "${flag_args[@]}")"
+exports="$("$flags2env_bin" shell-env --config "$config_path" -- "$(basename "$repo_root")" "${flag_args[@]}")"
 eval "$exports"
 
 if [[ "${FLAGS2ENV_PARSE_ERRORS:-[]}" != "[]" ]]; then

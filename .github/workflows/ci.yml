@@ -21,9 +21,24 @@ jobs:
         with:
           persist-credentials: false
       - name: Validate GitHub Actions
-        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        id: actionlint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/ci.yml 2>&1 | tee actionlint-output.log
+      - name: Upload failing actionlint output
+        if: steps.actionlint.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          args: .github/workflows/ci.yml
+          name: actionlint-output
+          path: actionlint-output.log
+          retention-days: 1
+          if-no-files-found: error
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
         with:
           toolchain: '1.97.0'
@@ -31,34 +46,49 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Apply canonical Rust formatting for validation
         id: format
+        continue-on-error: true
         shell: bash
         run: |
-          cargo fmt --all
+          set -o pipefail
+          cargo fmt --all 2>&1 | tee rustfmt-command.log
           if ! git diff --quiet -- src tests; then
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
-      - name: Upload canonical formatter output
-        if: steps.format.outputs.changed == 'true'
+      - name: Upload formatter diagnostics
+        if: steps.format.outputs.changed == 'true' || steps.format.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rustfmt-output
           path: |
+            rustfmt-command.log
             src/**/*.rs
             tests/**/*.rs
           retention-days: 1
           if-no-files-found: error
-      - name: Require committed Rust formatting
-        run: git diff --exit-code -- src tests
       - name: Clippy
-        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+        id: clippy
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets --all-features -- -D warnings 2>&1 | tee clippy-output.log
+      - name: Upload failing Clippy output
+        if: steps.clippy.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: clippy-output
+          path: clippy-output.log
+          retention-days: 1
+          if-no-files-found: error
       - name: Test
         id: test
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           cargo test --locked --all 2>&1 | tee test-output.log
       - name: Upload failing test output
-        if: failure() && steps.test.outcome == 'failure'
+        if: steps.test.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rust-test-output
@@ -66,9 +96,31 @@ jobs:
           retention-days: 1
           if-no-files-found: error
       - name: Documentation
+        id: docs
+        continue-on-error: true
         run: cargo doc --locked --no-deps
       - name: Release build
+        id: release
+        continue-on-error: true
         run: cargo build --locked --release
+      - name: Require all validation gates
+        if: always()
+        env:
+          ACTIONLINT_OUTCOME: ${{ steps.actionlint.outcome }}
+          FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          CLIPPY_OUTCOME: ${{ steps.clippy.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          DOCS_OUTCOME: ${{ steps.docs.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+        shell: bash
+        run: |
+          test "$ACTIONLINT_OUTCOME" = success
+          test "$FORMAT_OUTCOME" = success
+          test "$CLIPPY_OUTCOME" = success
+          test "$TEST_OUTCOME" = success
+          test "$DOCS_OUTCOME" = success
+          test "$RELEASE_OUTCOME" = success
+          git diff --exit-code -- src tests
 
   flags-contract:
     runs-on: ubuntu-latest
@@ -112,6 +164,13 @@ jobs:
           bash scripts/with-flags \
             --config=coordinator.example.yaml \
             --json-logs=true \
+            --linear-delivery-enabled=true \
+            --linear-delivery-dry-run=true \
+            --linear-api-url=https://api.linear.app/graphql \
+            --linear-api-auth-scheme=api_key \
+            --linear-team-key=DEN \
+            --linear-project-names=sonus-auris=github.com/sonus-auris,daedalus-fab=github.com/daedalus-fab \
+            --linear-max-retries=4 \
             --github-repository-admin-enabled=false \
             --github-repository-admin-allowed-orgs=fiducia-cloud,sonus-auris \
             --github-api-base-url=https://api.github.com \
@@ -121,6 +180,13 @@ jobs:
             -- bash -euo pipefail -c '
               test "$COORDINATOR_CONFIG" = "coordinator.example.yaml"
               test "$COORDINATOR_JSON_LOGS" = "true"
+              test "$LINEAR_DELIVERY_ENABLED" = "true"
+              test "$LINEAR_DELIVERY_DRY_RUN" = "true"
+              test "$LINEAR_API_URL" = "https://api.linear.app/graphql"
+              test "$LINEAR_API_AUTH_SCHEME" = "api_key"
+              test "$LINEAR_TEAM_KEY" = "DEN"
+              test "$LINEAR_PROJECT_NAMES" = "sonus-auris=github.com/sonus-auris,daedalus-fab=github.com/daedalus-fab"
+              test "$LINEAR_MAX_RETRIES" = "4"
               test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = "false"
               test "$GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS" = "fiducia-cloud,sonus-auris"
               test "$GITHUB_API_BASE_URL" = "https://api.github.com"
@@ -130,6 +196,7 @@ jobs:
               test -z "${COORDINATOR_API_TOKEN+x}"
               test -z "${GITHUB_WEBHOOK_SECRET+x}"
               test -z "${GITHUB_REPOSITORY_ADMIN_TOKEN+x}"
+              test -z "${LINEAR_API_TOKEN+x}"
               test -z "${MISTRAL_API_KEY+x}"
               test -z "${OPENROUTER_API_KEY+x}"
               test -z "${OPENAI_API_KEY+x}"
@@ -143,11 +210,21 @@ jobs:
           bash scripts/with-flags -- bash -euo pipefail -c '
             test "$COORDINATOR_CONFIG" = "coordinator.yaml"
             test "$COORDINATOR_JSON_LOGS" = "false"
+            test "$LINEAR_DELIVERY_ENABLED" = "false"
+            test "$LINEAR_DELIVERY_DRY_RUN" = "true"
+            test "$LINEAR_API_URL" = "https://api.linear.app/graphql"
+            test "$LINEAR_API_AUTH_SCHEME" = "api_key"
+            test "$LINEAR_TEAM_KEY" = "DEN"
+            test "$LINEAR_REQUEST_TIMEOUT_MS" = "10000"
+            test "$LINEAR_MAX_RESPONSE_BYTES" = "262144"
+            test "$LINEAR_MAX_RETRIES" = "3"
+            test "$LINEAR_MIN_ORG_INTERVAL_MS" = "100"
             test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = "false"
             test "$GITHUB_API_BASE_URL" = "https://api.github.com"
             test "$GITHUB_API_VERSION" = "2022-11-28"
             test "$GITHUB_API_USER_AGENT" = "ai-agent-coordinator"
             test "$RUST_LOG" = "ai_agent_coordinator=info,tower_http=info"
+            test -z "${LINEAR_API_TOKEN+x}"
           '
       - name: Prove unknown command-line flags fail closed
         env:
@@ -165,11 +242,16 @@ jobs:
         shell: bash
         run: |
           set +e
-          output="$(bash scripts/with-flags --coordinator-api-token=must-not-be-accepted -- true 2>&1)"
-          status=$?
+          for option in coordinator-api-token linear-api-token; do
+            output="$(bash scripts/with-flags "--${option}=must-not-be-accepted" -- true 2>&1)"
+            status=$?
+            test "$status" -eq 64
+            if grep -Fq 'must-not-be-accepted' <<<"$output"; then
+              echo 'credential value leaked into rejection output' >&2
+              exit 1
+            fi
+          done
           set -e
-          test "$status" -eq 64
-          ! grep -Fq 'must-not-be-accepted' <<<"$output"
 
   audit:
     runs-on: ubuntu-latest

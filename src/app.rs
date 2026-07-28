@@ -22,7 +22,11 @@ use crate::{
     error::AppError,
     gateway::ModelGateway,
     github_admin::{CreateRepositoryRequest, GithubRepositoryAdmin},
-    jobs::{ClaimJobRequest, CompleteJobRequest, CreateJobRequest, HeartbeatJobRequest},
+    jobs::{
+        ClaimJobRequest, CompleteJobRequest, CompletionOutcome, CreateJobRequest,
+        HeartbeatJobRequest,
+    },
+    linear_delivery::{LinearDeliveryRequest, LinearDeliveryWorker},
     providers::ProviderRegistry,
     security::SecretScanner,
     webhooks,
@@ -34,6 +38,7 @@ pub struct AppState {
     pub database: Database,
     pub gateway: ModelGateway,
     pub github_repository_admin: GithubRepositoryAdmin,
+    pub linear_delivery_worker: LinearDeliveryWorker,
     api_token: Option<String>,
     github_webhook_policy: webhooks::GithubWebhookPolicy,
 }
@@ -46,6 +51,7 @@ impl AppState {
         let scanner = SecretScanner::new()?;
         let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
+        let linear_delivery_worker = LinearDeliveryWorker::from_env(&config.database.path)?;
         let api_token = config.api_token();
         let github_webhook_policy =
             webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
@@ -54,6 +60,7 @@ impl AppState {
             database,
             gateway,
             github_repository_admin,
+            linear_delivery_worker,
             api_token,
             github_webhook_policy,
         })
@@ -92,6 +99,8 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/heartbeat", post(heartbeat_job))
         .route("/v1/jobs/:id/complete", post(complete_job))
         .route("/v1/jobs/:id/cancel", post(cancel_job))
+        .route("/v1/linear/plan/:id", post(plan_linear_delivery))
+        .route("/v1/linear/deliver-next", post(deliver_next_linear_job))
         .route("/v1/github/repositories", post(create_github_repository))
         .route("/webhooks/github", post(github_webhook))
         .layer(DefaultBodyLimit::max(max_request_bytes))
@@ -228,6 +237,117 @@ async fn cancel_job(
         .cancel_job(&id)
         .map_err(|error| AppError::BadRequest(error.to_string()))?;
     Ok(Json(json!({"job": job})))
+}
+
+async fn plan_linear_delivery(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Path(id): Path<String>,
+) -> Result<Json<Value>, AppError> {
+    state.authorize(&headers)?;
+    if !state.linear_delivery_worker.enabled() {
+        return Err(AppError::BadRequest(
+            "Linear delivery is disabled".to_owned(),
+        ));
+    }
+    let job = state
+        .database
+        .get_job(&id)
+        .map_err(AppError::Internal)?
+        .ok_or_else(|| AppError::NotFound(format!("job {id}")))?;
+    let report = state
+        .linear_delivery_worker
+        .plan_job(&job)
+        .map_err(|error| AppError::BadRequest(error.public_message))?;
+    Ok(Json(json!({"delivery": report, "job": job})))
+}
+
+async fn deliver_next_linear_job(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<LinearDeliveryRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    state.authorize(&headers)?;
+    if !state.linear_delivery_worker.enabled() {
+        return Err(AppError::BadRequest(
+            "Linear delivery is disabled".to_owned(),
+        ));
+    }
+    if state.linear_delivery_worker.dry_run() {
+        return Err(AppError::BadRequest(
+            "live Linear delivery is blocked while dry-run is enabled; use /v1/linear/plan/:id"
+                .to_owned(),
+        ));
+    }
+
+    let worker_id = request.worker_id.clone();
+    let claim = request.into_claim();
+    claim.validate().map_err(AppError::BadRequest)?;
+    let Some(job) = state
+        .database
+        .claim_job(&claim, &state.config.workers)
+        .map_err(AppError::Internal)?
+    else {
+        return Ok((StatusCode::NO_CONTENT, Json(Value::Null)));
+    };
+
+    match state.linear_delivery_worker.deliver_job(&job).await {
+        Ok(report) => {
+            let result =
+                serde_json::to_value(&report).map_err(|error| AppError::Internal(error.into()))?;
+            let completed = state
+                .database
+                .complete_job(
+                    &job.id,
+                    &CompleteJobRequest {
+                        worker_id,
+                        outcome: CompletionOutcome::Succeeded,
+                        result: Some(result),
+                        error: None,
+                        retryable: false,
+                        retry_delay_seconds: 0,
+                    },
+                )
+                .map_err(AppError::Internal)?;
+            Ok((
+                StatusCode::OK,
+                Json(json!({"delivery": report, "job": completed})),
+            ))
+        }
+        Err(error) => {
+            let retry_delay_seconds = error.retry_after.as_secs().clamp(1, 86_400) as i64;
+            let completed = state
+                .database
+                .complete_job(
+                    &job.id,
+                    &CompleteJobRequest {
+                        worker_id,
+                        outcome: CompletionOutcome::Failed,
+                        result: None,
+                        error: Some(error.public_message.clone()),
+                        retryable: error.retryable,
+                        retry_delay_seconds,
+                    },
+                )
+                .map_err(AppError::Internal)?;
+            let status = if error.retryable {
+                StatusCode::ACCEPTED
+            } else {
+                StatusCode::UNPROCESSABLE_ENTITY
+            };
+            Ok((
+                status,
+                Json(json!({
+                    "delivery_error": {
+                        "message": error.public_message,
+                        "retryable": error.retryable,
+                        "retry_after_seconds": retry_delay_seconds,
+                    },
+                    "job": completed,
+                })),
+            ))
+        }
+    }
 }
 
 async fn create_github_repository(

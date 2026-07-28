@@ -1,9 +1,9 @@
 # Non-secret command-line flags for ai-agent-coordinator.
 #
 # This is the canonical CLI-to-environment contract used by flags-2-env.
-# Credentials, provider keys, webhook secrets, and repository-administration
-# tokens are deliberately environment/secret-manager only and are never
-# accepted as command-line values.
+# Credentials, provider keys, webhook secrets, repository-administration
+# tokens, and Linear credentials are deliberately environment/secret-manager
+# only and are never accepted as command-line values.
 
 [help]
 url = "https://github.com/ORESoftware/ai-agent-coordinator.rs/blob/main/docs/cli-flags.md"
@@ -17,7 +17,7 @@ errors_env = "FLAGS2ENV_PARSE_ERRORS"
 allow_unknown = false
 
 [env]
-ignore = ["COORDINATOR_API_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPOSITORY_ADMIN_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"]
+ignore = ["COORDINATOR_API_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPOSITORY_ADMIN_TOKEN", "LINEAR_API_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"]
 
 [flags.config]
 env = "COORDINATOR_CONFIG"
@@ -33,6 +33,87 @@ aliases = ["json-logs"]
 type = "bool"
 default = "false"
 help = "Emit structured JSON logs."
+
+[flags.linear-delivery-enabled]
+env = "LINEAR_DELIVERY_ENABLED"
+aliases = ["linear-delivery-enabled"]
+type = "bool"
+default = "false"
+help = "Enable the protected Linear delivery adapter."
+
+[flags.linear-delivery-dry-run]
+env = "LINEAR_DELIVERY_DRY_RUN"
+aliases = ["linear-delivery-dry-run"]
+type = "bool"
+default = "true"
+help = "Plan Linear mutations without consuming or mutating queued jobs."
+
+[flags.linear-api-url]
+env = "LINEAR_API_URL"
+aliases = ["linear-api-url"]
+type = "string"
+default = "https://api.linear.app/graphql"
+help = "Linear GraphQL endpoint; HTTPS is required except loopback HTTP in tests."
+
+[flags.linear-api-auth-scheme]
+env = "LINEAR_API_AUTH_SCHEME"
+aliases = ["linear-api-auth-scheme"]
+type = "string"
+default = "api_key"
+help = "Linear authentication scheme: api_key or bearer."
+
+[flags.linear-team-key]
+env = "LINEAR_TEAM_KEY"
+aliases = ["linear-team-key"]
+type = "string"
+default = "DEN"
+help = "Exact Linear team key allowed for commit delivery."
+
+[flags.linear-project-names]
+env = "LINEAR_PROJECT_NAMES"
+aliases = ["linear-project-names"]
+type = "string"
+help = "Exact organization=Linear-project-name mapping."
+
+[flags.linear-completed-state-id]
+env = "LINEAR_COMPLETED_STATE_ID"
+aliases = ["linear-completed-state-id"]
+type = "string"
+help = "Optional default completed-state UUID for closing directives."
+
+[flags.linear-completed-state-ids]
+env = "LINEAR_COMPLETED_STATE_IDS"
+aliases = ["linear-completed-state-ids"]
+type = "string"
+help = "Optional organization=completed-state-UUID mapping."
+
+[flags.linear-request-timeout-ms]
+env = "LINEAR_REQUEST_TIMEOUT_MS"
+aliases = ["linear-request-timeout-ms"]
+type = "integer"
+default = "10000"
+help = "Linear HTTP request timeout in milliseconds."
+
+[flags.linear-max-response-bytes]
+env = "LINEAR_MAX_RESPONSE_BYTES"
+aliases = ["linear-max-response-bytes"]
+type = "integer"
+default = "262144"
+help = "Maximum Linear HTTP response bytes."
+
+[flags.linear-max-retries]
+env = "LINEAR_MAX_RETRIES"
+aliases = ["linear-max-retries"]
+type = "integer"
+default = "3"
+help = "Maximum retry attempts for rate limits and transient server failures."
+
+[flags.linear-min-org-interval-ms]
+env = "LINEAR_MIN_ORG_INTERVAL_MS"
+aliases = ["linear-min-org-interval-ms"]
+type = "integer"
+default = "100"
+help = "Minimum delay between Linear requests for one GitHub organization."
 
 [flags.repository-admin-enabled]
 env = "GITHUB_REPOSITORY_ADMIN_ENABLED"

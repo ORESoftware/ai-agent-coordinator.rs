@@ -29,6 +29,7 @@ fn job_lifecycle_is_leased_and_idempotent() {
                 worker_id: "worker-1".to_owned(),
                 orgs: vec!["oresoftware".to_owned()],
                 repositories: vec![],
+                task_types: vec![],
                 lease_seconds: 60,
             },
             &WorkerConfig::default(),
@@ -85,6 +86,7 @@ fn repository_concurrency_cap_prevents_overclaiming() {
         worker_id: worker_id.to_owned(),
         orgs: vec!["oresoftware".to_owned()],
         repositories: vec!["busy-repo".to_owned()],
+        task_types: vec![],
         lease_seconds: 60,
     };
 
