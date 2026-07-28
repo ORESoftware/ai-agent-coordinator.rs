@@ -214,7 +214,10 @@ jobs:
             output="$(bash scripts/with-flags "--${option}=must-not-be-accepted" -- true 2>&1)"
             status=$?
             test "$status" -eq 64
-            ! grep -Fq 'must-not-be-accepted' <<<"$output"
+            if grep -Fq 'must-not-be-accepted' <<<"$output"; then
+              echo 'credential value leaked into rejection output' >&2
+              exit 1
+            fi
           done
           set -e
 
