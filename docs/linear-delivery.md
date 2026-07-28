@@ -92,7 +92,9 @@ Linear attachments are keyed by issue and URL, while the coordinator also record
 - HTTPS is required except loopback HTTP in tests.
 - Redirects are refused.
 - Requests and responses are bounded.
-- `429` and `5xx` responses receive bounded exponential retry with jitter and `Retry-After` support.
+- `429` responses receive bounded exponential retry with jitter and `Retry-After` support.
+- Queries, URL-unique attachments, and idempotent state updates may retry transient `5xx` or transport failures.
+- Ambiguous comment `5xx` or transport failures are deferred to the durable job queue; the next job attempt refetches the marker before considering another comment mutation.
 - Per-organization request pacing prevents one organization from monopolizing delivery.
 - Authorization values and response bodies are never logged.
 - Stored errors are generic, bounded, and credential-free.
