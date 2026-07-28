@@ -444,6 +444,7 @@ impl LinearDeliveryWorker {
                 ISSUE_QUERY,
                 json!({"id": identifier}),
                 "issue query",
+                true,
             )
             .await?;
         let issue = data.get("issue").ok_or_else(|| {
@@ -493,6 +494,7 @@ impl LinearDeliveryWorker {
                     }
                 }),
                 "attachment mutation",
+                true,
             )
             .await?;
         require_success(&data, "attachmentCreate")
@@ -510,6 +512,7 @@ impl LinearDeliveryWorker {
                 COMMENT_MUTATION,
                 json!({"input": {"issueId": issue_id, "body": body}}),
                 "comment mutation",
+                false,
             )
             .await?;
         require_success(&data, "commentCreate")
@@ -527,6 +530,7 @@ impl LinearDeliveryWorker {
                 ISSUE_UPDATE_MUTATION,
                 json!({"id": issue_id, "input": {"stateId": state_id}}),
                 "issue state mutation",
+                true,
             )
             .await?;
         require_success(&data, "issueUpdate")
@@ -538,6 +542,7 @@ impl LinearDeliveryWorker {
         query: &str,
         variables: Value,
         operation: &str,
+        retry_ambiguous: bool,
     ) -> Result<Value, LinearDeliveryError> {
         let token = self.config.api_token.as_deref().ok_or_else(|| {
             LinearDeliveryError::policy(format!("{LINEAR_API_TOKEN_ENV} is not configured"))
@@ -568,7 +573,9 @@ impl LinearDeliveryWorker {
                         .map(Duration::from_secs);
                     let body = read_bounded(&mut response, self.config.max_response_bytes).await?;
 
-                    if status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error() {
+                    if status == StatusCode::TOO_MANY_REQUESTS
+                        || (retry_ambiguous && status.is_server_error())
+                    {
                         let error = LinearDeliveryError::retryable(
                             format!("Linear {operation} returned HTTP {status}"),
                             retry_after.unwrap_or_else(|| retry_delay(attempt)),
@@ -579,6 +586,12 @@ impl LinearDeliveryWorker {
                             continue;
                         }
                         return Err(error);
+                    }
+                    if status.is_server_error() {
+                        return Err(LinearDeliveryError::retryable(
+                            format!("Linear {operation} returned HTTP {status}"),
+                            retry_after.unwrap_or_else(|| retry_delay(attempt)),
+                        ));
                     }
                     if !status.is_success() {
                         return Err(LinearDeliveryError::policy(format!(
@@ -634,7 +647,7 @@ impl LinearDeliveryWorker {
                             "Linear {operation} request could not be completed"
                         ))
                     };
-                    if retryable && attempt < self.config.max_retries {
+                    if retryable && retry_ambiguous && attempt < self.config.max_retries {
                         sleep(delivery_error.retry_after).await;
                         last_error = Some(delivery_error);
                         continue;
@@ -1470,6 +1483,39 @@ mod tests {
         .unwrap();
         worker.deliver_job(&job(false)).await.unwrap();
         assert_eq!(requests.lock().unwrap().len(), 4);
+    }
+
+    #[tokio::test]
+    async fn ambiguous_comment_failure_is_deferred_to_the_job_queue() {
+        let (url, requests) = mock_server(vec![
+            (
+                StatusCode::OK,
+                issue_response("github.com/sonus-auris", "started", vec![]),
+            ),
+            (
+                StatusCode::OK,
+                json!({"data": {"attachmentCreate": {"success": true, "attachment": {"id": "attachment", "url": "https://github.com/example"}}}}),
+            ),
+            (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                json!({"errors": [{"message": "ambiguous comment failure"}]}),
+            ),
+            (
+                StatusCode::OK,
+                json!({"data": {"commentCreate": {"success": true, "comment": {"id": "duplicate"}}}}),
+            ),
+        ])
+        .await;
+        let temp = TempDir::new().unwrap();
+        let worker = LinearDeliveryWorker::new(
+            LinearDeliveryConfig::test(url, false),
+            temp.path().join("ledger.db").to_str().unwrap(),
+        )
+        .unwrap();
+
+        let error = worker.deliver_job(&job(false)).await.unwrap_err();
+        assert!(error.retryable);
+        assert_eq!(requests.lock().unwrap().len(), 3);
     }
 
     #[test]
