@@ -46,24 +46,25 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Apply canonical Rust formatting for validation
         id: format
+        continue-on-error: true
         shell: bash
         run: |
-          cargo fmt --all
+          set -o pipefail
+          cargo fmt --all 2>&1 | tee rustfmt-command.log
           if ! git diff --quiet -- src tests; then
             echo 'changed=true' >> "$GITHUB_OUTPUT"
           fi
-      - name: Upload canonical formatter output
-        if: steps.format.outputs.changed == 'true'
+      - name: Upload formatter diagnostics
+        if: steps.format.outputs.changed == 'true' || steps.format.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rustfmt-output
           path: |
+            rustfmt-command.log
             src/**/*.rs
             tests/**/*.rs
           retention-days: 1
           if-no-files-found: error
-      - name: Require committed Rust formatting
-        run: git diff --exit-code -- src tests
       - name: Clippy
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
       - name: Test
@@ -84,11 +85,16 @@ jobs:
         run: cargo doc --locked --no-deps
       - name: Release build
         run: cargo build --locked --release
-      - name: Require valid GitHub Actions
+      - name: Require valid workflows and committed formatting
         if: always()
         env:
           ACTIONLINT_OUTCOME: ${{ steps.actionlint.outcome }}
-        run: test "$ACTIONLINT_OUTCOME" = success
+          FORMAT_OUTCOME: ${{ steps.format.outcome }}
+        shell: bash
+        run: |
+          test "$ACTIONLINT_OUTCOME" = success
+          test "$FORMAT_OUTCOME" = success
+          git diff --exit-code -- src tests
 
   flags-contract:
     runs-on: ubuntu-latest
