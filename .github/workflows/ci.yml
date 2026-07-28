@@ -66,15 +66,29 @@ jobs:
           retention-days: 1
           if-no-files-found: error
       - name: Clippy
-        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+        id: clippy
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets --all-features -- -D warnings 2>&1 | tee clippy-output.log
+      - name: Upload failing Clippy output
+        if: steps.clippy.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: clippy-output
+          path: clippy-output.log
+          retention-days: 1
+          if-no-files-found: error
       - name: Test
         id: test
+        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
           cargo test --locked --all 2>&1 | tee test-output.log
       - name: Upload failing test output
-        if: failure() && steps.test.outcome == 'failure'
+        if: steps.test.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rust-test-output
@@ -82,18 +96,30 @@ jobs:
           retention-days: 1
           if-no-files-found: error
       - name: Documentation
+        id: docs
+        continue-on-error: true
         run: cargo doc --locked --no-deps
       - name: Release build
+        id: release
+        continue-on-error: true
         run: cargo build --locked --release
-      - name: Require valid workflows and committed formatting
+      - name: Require all validation gates
         if: always()
         env:
           ACTIONLINT_OUTCOME: ${{ steps.actionlint.outcome }}
           FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          CLIPPY_OUTCOME: ${{ steps.clippy.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          DOCS_OUTCOME: ${{ steps.docs.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
         shell: bash
         run: |
           test "$ACTIONLINT_OUTCOME" = success
           test "$FORMAT_OUTCOME" = success
+          test "$CLIPPY_OUTCOME" = success
+          test "$TEST_OUTCOME" = success
+          test "$DOCS_OUTCOME" = success
+          test "$RELEASE_OUTCOME" = success
           git diff --exit-code -- src tests
 
   flags-contract:
