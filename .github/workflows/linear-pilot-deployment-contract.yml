@@ -1,0 +1,310 @@
+name: Linear pilot deployment contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/linear-pilot-deployment-contract.yml'
+      - 'deploy/k8s/**'
+      - 'docs/cross-org-pilot.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EXPECTED_IMAGE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Validate workflow
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/linear-pilot-deployment-contract.yml
+
+      - name: Validate base and pilot policy contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          require 'yaml'
+
+          def load_one(path)
+            YAML.safe_load(File.read(path), aliases: false)
+          end
+
+          def mapping(value)
+            value.to_s.split(',').map(&:strip).reject(&:empty?).to_h do |entry|
+              key, mapped = entry.split('=', 2)
+              abort "invalid mapping entry #{entry.inspect}" if key.to_s.empty? || mapped.to_s.empty?
+              [key, mapped]
+            end
+          end
+
+          root = 'deploy/k8s'
+          overlay = File.join(root, 'overlays', 'cross-org-linear-pilot')
+          expected_image = "ghcr.io/oresoftware/ai-agent-coordinator:sha-#{ENV.fetch('EXPECTED_IMAGE_SHA')}"
+
+          base_deployment = load_one(File.join(root, 'deployment.yaml'))
+          image = base_deployment.dig('spec', 'template', 'spec', 'containers', 0, 'image')
+          abort "base deployment image must match current PR base #{expected_image}, got #{image.inspect}" unless image == expected_image
+          base_env = base_deployment.dig('spec', 'template', 'spec', 'containers', 0, 'env').to_h do |entry|
+            [entry.fetch('name'), entry['value']]
+          end
+          abort 'base repository administration must remain disabled' unless base_env['GITHUB_REPOSITORY_ADMIN_ENABLED'] == 'false'
+          abort 'base deployment must not directly enable cross-org push intake' if base_env.key?('GITHUB_AUTO_ENQUEUE_PUSHES')
+          abort 'base deployment must not directly enable Linear delivery' if base_env.key?('LINEAR_DELIVERY_ENABLED')
+
+          kustomization = load_one(File.join(overlay, 'kustomization.yaml'))
+          abort 'pilot overlay must layer on the complete hardened base' unless kustomization.fetch('resources') == ['../..', 'external-secret.yaml']
+          patch_paths = kustomization.fetch('patches').map { |patch| patch.is_a?(Hash) ? patch.fetch('path') : patch }
+          abort 'unexpected pilot patch set' unless patch_paths == ['telemetry-config-patch.yaml', 'deployment-patch.yaml']
+
+          external_secret = load_one(File.join(overlay, 'external-secret.yaml'))
+          abort 'pilot credentials must use ExternalSecret' unless external_secret['kind'] == 'ExternalSecret'
+          abort 'pilot ExternalSecret namespace mismatch' unless external_secret.dig('metadata', 'namespace') == 'ai-agent-coordinator'
+          abort 'pilot ExternalSecret name mismatch' unless external_secret.dig('metadata', 'name') == 'ai-agent-coordinator-linear-pilot'
+          store = external_secret.dig('spec', 'secretStoreRef')
+          abort 'pilot must use the protected cluster secret store' unless store == {'kind' => 'ClusterSecretStore', 'name' => 'dd-cluster-secrets'}
+          abort 'pilot target secret mismatch' unless external_secret.dig('spec', 'target', 'name') == 'ai-agent-coordinator-linear-pilot'
+          secret_data = external_secret.dig('spec', 'data')
+          expected_secret_keys = %w[
+            GITHUB_WEBHOOK_SECRET_DAEDALUS_FAB
+            GITHUB_WEBHOOK_SECRET_SONUS_AURIS
+            LINEAR_API_TOKEN
+          ]
+          abort 'pilot secret bundle must contain exactly three protected references' unless secret_data.map { |entry| entry.fetch('secretKey') }.sort == expected_secret_keys
+          secret_data.each do |entry|
+            remote = entry.fetch('remoteRef')
+            abort 'pilot secret must use the dedicated remote bundle' unless remote['key'] == 'dd/remote-dev/ai-agent-coordinator-linear-pilot'
+            abort 'remote property must match the target key' unless remote['property'] == entry['secretKey']
+          end
+
+          config_patch = load_one(File.join(overlay, 'telemetry-config-patch.yaml'))
+          data = config_patch.fetch('data')
+          org_secret_envs = mapping(data.fetch('GITHUB_WEBHOOK_ORG_SECRET_ENVS'))
+          abort 'organization secret mapping is not exact' unless org_secret_envs == {
+            'sonus-auris' => 'GITHUB_WEBHOOK_SECRET_SONUS_AURIS',
+            'daedalus-fab' => 'GITHUB_WEBHOOK_SECRET_DAEDALUS_FAB'
+          }
+          allowed = data.fetch('GITHUB_PUSH_ALLOWED_REPOSITORIES').split(',').map(&:strip)
+          abort 'pilot repository allowlist is not exact' unless allowed == [
+            'sonus-auris/sonus-auris-site.web',
+            'daedalus-fab/daedalus-clients'
+          ]
+          branches = mapping(data.fetch('GITHUB_PUSH_DEFAULT_BRANCHES'))
+          abort 'pilot default-branch map is not exact' unless branches == {
+            'sonus-auris/sonus-auris-site.web' => 'main',
+            'daedalus-fab/daedalus-clients' => 'main'
+          }
+          abort 'push intake must be enabled only in the pilot overlay' unless data['GITHUB_AUTO_ENQUEUE_PUSHES'] == 'true'
+          abort 'Linear delivery worker must be enabled in the pilot overlay' unless data['LINEAR_DELIVERY_ENABLED'] == 'true'
+          abort 'pilot must remain dry-run' unless data['LINEAR_DELIVERY_DRY_RUN'] == 'true'
+          abort 'pilot must use the official HTTPS Linear GraphQL endpoint' unless data['LINEAR_API_URL'] == 'https://api.linear.app/graphql'
+          abort 'pilot auth scheme must be api_key until reviewed otherwise' unless data['LINEAR_API_AUTH_SCHEME'] == 'api_key'
+          abort 'completed-state IDs are forbidden in the dry-run overlay' if data.key?('LINEAR_COMPLETED_STATE_IDS') || data.key?('LINEAR_COMPLETED_STATE_ID')
+
+          base_config = load_one(File.join(root, 'telemetry-config.yaml')).fetch('data')
+          projects = mapping(base_config.fetch('LINEAR_PROJECT_NAMES'))
+          abort 'Sonus Auris project mapping missing' unless projects['sonus-auris'] == 'github.com/sonus-auris'
+          abort 'Daedalus Fab project mapping missing' unless projects['daedalus-fab'] == 'github.com/daedalus-fab'
+          abort 'Linear team must remain DEN' unless base_config['LINEAR_TEAM_KEY'] == 'DEN'
+
+          deployment_patch = load_one(File.join(overlay, 'deployment-patch.yaml'))
+          annotation = deployment_patch.dig('spec', 'template', 'metadata', 'annotations', 'oresoftware.dev/cross-org-linear-pilot')
+          abort 'pilot Deployment must carry a visible dry-run annotation' unless annotation == 'dry-run'
+          refs = deployment_patch.dig('spec', 'template', 'spec', 'containers', 0, 'envFrom').map do |entry|
+            entry.dig('secretRef', 'name') || entry.dig('configMapRef', 'name')
+          end
+          expected_refs = %w[
+            ai-agent-coordinator-telemetry
+            ai-agent-coordinator-core
+            ai-agent-coordinator-telemetry
+            ai-agent-coordinator-linear-pilot
+            ai-agent-coordinator-admin
+            ai-agent-coordinator-providers
+          ]
+          abort 'pilot Deployment environment sources are incomplete or reordered' unless refs == expected_refs
+          pilot_ref = deployment_patch.dig('spec', 'template', 'spec', 'containers', 0, 'envFrom').find do |entry|
+            entry.dig('secretRef', 'name') == 'ai-agent-coordinator-linear-pilot'
+          end
+          abort 'pilot secret reference must be required once overlay is selected' if pilot_ref.dig('secretRef', 'optional') == true
+
+          overlay_text = Dir[File.join(overlay, '*.yaml')].map { |path| File.read(path) }.join("\n")
+          abort 'plaintext Secret objects are forbidden' if overlay_text.match?(/^kind:\s*Secret\s*$/)
+          abort 'GitHub token-like values are forbidden' if overlay_text.match?(/gh[pousr]_[A-Za-z0-9_]{20,}/)
+          abort 'OpenAI-style key values are forbidden' if overlay_text.match?(/sk-[A-Za-z0-9_-]{16,}/)
+          RUBY
+
+      - name: Render and inspect the pilot overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v kubectl >/dev/null
+          kubectl kustomize deploy/k8s/overlays/cross-org-linear-pilot > rendered-pilot.yaml
+          ruby <<'RUBY'
+          require 'yaml'
+          resources = YAML.load_stream(File.read('rendered-pilot.yaml')).compact
+          abort 'rendered overlay contains a plaintext Secret' if resources.any? { |resource| resource['kind'] == 'Secret' }
+          deployment = resources.find { |resource| resource['kind'] == 'Deployment' && resource.dig('metadata', 'name') == 'ai-agent-coordinator' } or abort 'rendered Deployment missing'
+          config = resources.find { |resource| resource['kind'] == 'ConfigMap' && resource.dig('metadata', 'name') == 'ai-agent-coordinator-telemetry' } or abort 'rendered telemetry ConfigMap missing'
+          external = resources.find { |resource| resource['kind'] == 'ExternalSecret' && resource.dig('metadata', 'name') == 'ai-agent-coordinator-linear-pilot' } or abort 'rendered pilot ExternalSecret missing'
+          refs = deployment.dig('spec', 'template', 'spec', 'containers', 0, 'envFrom')
+          abort 'rendered Deployment does not consume pilot secret' unless refs.any? { |entry| entry.dig('secretRef', 'name') == 'ai-agent-coordinator-linear-pilot' }
+          abort 'rendered pilot is not dry-run' unless config.dig('data', 'LINEAR_DELIVERY_DRY_RUN') == 'true'
+          abort 'rendered pilot unexpectedly contains completed-state IDs' if config.fetch('data').key?('LINEAR_COMPLETED_STATE_IDS')
+          abort 'rendered pilot secret target mismatch' unless external.dig('spec', 'target', 'name') == 'ai-agent-coordinator-linear-pilot'
+          RUBY
+
+      - name: Authenticate to GHCR with read-only package access
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Smoke-test dry-run planning without a Linear token
+        shell: bash
+        env:
+          COORDINATOR_API_TOKEN: linear-pilot-contract-token
+        run: |
+          set -euo pipefail
+          IMAGE_REF=$(ruby -ryaml -e "puts YAML.safe_load(File.read('deploy/k8s/deployment.yaml')).dig('spec', 'template', 'spec', 'containers', 0, 'image')")
+          readonly IMAGE_REF
+          docker pull "$IMAGE_REF"
+
+          container=ai-agent-coordinator-linear-pilot-contract
+          cleanup() {
+            docker logs "$container" || true
+            docker rm --force "$container" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          docker run --detach \
+            --name "$container" \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
+            --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700 \
+            --publish 127.0.0.1:18080:8080 \
+            --env COORDINATOR_API_TOKEN \
+            --env GITHUB_WEBHOOK_SECRET_SONUS_AURIS=ci-sonus-secret \
+            --env GITHUB_WEBHOOK_SECRET_DAEDALUS_FAB=ci-daedalus-secret \
+            --env GITHUB_WEBHOOK_ORG_SECRET_ENVS=sonus-auris=GITHUB_WEBHOOK_SECRET_SONUS_AURIS,daedalus-fab=GITHUB_WEBHOOK_SECRET_DAEDALUS_FAB \
+            --env GITHUB_AUTO_ENQUEUE_PUSHES=true \
+            --env GITHUB_PUSH_ALLOWED_REPOSITORIES=sonus-auris/sonus-auris-site.web,daedalus-fab/daedalus-clients \
+            --env GITHUB_PUSH_DEFAULT_BRANCHES=sonus-auris/sonus-auris-site.web=main,daedalus-fab/daedalus-clients=main \
+            --env LINEAR_DELIVERY_ENABLED=true \
+            --env LINEAR_DELIVERY_DRY_RUN=true \
+            --env LINEAR_API_URL=https://api.linear.app/graphql \
+            --env LINEAR_API_AUTH_SCHEME=api_key \
+            --env LINEAR_TEAM_KEY=DEN \
+            --env LINEAR_PROJECT_NAMES=sonus-auris=github.com/sonus-auris,daedalus-fab=github.com/daedalus-fab \
+            "$IMAGE_REF"
+
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == 60 ]]; then
+              echo 'pilot-configured coordinator did not become ready' >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          cat > job.json <<'JSON'
+          {
+            "org": "sonus-auris",
+            "repo": "sonus-auris-site.web",
+            "task_type": "github_push",
+            "priority": 10,
+            "max_attempts": 3,
+            "payload": {
+              "ref": "refs/heads/main",
+              "repository": {
+                "full_name": "sonus-auris/sonus-auris-site.web"
+              },
+              "coordinator": {
+                "default_branch": "main",
+                "linear_directives": [
+                  {
+                    "commit_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                    "issue_identifier": "DEN-455",
+                    "keyword": "refs",
+                    "closes_issue": false
+                  }
+                ]
+              }
+            }
+          }
+          JSON
+
+          created=$(curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --header 'Idempotency-Key: ci-linear-pilot-plan' \
+            --data-binary @job.json \
+            http://127.0.0.1:18080/v1/jobs)
+          job_id=$(CREATED="$created" python3 - <<'PY'
+          import json
+          import os
+          print(json.loads(os.environ['CREATED'])['job']['id'])
+          PY
+          )
+
+          plan=$(curl --fail --silent --show-error \
+            --request POST \
+            --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+            "http://127.0.0.1:18080/v1/linear/plan/${job_id}")
+          PLAN="$plan" JOB_ID="$job_id" python3 - <<'PY'
+          import json
+          import os
+          payload = json.loads(os.environ['PLAN'])
+          delivery = payload['delivery']
+          assert delivery['job_id'] == os.environ['JOB_ID']
+          assert delivery['organization'] == 'sonus-auris'
+          assert delivery['repository'] == 'sonus-auris/sonus-auris-site.web'
+          assert delivery['default_branch'] == 'main'
+          assert delivery['dry_run'] is True
+          assert delivery['directives'] == [{
+              'issue_identifier': 'DEN-455',
+              'commit_id': 'a' * 40,
+              'action': 'reference',
+              'status': 'planned',
+              'dry_run': True,
+          }]
+          PY
+
+          live_status=$(curl --silent --show-error \
+            --output blocked-live-delivery.json \
+            --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+            --header 'Content-Type: application/json' \
+            --data '{"worker_id":"ci-live-must-be-blocked","orgs":["sonus-auris"],"repositories":["sonus-auris/sonus-auris-site.web"],"lease_seconds":60}' \
+            http://127.0.0.1:18080/v1/linear/deliver-next)
+          test "$live_status" = 400
+          grep -Fq 'dry-run is enabled' blocked-live-delivery.json
+
+          queued=$(curl --fail --silent --show-error \
+            --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+            "http://127.0.0.1:18080/v1/jobs/${job_id}")
+          QUEUED="$queued" python3 - <<'PY'
+          import json
+          import os
+          job = json.loads(os.environ['QUEUED'])['job']
+          assert job['status'] == 'queued'
+          assert job['attempts'] == 0
+          PY
