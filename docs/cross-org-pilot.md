@@ -16,8 +16,11 @@ manifest values, shell arguments, workflow files, Linear, or chat.
 The base deployment remains fail-closed. The pilot is selected explicitly with:
 
 ```text
-deploy/k8s/overlays/cross-org-linear-pilot
+deploy/overlays/cross-org-linear-pilot
 ```
+
+The overlay is a sibling of the `deploy/k8s` base so Kustomize can import the
+base without a recursive resource cycle.
 
 The overlay enables only these repositories and default branches:
 
@@ -64,7 +67,7 @@ separate reviewed policy change.
 Inspect the rendered deployment before applying it:
 
 ```bash
-kubectl kustomize deploy/k8s/overlays/cross-org-linear-pilot > /tmp/linear-pilot.yaml
+kubectl kustomize deploy/overlays/cross-org-linear-pilot > /tmp/linear-pilot.yaml
 ```
 
 Verify that the rendered output contains an `ExternalSecret`, not a plaintext
@@ -77,7 +80,7 @@ oresoftware.dev/cross-org-linear-pilot=dry-run
 Apply only after the protected remote secret exists:
 
 ```bash
-kubectl apply -k deploy/k8s/overlays/cross-org-linear-pilot
+kubectl apply -k deploy/overlays/cross-org-linear-pilot
 
 kubectl -n ai-agent-coordinator wait \
   --for=condition=Ready \
