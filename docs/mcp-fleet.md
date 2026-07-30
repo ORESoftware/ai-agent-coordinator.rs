@@ -48,7 +48,7 @@ No churn-only pull requests should be opened against these repositories. Project
 | voxletra | `vxl-mcp-server.rs` | `DEN-164` | `DEN-319` |
 | zed-pkg | `zed-mcp-server.rs` | `DEN-165` | `DEN-319` |
 | zed-pkg-test | `zed-pkg-test-mcp-server.rs` | `DEN-166` | `DEN-319` |
-| file-tunnel | `ftnl-mcp-server.rs` | project-scoped issue created by this re-audit | `DEN-319` |
+| file-tunnel | `ftnl-mcp-server.rs` | `DEN-973` | `DEN-319` |
 
 `file-tunnel` is newly added to the fleet inventory. Its repository name follows the existing `ftnl-*` family.
 
@@ -84,5 +84,6 @@ Keep production compatibility with MCP `2025-11-25`. Treat the `2026-07-28` stat
 - `DEN-852` — reusable conformance harness and machine-readable report
 - `DEN-957` — shared Rust MCP libraries
 - `DEN-965` — controlled fleet migration to pinned shared releases
+- `DEN-973` — create and integrate the file-tunnel Rust MCP server
 
 The ordered next gate is to activate `DEN-319`, prove repository creation with the already selected low-risk canary, then create the six verified missing repositories and re-audit the two access-pending organizations.
