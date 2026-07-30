@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/linear-pilot-deployment-contract.yml'
       - 'deploy/k8s/**'
+      - 'deploy/overlays/**'
       - 'docs/cross-org-pilot.md'
   workflow_dispatch:
 
@@ -53,7 +54,7 @@ jobs:
           end
 
           root = 'deploy/k8s'
-          overlay = File.join(root, 'overlays', 'cross-org-linear-pilot')
+          overlay = 'deploy/overlays/cross-org-linear-pilot'
           expected_image = "ghcr.io/oresoftware/ai-agent-coordinator:sha-#{ENV.fetch('EXPECTED_IMAGE_SHA')}"
 
           base_deployment = load_one(File.join(root, 'deployment.yaml'))
@@ -67,7 +68,7 @@ jobs:
           abort 'base deployment must not directly enable Linear delivery' if base_env.key?('LINEAR_DELIVERY_ENABLED')
 
           kustomization = load_one(File.join(overlay, 'kustomization.yaml'))
-          abort 'pilot overlay must layer on the complete hardened base' unless kustomization.fetch('resources') == ['../..', 'external-secret.yaml']
+          abort 'pilot overlay must layer on the complete hardened base' unless kustomization.fetch('resources') == ['../../k8s', 'external-secret.yaml']
           patch_paths = kustomization.fetch('patches').map { |patch| patch.is_a?(Hash) ? patch.fetch('path') : patch }
           abort 'unexpected pilot patch set' unless patch_paths == ['telemetry-config-patch.yaml', 'deployment-patch.yaml']
 
@@ -152,7 +153,7 @@ jobs:
         run: |
           set -euo pipefail
           command -v kubectl >/dev/null
-          kubectl kustomize deploy/k8s/overlays/cross-org-linear-pilot > rendered-pilot.yaml
+          kubectl kustomize deploy/overlays/cross-org-linear-pilot > rendered-pilot.yaml
           ruby <<'RUBY'
           require 'yaml'
           resources = YAML.load_stream(File.read('rendered-pilot.yaml')).compact
