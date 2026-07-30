@@ -362,7 +362,7 @@ impl TelemetryAutomation {
         }
     }
 
-    pub fn ingest_alertmanager(
+    pub async fn ingest_alertmanager(
         &self,
         database: &Database,
         payload: AlertmanagerPayload,
@@ -424,6 +424,7 @@ impl TelemetryAutomation {
             let idempotency_key = format!("telemetry-incident:{fingerprint}:{occurrence_day}");
             let job = database
                 .create_job(&request, Some(&idempotency_key))
+                .await
                 .map_err(TelemetryError::internal)?;
             jobs.push(job);
         }
@@ -446,6 +447,7 @@ impl TelemetryAutomation {
         };
         let Some(job) = database
             .claim_job(&claim, worker_config)
+            .await
             .map_err(TelemetryError::internal)?
         else {
             return Ok(None);
@@ -470,6 +472,7 @@ impl TelemetryAutomation {
                                 as i64,
                         },
                     )
+                    .await
                     .map_err(TelemetryError::internal)?;
                 Ok(Some(ProcessReport {
                     job: updated,
@@ -515,7 +518,8 @@ impl TelemetryAutomation {
                         job.result.clone(),
                         "waiting for multi-model incident analysis",
                         30,
-                    )?;
+                    )
+                    .await?;
                     return Ok(ProcessReport {
                         job: updated,
                         stage: "waiting_for_models".to_owned(),
@@ -547,7 +551,8 @@ impl TelemetryAutomation {
                     })),
                     "multi-model incident analysis started",
                     30,
-                )?;
+                )
+                .await?;
                 return Ok(ProcessReport {
                     job: updated,
                     stage: "models_started".to_owned(),
@@ -634,6 +639,7 @@ impl TelemetryAutomation {
                     required_job_string(job, "occurrence_day")?
                 )),
             )
+            .await
             .map_err(TelemetryError::internal)?;
 
         let result = json!({
@@ -654,6 +660,7 @@ impl TelemetryAutomation {
                     retry_delay_seconds: 0,
                 },
             )
+            .await
             .map_err(TelemetryError::internal)?;
         Ok(ProcessReport {
             job: completed,
@@ -687,6 +694,7 @@ impl TelemetryAutomation {
             };
             let Some(job) = database
                 .claim_job(&claim, worker_config)
+                .await
                 .map_err(TelemetryError::internal)?
             else {
                 break;
@@ -705,6 +713,7 @@ impl TelemetryAutomation {
                                 retry_delay_seconds: 0,
                             },
                         )
+                        .await
                         .map_err(TelemetryError::internal)?;
                     reports.push(DispatchReport {
                         job: completed,
@@ -725,6 +734,7 @@ impl TelemetryAutomation {
                                     as i64,
                             },
                         )
+                        .await
                         .map_err(TelemetryError::internal)?;
                     reports.push(DispatchReport {
                         job: completed,
@@ -1341,7 +1351,7 @@ impl TelemetryError {
     }
 }
 
-fn requeue_job(
+async fn requeue_job(
     database: &Database,
     job: &Job,
     worker_id: &str,
@@ -1361,6 +1371,7 @@ fn requeue_job(
                 retry_delay_seconds: delay_seconds,
             },
         )
+        .await
         .map_err(TelemetryError::internal)
 }
 
@@ -1748,15 +1759,21 @@ mod tests {
         }
     }
 
-    #[test]
-    fn ingests_firing_alert_once_and_redacts_unapproved_fields() {
+    #[tokio::test]
+    async fn ingests_firing_alert_once_and_redacts_unapproved_fields() {
         let automation = TelemetryAutomation::new(TelemetryConfig::test()).unwrap();
-        let database = Database::open(":memory:").unwrap();
+        let Ok(database_url) = std::env::var("TEST_DATABASE_URL") else {
+            eprintln!("skipping PostgreSQL integration test: TEST_DATABASE_URL is not set");
+            return;
+        };
+        let database = Database::open(&database_url).await.unwrap();
         let first = automation
             .ingest_alertmanager(&database, firing_payload())
+            .await
             .unwrap();
         let second = automation
             .ingest_alertmanager(&database, firing_payload())
+            .await
             .unwrap();
         assert_eq!(first.jobs.len(), 1);
         assert_eq!(first.jobs[0].id, second.jobs[0].id);
@@ -1772,13 +1789,20 @@ mod tests {
             .is_none());
     }
 
-    #[test]
-    fn resolved_and_non_actionable_alerts_are_ignored() {
+    #[tokio::test]
+    async fn resolved_and_non_actionable_alerts_are_ignored() {
         let automation = TelemetryAutomation::new(TelemetryConfig::test()).unwrap();
-        let database = Database::open(":memory:").unwrap();
+        let Ok(database_url) = std::env::var("TEST_DATABASE_URL") else {
+            eprintln!("skipping PostgreSQL integration test: TEST_DATABASE_URL is not set");
+            return;
+        };
+        let database = Database::open(&database_url).await.unwrap();
         let mut payload = firing_payload();
         payload.status = "resolved".to_owned();
-        let report = automation.ingest_alertmanager(&database, payload).unwrap();
+        let report = automation
+            .ingest_alertmanager(&database, payload)
+            .await
+            .unwrap();
         assert!(report.jobs.is_empty());
         assert_eq!(report.ignored, 1);
     }

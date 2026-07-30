@@ -16,15 +16,22 @@ const SONUS_SECRET: &str = "sonus-test-webhook-secret";
 const DAEDALUS_SECRET: &str = "daedalus-test-webhook-secret";
 const SONUS_REPOSITORY: &str = "sonus-auris/sonus-auris-site.web";
 const DAEDALUS_REPOSITORY: &str = "daedalus-fab/daedalus-clients";
-const AFTER_A: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
-const AFTER_B: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const AFTER_A: &str = "3333333333333333333333333333333333333333";
+const AFTER_B: &str = "4444444444444444444444444444444444444444";
 
-#[test]
-fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
+#[tokio::test]
+async fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
     configure_policy_environment();
 
     let policy = GithubWebhookPolicy::from_env(None).expect("load webhook policy");
-    let database = Database::open(":memory:").expect("open in-memory database");
+    let Ok(database_url) = env::var("TEST_DATABASE_URL") else {
+        eprintln!("skipping PostgreSQL integration test: TEST_DATABASE_URL is not set");
+        clear_policy_environment();
+        return;
+    };
+    let database = Database::open(&database_url)
+        .await
+        .expect("connect to test database");
 
     let accepted_body = push_body(
         SONUS_REPOSITORY,
@@ -51,6 +58,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         SONUS_SECRET,
         accepted_body.clone(),
     )
+    .await
     .expect("accept allowlisted signed push");
     assert_eq!(accepted["accepted"], true);
     assert_eq!(accepted["job"]["task_type"], "github_push");
@@ -75,6 +83,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         SONUS_SECRET,
         accepted_body,
     )
+    .await
     .expect("deduplicate by repository and commit");
     assert_eq!(accepted["job"]["id"], replay["job"]["id"]);
 
@@ -94,6 +103,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         SONUS_SECRET,
         daedalus_body.clone(),
     )
+    .await
     .is_err());
     assert_eq!(
         send(
@@ -103,6 +113,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
             DAEDALUS_SECRET,
             daedalus_body,
         )
+        .await
         .expect("select Daedalus organization secret")["accepted"],
         true
     );
@@ -123,6 +134,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         SONUS_SECRET,
         unknown_repository,
     )
+    .await
     .expect("return an audited ignore decision");
     assert_eq!(ignored["accepted"], false);
     assert!(ignored["reason"]
@@ -184,6 +196,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         ),
     ] {
         let response = send(&database, &policy, delivery, SONUS_SECRET, body)
+            .await
             .expect("return an audited ignore decision");
         assert_eq!(response["accepted"], false);
         assert!(response["reason"]
@@ -207,6 +220,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         SONUS_SECRET,
         malformed_commit,
     )
+    .await
     .is_err());
 
     let unknown_org_body = push_body(
@@ -225,6 +239,7 @@ fn signed_push_policy_rejects_untrusted_events_and_parses_multiple_commits() {
         SONUS_SECRET,
         unknown_org_body,
     )
+    .await
     .is_err());
 
     clear_policy_environment();
@@ -287,7 +302,7 @@ fn push_body(
     )
 }
 
-fn send(
+async fn send(
     database: &Database,
     policy: &GithubWebhookPolicy,
     delivery: &str,
@@ -303,6 +318,7 @@ fn send(
         &[],
         false,
     )
+    .await
 }
 
 fn push_headers(delivery: &str, secret: &str, body: &[u8]) -> HeaderMap {

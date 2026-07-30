@@ -53,20 +53,44 @@ jobs:
         run: |
           set -euo pipefail
           container=ai-agent-coordinator-ci
+          database=ai-agent-coordinator-ci-postgres
+          network=ai-agent-coordinator-ci
           cleanup() {
             docker logs "$container" || true
+            docker logs "$database" || true
             docker rm --force "$container" >/dev/null 2>&1 || true
+            docker rm --force "$database" >/dev/null 2>&1 || true
+            docker network rm "$network" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
+          docker network create "$network" >/dev/null
+          docker run --detach \
+            --name "$database" \
+            --network "$network" \
+            --env POSTGRES_PASSWORD=coordinator-ci \
+            --env POSTGRES_DB=coordinator \
+            postgres:17
+          for attempt in $(seq 1 60); do
+            if docker exec "$database" pg_isready --username postgres --dbname coordinator >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" == 60 ]]; then
+              echo 'PostgreSQL did not become ready' >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
           docker run --detach \
             --name "$container" \
+            --network "$network" \
             --read-only \
             --cap-drop ALL \
             --security-opt no-new-privileges \
-            --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700 \
             --publish 127.0.0.1:18080:8080 \
             --env COORDINATOR_API_TOKEN \
+            --env AI_AGENT_COORDINATOR_DATABASE_URL=postgres://postgres:coordinator-ci@ai-agent-coordinator-ci-postgres:5432/coordinator \
             --env GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS=declarative-migrations \
             "coordinator-ci:${GITHUB_SHA}"
 

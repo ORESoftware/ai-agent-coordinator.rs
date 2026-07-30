@@ -12,7 +12,7 @@ RUN useradd --create-home --uid 10001 coordinator
 WORKDIR /app
 COPY --from=builder /workspace/target/release/ai-agent-coordinator /usr/local/bin/ai-agent-coordinator
 COPY coordinator.example.yaml /app/coordinator.yaml
-RUN mkdir -p /app/data && chown -R coordinator:coordinator /app
+RUN chown -R coordinator:coordinator /app
 USER coordinator
 EXPOSE 8080
 ENTRYPOINT ["ai-agent-coordinator"]

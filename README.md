@@ -49,7 +49,7 @@ The server does **not** store a broad GitHub personal access token. Workers shou
 - Optional per-request budget with `x-fiducia-max-cost-usd`
 - Secret detection and redaction before remote inference
 - Restricted-data policy that can force local inference
-- SQLite-backed durable jobs and usage records
+- PostgreSQL-backed durable jobs and usage records through SeaORM
 - Worker leases, heartbeats, retry delays, idempotent enqueueing, and transactional org/repo concurrency caps
 - GitHub HMAC webhook verification
 - Structured tracing and request IDs
@@ -69,6 +69,7 @@ Set at least:
 ```bash
 export COORDINATOR_API_TOKEN="$(openssl rand -hex 32)"
 export GITHUB_WEBHOOK_SECRET="$(openssl rand -hex 32)"
+export AI_AGENT_COORDINATOR_DATABASE_URL="postgres://postgres:postgres@127.0.0.1:5432/ai_agent_coordinator"
 export MISTRAL_API_KEY="..."
 ```
 
@@ -85,6 +86,8 @@ cargo run --release -- --config coordinator.yaml
 Or:
 
 ```bash
+# Keep the shared definitions checkout beside this repository; Compose mounts
+# its canonical ai_agent_coordinator schema into the local PostgreSQL service.
 docker compose up --build
 ```
 
@@ -196,7 +199,31 @@ curl http://localhost:8080/v1/jobs/JOB_ID/complete \
   }'
 ```
 
-Expired leases are returned to the queue until `max_attempts` is reached. Claims also enforce the configured running-job cap for both the organization and repository inside the same SQLite transaction.
+Expired leases are returned to the queue until `max_attempts` is reached. Claims use serializable PostgreSQL transactions plus row locks to enforce the configured running-job cap for both the organization and repository across coordinator replicas.
+
+## PostgreSQL schema and migrations
+
+Runtime persistence uses SeaORM, but ORM entities are not migration authority.
+The declarative PostgreSQL contract lives in the shared definitions repository:
+
+```text
+k8s-libs-and-shared-defs/
+  pg-defs/schema/databases/ai_agent_coordinator/schema.sql
+```
+
+Every owned table is qualified by the `ai_agent_coordinator` PostgreSQL schema.
+With the shared-defs checkout beside this repository, operators can review and
+verify changes through [`scripts/dpm.sh`](scripts/dpm.sh):
+
+```bash
+export AI_AGENT_COORDINATOR_DATABASE_URL=postgres://...
+export SHADOW_DATABASE_URL=postgres://.../postgres
+scripts/dpm.sh diff
+scripts/dpm.sh verify
+```
+
+Only `scripts/dpm.sh apply` changes the target, and dpm requires explicit
+confirmation. The coordinator never runs DDL or migrations at startup.
 
 ## GitHub webhook setup
 
@@ -271,7 +298,7 @@ For larger local models or GPU clusters, point the same provider entry at vLLM, 
 ## Current limitations
 
 - Chat completion streaming is not implemented.
-- The first release uses one SQLite writer; move the job and usage stores behind Postgres/CockroachDB before running multiple coordinator replicas.
+- Online data backfills are not automated by the declarative schema workflow and must be planned separately.
 - Token estimation before a request is approximate. Actual provider usage is recorded when the response supplies usage fields.
 - Provider prices are configuration, not fetched automatically.
 - Linear webhook ingestion and GitHub App token minting are planned adapters, not part of this bootstrap.

@@ -3,7 +3,7 @@ server:
   max_concurrent_model_requests: 24
 
 database:
-  path: ./data/coordinator.db
+  url_env: AI_AGENT_COORDINATOR_DATABASE_URL
 
 auth:
   required: true

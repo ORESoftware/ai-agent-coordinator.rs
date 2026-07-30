@@ -164,10 +164,12 @@ impl ModelGateway {
         let org_spend = self
             .database
             .org_usage_today_usd(&context.org)
+            .await
             .map_err(AppError::Internal)?;
         let repo_spend = self
             .database
             .repo_usage_today_usd(&context.org, &context.repo)
+            .await
             .map_err(AppError::Internal)?;
         let org_limit = self.config.org_daily_limit(&context.org);
         let repo_limit = self.config.repo_daily_limit(&context.org, &context.repo);
@@ -269,6 +271,7 @@ impl ModelGateway {
                             completion_tokens,
                             cost_usd: actual_cost,
                         })
+                        .await
                         .map_err(AppError::Internal)?;
 
                     attempts.push(RouteAttempt {

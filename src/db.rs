@@ -1,22 +1,36 @@
-use std::{path::Path, sync::Arc, time::Duration};
+//! SeaORM persistence for the coordinator's PostgreSQL namespace.
+//!
+//! The application never creates or migrates tables. The declarative schema
+//! authority lives in k8s-libs-and-shared-defs at:
+//! `pg-defs/schema/databases/ai_agent_coordinator/schema.sql`.
+
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use chrono::{DateTime, Duration as ChronoDuration, Utc};
-use parking_lot::Mutex;
-use rusqlite::{params, Connection, OptionalExtension, Row};
-use serde_json::Value;
+use sea_orm::{
+    sea_query::{Expr, LockBehavior, LockType, OnConflict},
+    AccessMode, ActiveModelTrait,
+    ActiveValue::Set,
+    ColumnTrait, ConnectOptions, Database as SeaDatabase, DatabaseConnection, DatabaseTransaction,
+    EntityTrait, IsolationLevel, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect,
+    TransactionTrait,
+};
 use uuid::Uuid;
 
 use crate::{
     config::WorkerConfig,
+    entity::{jobs, linear_mutations, model_usage},
     jobs::{
         ClaimJobRequest, CompleteJobRequest, CompletionOutcome, CreateJobRequest, Job, JobStatus,
     },
 };
 
+const SERIALIZABLE_RETRIES: usize = 4;
+
 #[derive(Clone)]
 pub struct Database {
-    connection: Arc<Mutex<Connection>>,
+    connection: DatabaseConnection,
 }
 
 #[derive(Debug, Clone)]
@@ -32,310 +46,297 @@ pub struct UsageRecord {
 }
 
 impl Database {
-    pub fn open(path: &str) -> Result<Self> {
-        if path != ":memory:" {
-            if let Some(parent) = Path::new(path).parent() {
-                std::fs::create_dir_all(parent).with_context(|| {
-                    format!("failed to create database directory {}", parent.display())
-                })?;
-            }
-        }
-
-        let connection = Connection::open(path)
-            .with_context(|| format!("failed to open SQLite database at {path}"))?;
-        connection
-            .busy_timeout(Duration::from_secs(5))
-            .context("failed to configure SQLite busy timeout")?;
-        connection
-            .execute_batch(
-                r#"
-                PRAGMA foreign_keys = ON;
-                PRAGMA journal_mode = WAL;
-                PRAGMA synchronous = NORMAL;
-
-                CREATE TABLE IF NOT EXISTS jobs (
-                    id TEXT PRIMARY KEY,
-                    org TEXT NOT NULL,
-                    repo TEXT NOT NULL,
-                    task_type TEXT NOT NULL,
-                    payload_json TEXT NOT NULL,
-                    priority INTEGER NOT NULL DEFAULT 0,
-                    status TEXT NOT NULL,
-                    idempotency_key TEXT,
-                    created_at_ms INTEGER NOT NULL,
-                    updated_at_ms INTEGER NOT NULL,
-                    available_at_ms INTEGER NOT NULL,
-                    claimed_by TEXT,
-                    lease_expires_at_ms INTEGER,
-                    attempts INTEGER NOT NULL DEFAULT 0,
-                    max_attempts INTEGER NOT NULL DEFAULT 3,
-                    result_json TEXT,
-                    last_error TEXT,
-                    budget_usd REAL
-                );
-
-                CREATE UNIQUE INDEX IF NOT EXISTS jobs_idempotency_key_unique
-                    ON jobs(idempotency_key)
-                    WHERE idempotency_key IS NOT NULL;
-
-                CREATE INDEX IF NOT EXISTS jobs_claim_idx
-                    ON jobs(status, available_at_ms, priority DESC, created_at_ms ASC);
-
-                CREATE INDEX IF NOT EXISTS jobs_repo_idx
-                    ON jobs(org, repo, status, created_at_ms DESC);
-
-                CREATE TABLE IF NOT EXISTS model_usage (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    request_id TEXT NOT NULL,
-                    created_at_ms INTEGER NOT NULL,
-                    org TEXT NOT NULL,
-                    repo TEXT NOT NULL,
-                    provider TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    prompt_tokens INTEGER NOT NULL,
-                    completion_tokens INTEGER NOT NULL,
-                    cost_usd REAL NOT NULL
-                );
-
-                CREATE INDEX IF NOT EXISTS model_usage_org_time_idx
-                    ON model_usage(org, created_at_ms);
-
-                CREATE INDEX IF NOT EXISTS model_usage_repo_time_idx
-                    ON model_usage(org, repo, created_at_ms);
-                "#,
-            )
-            .context("failed to initialize database schema")?;
-
-        Ok(Self {
-            connection: Arc::new(Mutex::new(connection)),
-        })
-    }
-
-    pub fn ready(&self) -> Result<()> {
-        let connection = self.connection.lock();
-        let value: i64 = connection.query_row("SELECT 1", [], |row| row.get(0))?;
-        if value != 1 {
+    pub async fn open(database_url: &str) -> Result<Self> {
+        if !matches!(
+            database_url.split_once("://").map(|(scheme, _)| scheme),
+            Some("postgres" | "postgresql")
+        ) {
             return Err(anyhow!(
-                "database readiness query returned an unexpected value"
+                "database URL must use the postgres:// or postgresql:// scheme"
             ));
         }
-        Ok(())
+
+        let mut options = ConnectOptions::new(database_url.to_owned());
+        options
+            .max_connections(16)
+            .min_connections(1)
+            .connect_timeout(Duration::from_secs(10))
+            .acquire_timeout(Duration::from_secs(10))
+            .idle_timeout(Duration::from_secs(300))
+            .sqlx_logging(true);
+        let connection = SeaDatabase::connect(options)
+            .await
+            .context("failed to connect to the coordinator PostgreSQL database")?;
+        Ok(Self { connection })
     }
 
-    pub fn create_job(
+    pub async fn ready(&self) -> Result<()> {
+        self.connection
+            .ping()
+            .await
+            .context("database readiness check failed")
+    }
+
+    pub async fn create_job(
         &self,
         request: &CreateJobRequest,
         idempotency_key: Option<&str>,
     ) -> Result<Job> {
         request.validate().map_err(anyhow::Error::msg)?;
-        let mut connection = self.connection.lock();
-        let transaction = connection.transaction()?;
 
         if let Some(key) = idempotency_key {
-            let existing_id: Option<String> = transaction
-                .query_row(
-                    "SELECT id FROM jobs WHERE idempotency_key = ?1",
-                    params![key],
-                    |row| row.get(0),
-                )
-                .optional()?;
-            if let Some(existing_id) = existing_id {
-                let existing = query_job(&transaction, &existing_id)?
-                    .ok_or_else(|| anyhow!("idempotent job disappeared during transaction"))?;
-                transaction.commit()?;
-                return Ok(existing);
+            if let Some(existing) = jobs::Entity::find()
+                .filter(jobs::Column::IdempotencyKey.eq(key))
+                .one(&self.connection)
+                .await?
+            {
+                return model_to_job(existing);
             }
         }
 
         let now = Utc::now();
-        let available_at = request.available_at.unwrap_or(now);
         let id = Uuid::new_v4().to_string();
-        let payload_json = serde_json::to_string(&request.payload)?;
+        let active_model = jobs::ActiveModel {
+            id: Set(id.clone()),
+            org: Set(request.org.clone()),
+            repo: Set(request.repo.clone()),
+            task_type: Set(request.task_type.clone()),
+            payload: Set(request.payload.clone()),
+            priority: Set(request.priority),
+            status: Set(JobStatus::Queued.as_str().to_owned()),
+            idempotency_key: Set(idempotency_key.map(str::to_owned)),
+            created_at: Set(now.into()),
+            updated_at: Set(now.into()),
+            available_at: Set(request.available_at.unwrap_or(now).into()),
+            claimed_by: Set(None),
+            lease_expires_at: Set(None),
+            attempts: Set(0),
+            max_attempts: Set(request.max_attempts),
+            result: Set(None),
+            last_error: Set(None),
+            budget_usd: Set(request.budget_usd),
+        };
 
-        transaction.execute(
-            r#"
-            INSERT INTO jobs (
-                id, org, repo, task_type, payload_json, priority, status,
-                idempotency_key, created_at_ms, updated_at_ms, available_at_ms,
-                attempts, max_attempts, budget_usd
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, 'queued', ?7, ?8, ?8, ?9, 0, ?10, ?11)
-            "#,
-            params![
-                id,
-                request.org,
-                request.repo,
-                request.task_type,
-                payload_json,
-                request.priority,
-                idempotency_key,
-                now.timestamp_millis(),
-                available_at.timestamp_millis(),
-                request.max_attempts,
-                request.budget_usd,
-            ],
-        )?;
-
-        let job = query_job(&transaction, &id)?
-            .ok_or_else(|| anyhow!("newly inserted job could not be read"))?;
-        transaction.commit()?;
-        Ok(job)
+        if let Some(key) = idempotency_key {
+            let inserted = jobs::Entity::insert(active_model)
+                .on_conflict(
+                    OnConflict::column(jobs::Column::IdempotencyKey)
+                        .do_nothing()
+                        .to_owned(),
+                )
+                .do_nothing()
+                .exec(&self.connection)
+                .await?;
+            if matches!(inserted, sea_orm::TryInsertResult::Inserted(_)) {
+                return self
+                    .get_job(&id)
+                    .await?
+                    .ok_or_else(|| anyhow!("newly inserted job could not be read"));
+            }
+            return jobs::Entity::find()
+                .filter(jobs::Column::IdempotencyKey.eq(key))
+                .one(&self.connection)
+                .await?
+                .map(model_to_job)
+                .transpose()?
+                .ok_or_else(|| anyhow!("idempotent job could not be read after insert conflict"));
+        } else {
+            jobs::Entity::insert(active_model)
+                .exec(&self.connection)
+                .await?;
+            self.get_job(&id)
+                .await?
+                .ok_or_else(|| anyhow!("newly inserted job could not be read"))
+        }
     }
 
-    pub fn get_job(&self, id: &str) -> Result<Option<Job>> {
-        let connection = self.connection.lock();
-        query_job(&connection, id)
+    pub async fn get_job(&self, id: &str) -> Result<Option<Job>> {
+        jobs::Entity::find_by_id(id)
+            .one(&self.connection)
+            .await?
+            .map(model_to_job)
+            .transpose()
     }
 
-    pub fn claim_job(
+    pub async fn claim_job(
         &self,
         request: &ClaimJobRequest,
         worker_config: &WorkerConfig,
     ) -> Result<Option<Job>> {
         request.validate().map_err(anyhow::Error::msg)?;
-        let mut connection = self.connection.lock();
-        let transaction = connection.transaction()?;
+
+        for attempt in 0..SERIALIZABLE_RETRIES {
+            match self.claim_job_once(request, worker_config).await {
+                Ok(job) => return Ok(job),
+                Err(error)
+                    if attempt + 1 < SERIALIZABLE_RETRIES && is_serialization_failure(&error) =>
+                {
+                    tokio::task::yield_now().await;
+                }
+                Err(error) => return Err(error),
+            }
+        }
+        unreachable!("claim retry loop always returns")
+    }
+
+    async fn claim_job_once(
+        &self,
+        request: &ClaimJobRequest,
+        worker_config: &WorkerConfig,
+    ) -> Result<Option<Job>> {
+        let transaction = self
+            .connection
+            .begin_with_config(
+                Some(IsolationLevel::Serializable),
+                Some(AccessMode::ReadWrite),
+            )
+            .await?;
         let now = Utc::now();
-        let now_ms = now.timestamp_millis();
 
-        transaction.execute(
-            r#"
-            UPDATE jobs
-               SET status = 'queued',
-                   claimed_by = NULL,
-                   lease_expires_at_ms = NULL,
-                   updated_at_ms = ?1
-             WHERE status = 'running'
-               AND lease_expires_at_ms IS NOT NULL
-               AND lease_expires_at_ms < ?1
-               AND attempts < max_attempts
-            "#,
-            params![now_ms],
-        )?;
+        jobs::Entity::update_many()
+            .col_expr(jobs::Column::Status, Expr::value("queued"))
+            .col_expr(jobs::Column::ClaimedBy, Expr::value(Option::<String>::None))
+            .col_expr(
+                jobs::Column::LeaseExpiresAt,
+                Expr::value(Option::<DateTime<Utc>>::None),
+            )
+            .col_expr(jobs::Column::UpdatedAt, Expr::value(now))
+            .filter(jobs::Column::Status.eq(JobStatus::Running.as_str()))
+            .filter(jobs::Column::LeaseExpiresAt.is_not_null())
+            .filter(jobs::Column::LeaseExpiresAt.lt(now))
+            .filter(Expr::col(jobs::Column::Attempts).lt(Expr::col(jobs::Column::MaxAttempts)))
+            .exec(&transaction)
+            .await?;
 
-        transaction.execute(
-            r#"
-            UPDATE jobs
-               SET status = 'failed',
-                   last_error = COALESCE(last_error, 'worker lease expired after final attempt'),
-                   claimed_by = NULL,
-                   lease_expires_at_ms = NULL,
-                   updated_at_ms = ?1
-             WHERE status = 'running'
-               AND lease_expires_at_ms IS NOT NULL
-               AND lease_expires_at_ms < ?1
-               AND attempts >= max_attempts
-            "#,
-            params![now_ms],
-        )?;
+        jobs::Entity::update_many()
+            .col_expr(jobs::Column::Status, Expr::value("failed"))
+            .col_expr(
+                jobs::Column::LastError,
+                Expr::col(jobs::Column::LastError)
+                    .if_null("worker lease expired after final attempt"),
+            )
+            .col_expr(jobs::Column::ClaimedBy, Expr::value(Option::<String>::None))
+            .col_expr(
+                jobs::Column::LeaseExpiresAt,
+                Expr::value(Option::<DateTime<Utc>>::None),
+            )
+            .col_expr(jobs::Column::UpdatedAt, Expr::value(now))
+            .filter(jobs::Column::Status.eq(JobStatus::Running.as_str()))
+            .filter(jobs::Column::LeaseExpiresAt.is_not_null())
+            .filter(jobs::Column::LeaseExpiresAt.lt(now))
+            .filter(Expr::col(jobs::Column::Attempts).gte(Expr::col(jobs::Column::MaxAttempts)))
+            .exec(&transaction)
+            .await?;
 
-        let candidate_ids = {
-            let mut statement = transaction.prepare(
-                r#"
-                SELECT id
-                  FROM jobs
-                 WHERE status = 'queued'
-                   AND available_at_ms <= ?1
-                   AND attempts < max_attempts
-                 ORDER BY priority DESC, created_at_ms ASC
-                 LIMIT 200
-                "#,
-            )?;
-            let rows = statement.query_map(params![now_ms], |row| row.get::<_, String>(0))?;
-            rows.collect::<rusqlite::Result<Vec<_>>>()?
-        };
+        let candidates = jobs::Entity::find()
+            .filter(jobs::Column::Status.eq(JobStatus::Queued.as_str()))
+            .filter(jobs::Column::AvailableAt.lte(now))
+            .filter(Expr::col(jobs::Column::Attempts).lt(Expr::col(jobs::Column::MaxAttempts)))
+            .order_by_desc(jobs::Column::Priority)
+            .order_by_asc(jobs::Column::CreatedAt)
+            .limit(200)
+            .lock_with_behavior(LockType::Update, LockBehavior::SkipLocked)
+            .all(&transaction)
+            .await?;
 
-        for candidate_id in candidate_ids {
-            let Some(candidate) = query_job(&transaction, &candidate_id)? else {
-                continue;
-            };
+        for candidate_model in candidates {
+            let candidate = model_to_job(candidate_model)?;
             if !request.accepts(&candidate) {
                 continue;
             }
 
-            let org_running: i64 = transaction.query_row(
-                "SELECT COUNT(*) FROM jobs WHERE status = 'running' AND org = ?1",
-                params![candidate.org],
-                |row| row.get(0),
-            )?;
-            if org_running >= worker_config.org_limit(&candidate.org) as i64 {
+            let org_running = jobs::Entity::find()
+                .filter(jobs::Column::Status.eq(JobStatus::Running.as_str()))
+                .filter(jobs::Column::Org.eq(&candidate.org))
+                .count(&transaction)
+                .await?;
+            if org_running >= worker_config.org_limit(&candidate.org) as u64 {
                 continue;
             }
 
-            let repo_running: i64 = transaction.query_row(
-                "SELECT COUNT(*) FROM jobs WHERE status = 'running' AND org = ?1 AND repo = ?2",
-                params![candidate.org, candidate.repo],
-                |row| row.get(0),
-            )?;
-            if repo_running >= worker_config.repo_limit(&candidate.org, &candidate.repo) as i64 {
+            let repo_running = jobs::Entity::find()
+                .filter(jobs::Column::Status.eq(JobStatus::Running.as_str()))
+                .filter(jobs::Column::Org.eq(&candidate.org))
+                .filter(jobs::Column::Repo.eq(&candidate.repo))
+                .count(&transaction)
+                .await?;
+            if repo_running >= worker_config.repo_limit(&candidate.org, &candidate.repo) as u64 {
                 continue;
             }
 
             let lease_expires_at = now + ChronoDuration::seconds(request.lease_seconds);
-            let updated = transaction.execute(
-                r#"
-                UPDATE jobs
-                   SET status = 'running',
-                       claimed_by = ?1,
-                       lease_expires_at_ms = ?2,
-                       attempts = attempts + 1,
-                       updated_at_ms = ?3
-                 WHERE id = ?4
-                   AND status = 'queued'
-                "#,
-                params![
-                    request.worker_id,
-                    lease_expires_at.timestamp_millis(),
-                    now_ms,
-                    candidate_id,
-                ],
-            )?;
-            if updated == 1 {
-                let claimed = query_job(&transaction, &candidate_id)?
+            let updated = jobs::Entity::update_many()
+                .col_expr(jobs::Column::Status, Expr::value("running"))
+                .col_expr(
+                    jobs::Column::ClaimedBy,
+                    Expr::value(Some(request.worker_id.clone())),
+                )
+                .col_expr(
+                    jobs::Column::LeaseExpiresAt,
+                    Expr::value(Some(lease_expires_at)),
+                )
+                .col_expr(
+                    jobs::Column::Attempts,
+                    Expr::col(jobs::Column::Attempts).add(1),
+                )
+                .col_expr(jobs::Column::UpdatedAt, Expr::value(now))
+                .filter(jobs::Column::Id.eq(&candidate.id))
+                .filter(jobs::Column::Status.eq(JobStatus::Queued.as_str()))
+                .exec(&transaction)
+                .await?;
+            if updated.rows_affected == 1 {
+                let claimed = get_job_in(&transaction, &candidate.id)
+                    .await?
                     .ok_or_else(|| anyhow!("claimed job could not be read"))?;
-                transaction.commit()?;
+                transaction.commit().await?;
                 return Ok(Some(claimed));
             }
         }
 
-        transaction.commit()?;
+        transaction.commit().await?;
         Ok(None)
     }
 
-    pub fn heartbeat_job(&self, id: &str, worker_id: &str, lease_seconds: i64) -> Result<Job> {
+    pub async fn heartbeat_job(
+        &self,
+        id: &str,
+        worker_id: &str,
+        lease_seconds: i64,
+    ) -> Result<Job> {
         if !(15..=3600).contains(&lease_seconds) {
             return Err(anyhow!("lease_seconds must be between 15 and 3600"));
         }
         let now = Utc::now();
         let lease_expires_at = now + ChronoDuration::seconds(lease_seconds);
-        let connection = self.connection.lock();
-        let updated = connection.execute(
-            r#"
-            UPDATE jobs
-               SET lease_expires_at_ms = ?1,
-                   updated_at_ms = ?2
-             WHERE id = ?3
-               AND status = 'running'
-               AND claimed_by = ?4
-            "#,
-            params![
-                lease_expires_at.timestamp_millis(),
-                now.timestamp_millis(),
-                id,
-                worker_id,
-            ],
-        )?;
-        if updated != 1 {
+        let updated = jobs::Entity::update_many()
+            .col_expr(
+                jobs::Column::LeaseExpiresAt,
+                Expr::value(Some(lease_expires_at)),
+            )
+            .col_expr(jobs::Column::UpdatedAt, Expr::value(now))
+            .filter(jobs::Column::Id.eq(id))
+            .filter(jobs::Column::Status.eq(JobStatus::Running.as_str()))
+            .filter(jobs::Column::ClaimedBy.eq(worker_id))
+            .exec(&self.connection)
+            .await?;
+        if updated.rows_affected != 1 {
             return Err(anyhow!(
                 "job is not running, does not exist, or is leased by another worker"
             ));
         }
-        query_job(&connection, id)?.ok_or_else(|| anyhow!("updated job could not be read"))
+        self.get_job(id)
+            .await?
+            .ok_or_else(|| anyhow!("updated job could not be read"))
     }
 
-    pub fn complete_job(&self, id: &str, request: &CompleteJobRequest) -> Result<Job> {
-        let mut connection = self.connection.lock();
-        let transaction = connection.transaction()?;
-        let job = query_job(&transaction, id)?.ok_or_else(|| anyhow!("job not found"))?;
+    pub async fn complete_job(&self, id: &str, request: &CompleteJobRequest) -> Result<Job> {
+        let transaction = self.connection.begin().await?;
+        let model = jobs::Entity::find_by_id(id)
+            .lock_exclusive()
+            .one(&transaction)
+            .await?
+            .ok_or_else(|| anyhow!("job not found"))?;
+        let job = model_to_job(model.clone())?;
 
         if job.status != JobStatus::Running {
             return Err(anyhow!("job is not running"));
@@ -345,141 +346,227 @@ impl Database {
         }
 
         let now = Utc::now();
-        let result_json = request
-            .result
-            .as_ref()
-            .map(serde_json::to_string)
-            .transpose()?;
+        let mut active: jobs::ActiveModel = model.into();
+        active.result = Set(request.result.clone());
+        active.claimed_by = Set(None);
+        active.lease_expires_at = Set(None);
+        active.updated_at = Set(now.into());
 
         match request.outcome {
             CompletionOutcome::Succeeded => {
-                transaction.execute(
-                    r#"
-                    UPDATE jobs
-                       SET status = 'succeeded',
-                           result_json = ?1,
-                           last_error = NULL,
-                           claimed_by = NULL,
-                           lease_expires_at_ms = NULL,
-                           updated_at_ms = ?2
-                     WHERE id = ?3
-                    "#,
-                    params![result_json, now.timestamp_millis(), id],
-                )?;
+                active.status = Set(JobStatus::Succeeded.as_str().to_owned());
+                active.last_error = Set(None);
             }
             CompletionOutcome::Failed if request.retryable && job.attempts < job.max_attempts => {
+                active.status = Set(JobStatus::Queued.as_str().to_owned());
+                active.last_error = Set(request.error.clone());
                 let delay = request.retry_delay_seconds.clamp(0, 86_400);
-                let available_at = now + ChronoDuration::seconds(delay);
-                transaction.execute(
-                    r#"
-                    UPDATE jobs
-                       SET status = 'queued',
-                           result_json = ?1,
-                           last_error = ?2,
-                           claimed_by = NULL,
-                           lease_expires_at_ms = NULL,
-                           available_at_ms = ?3,
-                           updated_at_ms = ?4
-                     WHERE id = ?5
-                    "#,
-                    params![
-                        result_json,
-                        request.error,
-                        available_at.timestamp_millis(),
-                        now.timestamp_millis(),
-                        id,
-                    ],
-                )?;
+                active.available_at = Set((now + ChronoDuration::seconds(delay)).into());
             }
             CompletionOutcome::Failed => {
-                transaction.execute(
-                    r#"
-                    UPDATE jobs
-                       SET status = 'failed',
-                           result_json = ?1,
-                           last_error = ?2,
-                           claimed_by = NULL,
-                           lease_expires_at_ms = NULL,
-                           updated_at_ms = ?3
-                     WHERE id = ?4
-                    "#,
-                    params![result_json, request.error, now.timestamp_millis(), id],
-                )?;
+                active.status = Set(JobStatus::Failed.as_str().to_owned());
+                active.last_error = Set(request.error.clone());
             }
         }
 
-        let updated = query_job(&transaction, id)?
-            .ok_or_else(|| anyhow!("completed job could not be read"))?;
-        transaction.commit()?;
-        Ok(updated)
+        let updated = active.update(&transaction).await?;
+        transaction.commit().await?;
+        model_to_job(updated)
     }
 
-    pub fn cancel_job(&self, id: &str) -> Result<Job> {
-        let connection = self.connection.lock();
-        let now_ms = Utc::now().timestamp_millis();
-        let updated = connection.execute(
-            r#"
-            UPDATE jobs
-               SET status = 'cancelled',
-                   claimed_by = NULL,
-                   lease_expires_at_ms = NULL,
-                   updated_at_ms = ?1
-             WHERE id = ?2
-               AND status IN ('queued', 'running')
-            "#,
-            params![now_ms, id],
-        )?;
-        if updated != 1 {
+    pub async fn cancel_job(&self, id: &str) -> Result<Job> {
+        let now = Utc::now();
+        let updated = jobs::Entity::update_many()
+            .col_expr(jobs::Column::Status, Expr::value("cancelled"))
+            .col_expr(jobs::Column::ClaimedBy, Expr::value(Option::<String>::None))
+            .col_expr(
+                jobs::Column::LeaseExpiresAt,
+                Expr::value(Option::<DateTime<Utc>>::None),
+            )
+            .col_expr(jobs::Column::UpdatedAt, Expr::value(now))
+            .filter(jobs::Column::Id.eq(id))
+            .filter(
+                jobs::Column::Status
+                    .is_in([JobStatus::Queued.as_str(), JobStatus::Running.as_str()]),
+            )
+            .exec(&self.connection)
+            .await?;
+        if updated.rows_affected != 1 {
             return Err(anyhow!("job cannot be cancelled or does not exist"));
         }
-        query_job(&connection, id)?.ok_or_else(|| anyhow!("cancelled job could not be read"))
+        self.get_job(id)
+            .await?
+            .ok_or_else(|| anyhow!("cancelled job could not be read"))
     }
 
-    pub fn record_usage(&self, record: &UsageRecord) -> Result<()> {
-        let connection = self.connection.lock();
-        connection.execute(
-            r#"
-            INSERT INTO model_usage (
-                request_id, created_at_ms, org, repo, provider, model,
-                prompt_tokens, completion_tokens, cost_usd
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
-            "#,
-            params![
-                record.request_id,
-                Utc::now().timestamp_millis(),
-                record.org,
-                record.repo,
-                record.provider,
-                record.model,
-                record.prompt_tokens as i64,
-                record.completion_tokens as i64,
-                record.cost_usd,
-            ],
-        )?;
+    pub async fn record_usage(&self, record: &UsageRecord) -> Result<()> {
+        let prompt_tokens = i64::try_from(record.prompt_tokens)
+            .context("prompt token count exceeds PostgreSQL bigint range")?;
+        let completion_tokens = i64::try_from(record.completion_tokens)
+            .context("completion token count exceeds PostgreSQL bigint range")?;
+        model_usage::ActiveModel {
+            request_id: Set(record.request_id.clone()),
+            created_at: Set(Utc::now().into()),
+            org: Set(record.org.clone()),
+            repo: Set(record.repo.clone()),
+            provider: Set(record.provider.clone()),
+            model: Set(record.model.clone()),
+            prompt_tokens: Set(prompt_tokens),
+            completion_tokens: Set(completion_tokens),
+            cost_usd: Set(record.cost_usd),
+            ..Default::default()
+        }
+        .insert(&self.connection)
+        .await?;
         Ok(())
     }
 
-    pub fn org_usage_today_usd(&self, org: &str) -> Result<f64> {
-        let start_ms = start_of_utc_day().timestamp_millis();
-        let connection = self.connection.lock();
-        let value: f64 = connection.query_row(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM model_usage WHERE org = ?1 AND created_at_ms >= ?2",
-            params![org, start_ms],
-            |row| row.get(0),
-        )?;
-        Ok(value)
+    pub async fn org_usage_today_usd(&self, org: &str) -> Result<f64> {
+        self.usage_today_usd(org, None).await
     }
 
-    pub fn repo_usage_today_usd(&self, org: &str, repo: &str) -> Result<f64> {
-        let start_ms = start_of_utc_day().timestamp_millis();
-        let connection = self.connection.lock();
-        let value: f64 = connection.query_row(
-            "SELECT COALESCE(SUM(cost_usd), 0.0) FROM model_usage WHERE org = ?1 AND repo = ?2 AND created_at_ms >= ?3",
-            params![org, repo, start_ms],
-            |row| row.get(0),
-        )?;
-        Ok(value)
+    pub async fn repo_usage_today_usd(&self, org: &str, repo: &str) -> Result<f64> {
+        self.usage_today_usd(org, Some(repo)).await
     }
+
+    async fn usage_today_usd(&self, org: &str, repo: Option<&str>) -> Result<f64> {
+        let mut query = model_usage::Entity::find()
+            .select_only()
+            .column_as(Expr::col(model_usage::Column::CostUsd).sum(), "total")
+            .filter(model_usage::Column::Org.eq(org))
+            .filter(model_usage::Column::CreatedAt.gte(start_of_utc_day()));
+        if let Some(repo) = repo {
+            query = query.filter(model_usage::Column::Repo.eq(repo));
+        }
+        let total = query
+            .into_tuple::<Option<f64>>()
+            .one(&self.connection)
+            .await?
+            .flatten()
+            .unwrap_or(0.0);
+        Ok(total)
+    }
+
+    pub(crate) async fn linear_mutation_succeeded(&self, key: &str) -> Result<bool> {
+        let status = linear_mutations::Entity::find_by_id(key)
+            .one(&self.connection)
+            .await?
+            .map(|model| model.status);
+        Ok(status.as_deref() == Some("succeeded"))
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn begin_linear_mutation(
+        &self,
+        key: &str,
+        job_id: &str,
+        organization: &str,
+        repository: &str,
+        issue_identifier: &str,
+        commit_id: &str,
+        keyword: &str,
+        action: &str,
+    ) -> Result<()> {
+        let transaction = self.connection.begin().await?;
+        let now = Utc::now();
+        if let Some(existing) = linear_mutations::Entity::find_by_id(key)
+            .lock_exclusive()
+            .one(&transaction)
+            .await?
+        {
+            let mut active: linear_mutations::ActiveModel = existing.into();
+            active.status = Set("pending".to_owned());
+            active.attempts = Set(active.attempts.take().unwrap_or_default() + 1);
+            active.last_error = Set(None);
+            active.updated_at = Set(now.into());
+            active.update(&transaction).await?;
+        } else {
+            linear_mutations::ActiveModel {
+                mutation_key: Set(key.to_owned()),
+                job_id: Set(job_id.to_owned()),
+                organization: Set(organization.to_owned()),
+                repository: Set(repository.to_owned()),
+                issue_identifier: Set(issue_identifier.to_owned()),
+                commit_id: Set(commit_id.to_owned()),
+                keyword: Set(keyword.to_owned()),
+                action: Set(action.to_owned()),
+                status: Set("pending".to_owned()),
+                attempts: Set(1),
+                last_error: Set(None),
+                created_at: Set(now.into()),
+                updated_at: Set(now.into()),
+            }
+            .insert(&transaction)
+            .await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    pub(crate) async fn succeed_linear_mutation(&self, key: &str) -> Result<()> {
+        self.finish_linear_mutation(key, "succeeded", None).await
+    }
+
+    pub(crate) async fn fail_linear_mutation(&self, key: &str, error: &str) -> Result<()> {
+        self.finish_linear_mutation(key, "failed", Some(error))
+            .await
+    }
+
+    async fn finish_linear_mutation(
+        &self,
+        key: &str,
+        status: &str,
+        error: Option<&str>,
+    ) -> Result<()> {
+        let updated = linear_mutations::Entity::update_many()
+            .col_expr(linear_mutations::Column::Status, Expr::value(status))
+            .col_expr(
+                linear_mutations::Column::LastError,
+                Expr::value(error.map(|value| value.chars().take(512).collect::<String>())),
+            )
+            .col_expr(linear_mutations::Column::UpdatedAt, Expr::value(Utc::now()))
+            .filter(linear_mutations::Column::MutationKey.eq(key))
+            .exec(&self.connection)
+            .await?;
+        if updated.rows_affected != 1 {
+            return Err(anyhow!("Linear mutation ledger row does not exist"));
+        }
+        Ok(())
+    }
+}
+
+async fn get_job_in(transaction: &DatabaseTransaction, id: &str) -> Result<Option<Job>> {
+    jobs::Entity::find_by_id(id)
+        .one(transaction)
+        .await?
+        .map(model_to_job)
+        .transpose()
+}
+
+fn model_to_job(model: jobs::Model) -> Result<Job> {
+    let status = JobStatus::parse(&model.status)
+        .ok_or_else(|| anyhow!("database contains invalid job status {:?}", model.status))?;
+    Ok(Job {
+        id: model.id,
+        org: model.org,
+        repo: model.repo,
+        task_type: model.task_type,
+        payload: model.payload,
+        priority: model.priority,
+        status,
+        created_at: model.created_at.with_timezone(&Utc),
+        updated_at: model.updated_at.with_timezone(&Utc),
+        available_at: model.available_at.with_timezone(&Utc),
+        claimed_by: model.claimed_by,
+        lease_expires_at: model
+            .lease_expires_at
+            .map(|timestamp| timestamp.with_timezone(&Utc)),
+        attempts: model.attempts,
+        max_attempts: model.max_attempts,
+        result: model.result,
+        last_error: model.last_error,
+        budget_usd: model.budget_usd,
+    })
 }
 
 fn start_of_utc_day() -> DateTime<Utc> {
@@ -490,89 +577,11 @@ fn start_of_utc_day() -> DateTime<Utc> {
         .and_utc()
 }
 
-fn query_job(connection: &Connection, id: &str) -> Result<Option<Job>> {
-    connection
-        .query_row(
-            r#"
-            SELECT id, org, repo, task_type, payload_json, priority, status,
-                   created_at_ms, updated_at_ms, available_at_ms, claimed_by,
-                   lease_expires_at_ms, attempts, max_attempts, result_json,
-                   last_error, budget_usd
-              FROM jobs
-             WHERE id = ?1
-            "#,
-            params![id],
-            row_to_job,
-        )
-        .optional()
-        .map_err(Into::into)
-}
-
-fn row_to_job(row: &Row<'_>) -> rusqlite::Result<Job> {
-    let payload_json: String = row.get(4)?;
-    let status_string: String = row.get(6)?;
-    let created_at_ms: i64 = row.get(7)?;
-    let updated_at_ms: i64 = row.get(8)?;
-    let available_at_ms: i64 = row.get(9)?;
-    let lease_expires_at_ms: Option<i64> = row.get(11)?;
-    let result_json: Option<String> = row.get(14)?;
-
-    Ok(Job {
-        id: row.get(0)?,
-        org: row.get(1)?,
-        repo: row.get(2)?,
-        task_type: row.get(3)?,
-        payload: parse_json_column(4, &payload_json)?,
-        priority: row.get(5)?,
-        status: JobStatus::parse(&status_string).ok_or_else(|| {
-            rusqlite::Error::FromSqlConversionFailure(
-                6,
-                rusqlite::types::Type::Text,
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("invalid job status {status_string:?}"),
-                )
-                .into(),
-            )
-        })?,
-        created_at: timestamp_from_millis(7, created_at_ms)?,
-        updated_at: timestamp_from_millis(8, updated_at_ms)?,
-        available_at: timestamp_from_millis(9, available_at_ms)?,
-        claimed_by: row.get(10)?,
-        lease_expires_at: lease_expires_at_ms
-            .map(|value| timestamp_from_millis(11, value))
-            .transpose()?,
-        attempts: row.get(12)?,
-        max_attempts: row.get(13)?,
-        result: result_json
-            .as_deref()
-            .map(|value| parse_json_column(14, value))
-            .transpose()?,
-        last_error: row.get(15)?,
-        budget_usd: row.get(16)?,
-    })
-}
-
-fn parse_json_column(index: usize, value: &str) -> rusqlite::Result<Value> {
-    serde_json::from_str(value).map_err(|error| {
-        rusqlite::Error::FromSqlConversionFailure(
-            index,
-            rusqlite::types::Type::Text,
-            Box::new(error),
-        )
-    })
-}
-
-fn timestamp_from_millis(index: usize, value: i64) -> rusqlite::Result<DateTime<Utc>> {
-    DateTime::<Utc>::from_timestamp_millis(value).ok_or_else(|| {
-        rusqlite::Error::FromSqlConversionFailure(
-            index,
-            rusqlite::types::Type::Integer,
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("timestamp {value} is out of range"),
-            )
-            .into(),
-        )
+fn is_serialization_failure(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        let message = cause.to_string().to_ascii_lowercase();
+        message.contains("could not serialize access")
+            || message.contains("serialization failure")
+            || message.contains("sqlstate 40001")
     })
 }

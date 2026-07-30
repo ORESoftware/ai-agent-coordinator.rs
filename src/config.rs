@@ -211,20 +211,47 @@ fn default_model_concurrency() -> usize {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DatabaseConfig {
-    #[serde(default = "default_database_path")]
-    pub path: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default = "default_database_url_env")]
+    pub url_env: String,
 }
 
 impl Default for DatabaseConfig {
     fn default() -> Self {
         Self {
-            path: default_database_path(),
+            url: None,
+            url_env: default_database_url_env(),
         }
     }
 }
 
-fn default_database_path() -> String {
-    "./data/coordinator.db".to_owned()
+impl DatabaseConfig {
+    pub fn database_url(&self) -> Result<String> {
+        self.url
+            .clone()
+            .filter(|value| !value.trim().is_empty())
+            .or_else(|| {
+                env::var(&self.url_env)
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .or_else(|| {
+                env::var("DATABASE_URL")
+                    .ok()
+                    .filter(|value| !value.trim().is_empty())
+            })
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "database URL is required; set database.url, {}, or DATABASE_URL",
+                    self.url_env
+                )
+            })
+    }
+}
+
+fn default_database_url_env() -> String {
+    "AI_AGENT_COORDINATOR_DATABASE_URL".to_owned()
 }
 
 #[derive(Debug, Clone, Deserialize)]

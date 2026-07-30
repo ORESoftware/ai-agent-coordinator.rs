@@ -47,14 +47,15 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config: Config) -> anyhow::Result<Self> {
+    pub async fn new(config: Config) -> anyhow::Result<Self> {
         let config = Arc::new(config);
-        let database = Database::open(&config.database.path)?;
+        let database_url = config.database.database_url()?;
+        let database = Database::open(&database_url).await?;
         let providers = ProviderRegistry::from_config(&config)?;
         let scanner = SecretScanner::new()?;
         let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
-        let linear_delivery_worker = LinearDeliveryWorker::from_env(&config.database.path)?;
+        let linear_delivery_worker = LinearDeliveryWorker::from_env(database.clone())?;
         let telemetry_automation = TelemetryAutomation::from_env()?;
         let api_token = config.api_token();
         let github_webhook_policy =
@@ -141,7 +142,7 @@ async fn health() -> Json<Value> {
 }
 
 async fn ready(State(state): State<AppState>) -> Result<Json<Value>, AppError> {
-    state.database.ready().map_err(AppError::Internal)?;
+    state.database.ready().await.map_err(AppError::Internal)?;
     Ok(Json(json!({"status": "ready"})))
 }
 
@@ -177,6 +178,7 @@ async fn create_job(
     let job = state
         .database
         .create_job(&request, idempotency_key)
+        .await
         .map_err(AppError::Internal)?;
     Ok((StatusCode::ACCEPTED, Json(json!({"job": job}))))
 }
@@ -191,6 +193,7 @@ async fn claim_job(
     match state
         .database
         .claim_job(&request, &state.config.workers)
+        .await
         .map_err(AppError::Internal)?
     {
         Some(job) => Ok((StatusCode::OK, Json(json!({"job": job})))),
@@ -207,6 +210,7 @@ async fn get_job(
     let job = state
         .database
         .get_job(&id)
+        .await
         .map_err(AppError::Internal)?
         .ok_or_else(|| AppError::NotFound(format!("job {id}")))?;
     Ok(Json(json!({"job": job})))
@@ -222,6 +226,7 @@ async fn heartbeat_job(
     let job = state
         .database
         .heartbeat_job(&id, &request.worker_id, request.lease_seconds)
+        .await
         .map_err(|error| AppError::BadRequest(error.to_string()))?;
     Ok(Json(json!({"job": job})))
 }
@@ -236,6 +241,7 @@ async fn complete_job(
     let job = state
         .database
         .complete_job(&id, &request)
+        .await
         .map_err(|error| AppError::BadRequest(error.to_string()))?;
     Ok(Json(json!({"job": job})))
 }
@@ -249,6 +255,7 @@ async fn cancel_job(
     let job = state
         .database
         .cancel_job(&id)
+        .await
         .map_err(|error| AppError::BadRequest(error.to_string()))?;
     Ok(Json(json!({"job": job})))
 }
@@ -267,6 +274,7 @@ async fn plan_linear_delivery(
     let job = state
         .database
         .get_job(&id)
+        .await
         .map_err(AppError::Internal)?
         .ok_or_else(|| AppError::NotFound(format!("job {id}")))?;
     let report = state
@@ -300,6 +308,7 @@ async fn deliver_next_linear_job(
     let Some(job) = state
         .database
         .claim_job(&claim, &state.config.workers)
+        .await
         .map_err(AppError::Internal)?
     else {
         return Ok((StatusCode::NO_CONTENT, Json(Value::Null)));
@@ -322,6 +331,7 @@ async fn deliver_next_linear_job(
                         retry_delay_seconds: 0,
                     },
                 )
+                .await
                 .map_err(AppError::Internal)?;
             Ok((
                 StatusCode::OK,
@@ -343,6 +353,7 @@ async fn deliver_next_linear_job(
                         retry_delay_seconds,
                     },
                 )
+                .await
                 .map_err(AppError::Internal)?;
             let status = if error.retryable {
                 StatusCode::ACCEPTED
@@ -395,7 +406,8 @@ async fn github_webhook(
         &state.config.github.issue_trigger_labels,
         &state.config.github.review_trigger_labels,
         state.config.github.auto_enqueue_failed_workflows,
-    )?;
+    )
+    .await?;
     Ok(Json(response))
 }
 
@@ -442,6 +454,7 @@ async fn alertmanager_webhook(
     let report = state
         .telemetry_automation
         .ingest_alertmanager(&state.database, payload)
+        .await
         .map_err(telemetry_app_error)?;
     Ok((StatusCode::ACCEPTED, Json(json!({"telemetry": report}))))
 }

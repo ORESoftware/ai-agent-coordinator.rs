@@ -4,12 +4,29 @@ use ai_agent_coordinator::{
     jobs::{ClaimJobRequest, CompleteJobRequest, CompletionOutcome, CreateJobRequest, JobStatus},
 };
 use serde_json::json;
+use uuid::Uuid;
 
-#[test]
-fn job_lifecycle_is_leased_and_idempotent() {
-    let database = Database::open(":memory:").unwrap();
+async fn test_database() -> Option<Database> {
+    let Ok(url) = std::env::var("TEST_DATABASE_URL") else {
+        eprintln!("skipping PostgreSQL integration test: TEST_DATABASE_URL is not set");
+        return None;
+    };
+    Some(
+        Database::open(&url)
+            .await
+            .expect("connect to test database"),
+    )
+}
+
+#[tokio::test]
+async fn job_lifecycle_is_leased_and_idempotent() {
+    let Some(database) = test_database().await else {
+        return;
+    };
+    let org = format!("job-lifecycle-{}", Uuid::new_v4());
+    let idempotency_key = format!("linear:{}", Uuid::new_v4());
     let request = CreateJobRequest {
-        org: "oresoftware".to_owned(),
+        org: org.clone(),
         repo: "coordinator".to_owned(),
         task_type: "code_change".to_owned(),
         payload: json!({"ticket": "ENG-1"}),
@@ -19,21 +36,28 @@ fn job_lifecycle_is_leased_and_idempotent() {
         budget_usd: Some(1.0),
     };
 
-    let first = database.create_job(&request, Some("linear:ENG-1")).unwrap();
-    let duplicate = database.create_job(&request, Some("linear:ENG-1")).unwrap();
+    let first = database
+        .create_job(&request, Some(&idempotency_key))
+        .await
+        .unwrap();
+    let duplicate = database
+        .create_job(&request, Some(&idempotency_key))
+        .await
+        .unwrap();
     assert_eq!(first.id, duplicate.id);
 
     let claimed = database
         .claim_job(
             &ClaimJobRequest {
                 worker_id: "worker-1".to_owned(),
-                orgs: vec!["oresoftware".to_owned()],
+                orgs: vec![org],
                 repositories: vec![],
                 task_types: vec![],
                 lease_seconds: 60,
             },
             &WorkerConfig::default(),
         )
+        .await
         .unwrap()
         .unwrap();
     assert_eq!(claimed.status, JobStatus::Running);
@@ -51,18 +75,22 @@ fn job_lifecycle_is_leased_and_idempotent() {
                 retry_delay_seconds: 0,
             },
         )
+        .await
         .unwrap();
     assert_eq!(completed.status, JobStatus::Succeeded);
 }
 
-#[test]
-fn repository_concurrency_cap_prevents_overclaiming() {
-    let database = Database::open(":memory:").unwrap();
+#[tokio::test]
+async fn repository_concurrency_cap_prevents_overclaiming() {
+    let Some(database) = test_database().await else {
+        return;
+    };
+    let org = format!("repo-cap-{}", Uuid::new_v4());
     for ticket in ["ENG-2", "ENG-3"] {
         database
             .create_job(
                 &CreateJobRequest {
-                    org: "oresoftware".to_owned(),
+                    org: org.clone(),
                     repo: "busy-repo".to_owned(),
                     task_type: "code_change".to_owned(),
                     payload: json!({"ticket": ticket}),
@@ -71,8 +99,9 @@ fn repository_concurrency_cap_prevents_overclaiming() {
                     available_at: None,
                     budget_usd: None,
                 },
-                Some(ticket),
+                Some(&format!("{ticket}:{}", Uuid::new_v4())),
             )
+            .await
             .unwrap();
     }
 
@@ -84,18 +113,21 @@ fn repository_concurrency_cap_prevents_overclaiming() {
     };
     let claim = |worker_id: &str| ClaimJobRequest {
         worker_id: worker_id.to_owned(),
-        orgs: vec!["oresoftware".to_owned()],
+        orgs: vec![org.clone()],
         repositories: vec!["busy-repo".to_owned()],
         task_types: vec![],
         lease_seconds: 60,
     };
 
-    assert!(database
-        .claim_job(&claim("worker-1"), &worker_config)
-        .unwrap()
-        .is_some());
-    assert!(database
-        .claim_job(&claim("worker-2"), &worker_config)
-        .unwrap()
-        .is_none());
+    let first_request = claim("worker-1");
+    let second_request = claim("worker-2");
+    let (first, second) = tokio::join!(
+        database.claim_job(&first_request, &worker_config),
+        database.claim_job(&second_request, &worker_config),
+    );
+    let claimed = [first.unwrap(), second.unwrap()]
+        .into_iter()
+        .filter(Option::is_some)
+        .count();
+    assert_eq!(claimed, 1);
 }

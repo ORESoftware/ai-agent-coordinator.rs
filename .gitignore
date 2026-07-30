@@ -1,8 +1,4 @@
 /target
-/data
 .env
 coordinator.yaml
-*.db
-*.db-shm
-*.db-wal
 .DS_Store

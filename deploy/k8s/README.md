@@ -8,7 +8,15 @@ These manifests are namespace-scoped application resources for the `ai-agent-coo
 - Repository creation is disabled with `GITHUB_REPOSITORY_ADMIN_ENABLED=false`.
 - The allowed-organization list is initially restricted to `declarative-migrations`.
 - The container runs as UID/GID 10001, drops all capabilities, forbids privilege escalation, uses `RuntimeDefault` seccomp, and has a read-only root filesystem.
-- SQLite state is stored on a `ReadWriteOnce` persistent volume, so the Deployment uses `Recreate` and one replica.
+- Durable state lives in the shared PostgreSQL service through SeaORM; the
+  Deployment uses rolling updates and two replicas without a writable volume.
+- Database DDL is owned by
+  `k8s-libs-and-shared-defs/pg-defs/schema/databases/ai_agent_coordinator/schema.sql`
+  and is converged with dpm before rollout. The application never migrates at boot.
+- dpm manages schema only. If the retired SQLite PVC contains production
+  records, snapshot it and complete a separately reviewed one-time data
+  backfill before this rollout; retain the snapshot until PostgreSQL counts and
+  queue state have been reconciled.
 - No plaintext Kubernetes `Secret` is committed.
 - Alertmanager delivery runs every minute, and bounded remediation dispatch runs
   at 04:00 in the `America/New_York` timezone.
@@ -18,7 +26,7 @@ These manifests are namespace-scoped application resources for the `ai-agent-coo
 Create this property in the cluster secret backend before syncing:
 
 - remote key: `dd/remote-dev/ai-agent-coordinator-secrets`
-- property: `COORDINATOR_API_TOKEN`
+- properties: `COORDINATOR_API_TOKEN`, `AI_AGENT_COORDINATOR_DATABASE_URL`
 
 The `ExternalSecret` materializes it as `ai-agent-coordinator-core`.
 

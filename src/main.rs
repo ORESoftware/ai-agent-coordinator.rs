@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::load(&args.config)?;
     let bind = config.server.bind.clone();
-    let state = app::AppState::new(config)?;
+    let state = app::AppState::new(config).await?;
     let router = app::router(state);
     let listener = TcpListener::bind(&bind)
         .await
