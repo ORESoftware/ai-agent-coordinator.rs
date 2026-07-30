@@ -136,5 +136,67 @@ jobs:
             --sbom=true \
             --push \
             --tag "${IMAGE_NAME}:sha-${GITHUB_SHA}" \
-            --tag "${IMAGE_NAME}:main" \
-            .
+           --tag "${IMAGE_NAME}:main" \
+           .
+
+  deployment-pr:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: write
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: true
+      - name: Open draft deployment PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          branch="automation/deploy-${GITHUB_SHA}"
+          image="${IMAGE_NAME}:sha-${GITHUB_SHA}"
+
+          existing=$(gh pr list \
+            --head "$branch" \
+            --state all \
+            --json url \
+            --jq '.[0].url // empty')
+          if [[ -n "$existing" ]]; then
+            echo "Deployment PR already exists: $existing"
+            exit 0
+          fi
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git switch --create "$branch"
+          IMAGE="$image" ruby <<'RUBY'
+          path = 'deploy/k8s/deployment.yaml'
+          manifest = File.read(path)
+          replacement = ENV.fetch('IMAGE')
+          updated = manifest.sub(
+            %r{ghcr\.io/oresoftware/ai-agent-coordinator:sha-[0-9a-f]{40}},
+            replacement
+          )
+          abort 'coordinator deployment image was not found exactly once' if updated == manifest
+          File.write(path, updated)
+          RUBY
+          git add deploy/k8s/deployment.yaml
+          git commit --message "chore(deploy): promote ${GITHUB_SHA}"
+          git push --set-upstream origin "$branch"
+
+          pr_url=$(gh pr create \
+            --draft \
+            --base main \
+            --head "$branch" \
+            --title "chore(deploy): promote ${GITHUB_SHA}" \
+            --body "Promotes the immutable coordinator image built from \`${GITHUB_SHA}\`.
+
+          This PR is intentionally draft and must pass the deployment contract before review and merge.")
+          echo "Created $pr_url"
+
+          gh workflow run deployment-contract.yml --ref "$branch"

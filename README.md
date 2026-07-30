@@ -8,6 +8,9 @@ The server combines:
 2. A **leased job queue** that lets ephemeral workers claim repository work, heartbeat while running, retry safely, and report results.
 3. A **GitHub webhook intake** that turns labeled issues, labeled pull requests, and failed workflow runs into jobs.
 4. **Cost and security policy** enforced per organization and repository before a request leaves the machine.
+5. **Telemetry incident automation** that converts sustained Prometheus/Loki
+   alerts into deduplicated GitHub and Linear tickets, then schedules
+   feature-branch remediation through Gemini, Claude, and Codex.
 
 The initial target is 20–30 GitHub organizations with approximately five repositories each. The coordinator is intentionally centralized while workers remain ephemeral.
 
@@ -218,6 +221,20 @@ Default behavior:
 - A failed or timed-out workflow run becomes a high-priority `github_ci_failure` job.
 
 GitHub delivery IDs become idempotency keys, so webhook retries do not duplicate jobs.
+
+## Telemetry ticket automation
+
+The optional Alertmanager intake creates redacted, fingerprinted incident jobs.
+Gemini, Claude, and ChatGPT independently analyze each incident through the
+multi-model bridge; a separate reviewer assignment synthesizes the ticket body.
+GitHub and Linear records are cross-linked, and a 04:00 Eastern CronJob queues
+ordered investigation, review, and implementation tasks. The implementation
+stage is constrained to a feature branch, tests, GitHub Actions, and a draft
+pull request.
+
+See [`docs/telemetry-ticket-automation.md`](docs/telemetry-ticket-automation.md)
+for the signal contract, protected configuration, routing rules, activation
+sequence, and rollback controls.
 
 ## Recommended organization model
 

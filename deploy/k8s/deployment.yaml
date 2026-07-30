@@ -51,8 +51,12 @@ spec:
             - name: RUST_LOG
               value: ai_agent_coordinator=info,tower_http=info
           envFrom:
+            - configMapRef:
+                name: ai-agent-coordinator-telemetry
             - secretRef:
                 name: ai-agent-coordinator-core
+            - secretRef:
+                name: ai-agent-coordinator-telemetry
             - secretRef:
                 name: ai-agent-coordinator-admin
                 optional: true

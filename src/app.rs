@@ -9,6 +9,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use serde::Deserialize;
 use serde_json::{json, Value};
 use subtle::ConstantTimeEq;
 use tower_http::{
@@ -29,6 +30,7 @@ use crate::{
     linear_delivery::{LinearDeliveryRequest, LinearDeliveryWorker},
     providers::ProviderRegistry,
     security::SecretScanner,
+    telemetry::{AlertmanagerPayload, TelemetryAutomation, TelemetryError},
     webhooks,
 };
 
@@ -39,6 +41,7 @@ pub struct AppState {
     pub gateway: ModelGateway,
     pub github_repository_admin: GithubRepositoryAdmin,
     pub linear_delivery_worker: LinearDeliveryWorker,
+    pub telemetry_automation: TelemetryAutomation,
     api_token: Option<String>,
     github_webhook_policy: webhooks::GithubWebhookPolicy,
 }
@@ -52,6 +55,7 @@ impl AppState {
         let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
         let linear_delivery_worker = LinearDeliveryWorker::from_env(&config.database.path)?;
+        let telemetry_automation = TelemetryAutomation::from_env()?;
         let api_token = config.api_token();
         let github_webhook_policy =
             webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
@@ -61,6 +65,7 @@ impl AppState {
             gateway,
             github_repository_admin,
             linear_delivery_worker,
+            telemetry_automation,
             api_token,
             github_webhook_policy,
         })
@@ -101,8 +106,17 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/cancel", post(cancel_job))
         .route("/v1/linear/plan/:id", post(plan_linear_delivery))
         .route("/v1/linear/deliver-next", post(deliver_next_linear_job))
+        .route(
+            "/v1/telemetry/process-next",
+            post(process_next_telemetry_incident),
+        )
+        .route(
+            "/v1/telemetry/dispatch-remediation",
+            post(dispatch_telemetry_remediation),
+        )
         .route("/v1/github/repositories", post(create_github_repository))
         .route("/webhooks/github", post(github_webhook))
+        .route("/webhooks/alertmanager", post(alertmanager_webhook))
         .layer(DefaultBodyLimit::max(max_request_bytes))
         .layer(PropagateRequestIdLayer::new(request_id_header.clone()))
         .layer(SetRequestIdLayer::new(request_id_header, MakeRequestUuid))
@@ -383,4 +397,105 @@ async fn github_webhook(
         state.config.github.auto_enqueue_failed_workflows,
     )?;
     Ok(Json(response))
+}
+
+#[derive(Debug, Deserialize)]
+struct TelemetryWorkerRequest {
+    #[serde(default = "default_telemetry_worker_id")]
+    worker_id: String,
+}
+
+fn default_telemetry_worker_id() -> String {
+    "telemetry-delivery".to_owned()
+}
+
+#[derive(Debug, Deserialize)]
+struct TelemetryDispatchRequest {
+    #[serde(default = "default_telemetry_dispatcher_id")]
+    worker_id: String,
+    #[serde(default = "default_telemetry_dispatch_limit")]
+    limit: usize,
+}
+
+fn default_telemetry_dispatcher_id() -> String {
+    "telemetry-nightly".to_owned()
+}
+
+fn default_telemetry_dispatch_limit() -> usize {
+    10
+}
+
+async fn alertmanager_webhook(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<AlertmanagerPayload>,
+) -> Result<(StatusCode, Json<Value>), AppError> {
+    if !state.telemetry_automation.enabled() {
+        return Err(AppError::BadRequest(
+            "telemetry automation is disabled".to_owned(),
+        ));
+    }
+    state
+        .telemetry_automation
+        .authorize_webhook(&headers)
+        .map_err(|_| AppError::Unauthorized)?;
+    let report = state
+        .telemetry_automation
+        .ingest_alertmanager(&state.database, payload)
+        .map_err(telemetry_app_error)?;
+    Ok((StatusCode::ACCEPTED, Json(json!({"telemetry": report}))))
+}
+
+async fn process_next_telemetry_incident(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<TelemetryWorkerRequest>,
+) -> Result<impl IntoResponse, AppError> {
+    state.authorize(&headers)?;
+    if !state.telemetry_automation.enabled() {
+        return Err(AppError::BadRequest(
+            "telemetry automation is disabled".to_owned(),
+        ));
+    }
+    match state
+        .telemetry_automation
+        .process_next_incident(&state.database, &state.config.workers, &request.worker_id)
+        .await
+        .map_err(telemetry_app_error)?
+    {
+        Some(report) => Ok((StatusCode::OK, Json(json!({"telemetry": report})))),
+        None => Ok((StatusCode::NO_CONTENT, Json(Value::Null))),
+    }
+}
+
+async fn dispatch_telemetry_remediation(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<TelemetryDispatchRequest>,
+) -> Result<Json<Value>, AppError> {
+    state.authorize(&headers)?;
+    if !state.telemetry_automation.enabled() {
+        return Err(AppError::BadRequest(
+            "telemetry automation is disabled".to_owned(),
+        ));
+    }
+    let report = state
+        .telemetry_automation
+        .dispatch_remediation_batch(
+            &state.database,
+            &state.config.workers,
+            &request.worker_id,
+            request.limit,
+        )
+        .await
+        .map_err(telemetry_app_error)?;
+    Ok(Json(json!({"telemetry": report})))
+}
+
+fn telemetry_app_error(error: TelemetryError) -> AppError {
+    if error.retryable {
+        AppError::Internal(anyhow::anyhow!(error.public_message))
+    } else {
+        AppError::BadRequest(error.public_message)
+    }
 }
