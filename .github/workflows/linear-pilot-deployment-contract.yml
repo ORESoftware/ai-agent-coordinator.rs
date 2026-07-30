@@ -1,0 +1,59 @@
+name: Linear pilot deployment contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/linear-pilot-deployment-contract.yml'
+      - 'deploy/k8s/**'
+      - 'deploy/overlays/**'
+      - 'docs/cross-org-pilot.md'
+      - 'scripts/verify_linear_pilot_overlay.rb'
+      - 'scripts/smoke_linear_pilot_deployment.sh'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VERIFIED_RUNTIME_IMAGE_SHA: 41c2d80bbd4412df3ca2d9448401c19fa23985a3
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/linear-pilot-deployment-contract.yml
+
+      - name: Validate base and pilot source contracts
+        run: ruby scripts/verify_linear_pilot_overlay.rb
+
+      - name: Render and validate the pilot overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl kustomize deploy/overlays/cross-org-linear-pilot > rendered-pilot.yaml
+          ruby scripts/verify_linear_pilot_overlay.rb rendered-pilot.yaml
+
+      - name: Authenticate to GHCR with read-only package access
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Smoke-test dry-run planning without a Linear token
+        shell: bash
+        env:
+          COORDINATOR_API_TOKEN: linear-pilot-contract-token
+        run: bash scripts/smoke_linear_pilot_deployment.sh
