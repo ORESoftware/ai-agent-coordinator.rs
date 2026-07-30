@@ -52,8 +52,8 @@ The command creates or repairs this logical configuration:
 ```bash
 claude mcp add \
   --transport http \
-  linear-server \
   --scope user \
+  linear-server \
   https://mcp.linear.app/mcp
 ```
 

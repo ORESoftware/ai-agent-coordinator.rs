@@ -54,6 +54,8 @@ class LinearMcpBootstrapTests(unittest.TestCase):
                     raise SystemExit(0)
 
                 if len(args) >= 3 and args[:2] == ["mcp", "add"]:
+                    if args[2:6] != ["--transport", "http", "--scope", "user"]:
+                        raise SystemExit(64)
                     name = None
                     endpoint = None
                     for index, value in enumerate(args):
@@ -296,9 +298,9 @@ class LinearMcpBootstrapTests(unittest.TestCase):
                 "add",
                 "--transport",
                 "http",
-                "linear-server",
                 "--scope",
                 "user",
+                "linear-server",
                 READ_WRITE_URL,
             ],
         )

@@ -159,9 +159,9 @@ def configure_claude(
             "add",
             "--transport",
             "http",
-            name,
             "--scope",
             "user",
+            name,
             endpoint,
         ]
     )
