@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: coordinator
-          image: ghcr.io/oresoftware/ai-agent-coordinator:sha-33217c6132102b1590b26b28c9ac78d10f4a418f
+          image: ghcr.io/oresoftware/ai-agent-coordinator:sha-41c2d80bbd4412df3ca2d9448401c19fa23985a3
           imagePullPolicy: IfNotPresent
           args:
             - --config
