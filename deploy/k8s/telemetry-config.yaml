@@ -42,6 +42,7 @@ data:
     oresoftware/ai-agent-coordinator.rs=github.com/ORESoftware/ai-agent-coordinator.rs,
     oresoftware/mip-solver-node.rs=github.com/ORESoftware/mip-solver-node.rs
   TELEMETRY_BASE_BRANCH_MAP: >-
+    oresoftware/chat.vibe=dev4,
     oresoftware/k8s-cluster=dev,
     oresoftware/live-mutex=dev,
     oresoftware/live-mutex-rs=dev

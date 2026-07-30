@@ -110,6 +110,8 @@ jobs:
           abort 'all three model workers are required' unless telemetry_data['TELEMETRY_MODEL_AGENT_KEYS'].split(',').length == 3
           abort 'distinct consensus reviewer is required' if telemetry_data['TELEMETRY_MODEL_AGENT_KEYS'].split(',').include?(telemetry_data['TELEMETRY_MODEL_REVIEWER_KEY'])
           abort 'ordered nightly providers must be Gemini, Claude, then Codex' unless telemetry_data['TELEMETRY_REMEDIATION_PROVIDERS'] == 'gemini-sdk,claude-sdk,openai-codex-cli'
+          base_branches = telemetry_data.fetch('TELEMETRY_BASE_BRANCH_MAP').split(',').map(&:strip).to_h { |entry| entry.split('=', 2) }
+          abort 'chat-vibe remediation must branch from dev4' unless base_branches['oresoftware/chat.vibe'] == 'dev4'
 
           cronjobs = resources.select { |resource| resource['kind'] == 'CronJob' }
           delivery = cronjobs.find { |resource| resource.dig('metadata', 'name') == 'ai-agent-coordinator-telemetry-delivery' } or abort 'telemetry delivery CronJob missing'
