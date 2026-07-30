@@ -6,3 +6,6 @@ coordinator.yaml
 *.db-shm
 *.db-wal
 .DS_Store
+
+__pycache__/
+*.py[cod]

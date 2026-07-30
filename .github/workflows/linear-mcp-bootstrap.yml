@@ -1,0 +1,35 @@
+name: Linear MCP bootstrap
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Compile Python sources
+        run: >-
+          python3 -m py_compile
+          tools/linear_mcp_bootstrap.py
+          tests/test_linear_mcp_bootstrap.py
+      - name: Run secret-free bootstrap tests
+        run: >-
+          python3 -m unittest discover
+          -s tests
+          -p 'test_linear_mcp_bootstrap.py'
+          -v
+      - name: Exercise command help
+        run: python3 tools/linear_mcp_bootstrap.py --help >/dev/null
