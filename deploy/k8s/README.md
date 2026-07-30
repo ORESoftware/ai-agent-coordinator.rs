@@ -10,6 +10,8 @@ These manifests are namespace-scoped application resources for the `ai-agent-coo
 - The container runs as UID/GID 10001, drops all capabilities, forbids privilege escalation, uses `RuntimeDefault` seccomp, and has a read-only root filesystem.
 - SQLite state is stored on a `ReadWriteOnce` persistent volume, so the Deployment uses `Recreate` and one replica.
 - No plaintext Kubernetes `Secret` is committed.
+- Alertmanager delivery runs every minute, and bounded remediation dispatch runs
+  at 04:00 in the `America/New_York` timezone.
 
 ## Required external secret
 
@@ -21,6 +23,13 @@ Create this property in the cluster secret backend before syncing:
 The `ExternalSecret` materializes it as `ai-agent-coordinator-core`.
 
 Provider credentials may later be supplied through an optional `ai-agent-coordinator-providers` Secret. The service can start without them; unavailable providers are disabled.
+
+Telemetry automation additionally requires the AWS Secrets Manager JSON object
+`dd/remote-dev/telemetry-ticket-automation`, documented in
+[`../../docs/telemetry-ticket-automation.md`](../../docs/telemetry-ticket-automation.md).
+The ExternalSecret is intentionally required because the checked-in deployment
+enables live GitHub and Linear delivery. Provision and verify that bundle before
+syncing this revision.
 
 ## Repository-administration activation
 

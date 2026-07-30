@@ -1,0 +1,65 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ai-agent-coordinator-telemetry-delivery
+  namespace: ai-agent-coordinator
+  labels:
+    app.kubernetes.io/name: ai-agent-coordinator
+    app.kubernetes.io/component: telemetry-delivery
+spec:
+  schedule: "*/1 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: ai-agent-coordinator
+            app.kubernetes.io/component: telemetry-delivery
+        spec:
+          automountServiceAccountToken: false
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: deliver
+              image: curlimages/curl:8.17.0@sha256:935d9100e9ba842cdb060de42472c7ca90cfe9a7c96e4dacb55e79e560b3ff40
+              imagePullPolicy: IfNotPresent
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              env:
+                - name: COORDINATOR_API_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: ai-agent-coordinator-core
+                      key: COORDINATOR_API_TOKEN
+              command:
+                - /bin/sh
+                - -ec
+              args:
+                - |
+                  curl --fail-with-body --silent --show-error \
+                    --request POST \
+                    --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
+                    --header "Content-Type: application/json" \
+                    --data '{"worker_id":"telemetry-delivery-cron"}' \
+                    http://ai-agent-coordinator.ai-agent-coordinator.svc.cluster.local:8080/v1/telemetry/process-next
+              resources:
+                requests:
+                  cpu: 5m
+                  memory: 16Mi
+                limits:
+                  cpu: 100m
+                  memory: 64Mi

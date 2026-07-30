@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-agent-coordinator-telemetry
+  namespace: ai-agent-coordinator
+  labels:
+    app.kubernetes.io/name: ai-agent-coordinator
+    app.kubernetes.io/part-of: oresoftware-agent-platform
+data:
+  TELEMETRY_AUTOMATION_ENABLED: "true"
+  TELEMETRY_AUTOMATION_DRY_RUN: "false"
+  TELEMETRY_GITHUB_ISSUES_ENABLED: "true"
+  TELEMETRY_LINEAR_ISSUES_ENABLED: "true"
+  TELEMETRY_MODEL_ENRICHMENT_ENABLED: "true"
+  TELEMETRY_BRIDGE_URL: http://dd-ai-agent-bridge.default.svc.cluster.local:8142/
+  TELEMETRY_WORKER_BROKER_URL: http://dd-agent-worker-broker.default.svc.cluster.local:8098/
+  TELEMETRY_MODEL_AGENT_KEYS: google-gemini-3.1-pro,anthropic-claude-5,openai-chatgpt-5.6-sol
+  TELEMETRY_MODEL_REVIEWER_KEY: openai-chatgpt-5.6-sol-reviewer
+  TELEMETRY_REMEDIATION_PROVIDERS: gemini-sdk,claude-sdk,openai-codex-cli
+  TELEMETRY_REQUEST_TIMEOUT_MS: "20000"
+  LINEAR_TEAM_KEY: DEN
+  LINEAR_PROJECT_NAMES: >-
+    oresoftware=github.com/ORESoftware,
+    sonus-auris=github.com/sonus-auris,
+    3fa-app=github.com/3FA-app,
+    akrion-sim=github.com/akrion-sim,
+    athlet-o=github.com/athlet-o,
+    benefactor-cc=github.com/benefactor-cc,
+    canonical-cloud=github.com/canonical-cloud,
+    claritas-viz=github.com/claritas-viz,
+    daedalus-fab=github.com/daedalus-fab,
+    fiducia-cloud=github.com/fiducia-cloud,
+    messaging-intel=github.com/messaging-intel,
+    quaestor-ledger=github.com/quaestor-ledger,
+    sagitta-stack=github.com/sagitta-stack,
+    scintilla-run=github.com/scintilla-run,
+    shared-auth=github.com/shared-auth,
+    usa-acc=github.com/usa-acc,
+    zed-pkg=github.com/zed-pkg
+  TELEMETRY_LINEAR_REPOSITORY_PROJECT_NAMES: >-
+    oresoftware/ai-agent-bridge.rs=github.com/ORESoftware/ai-agent-bridge.rs,
+    oresoftware/ai-agent-coordinator.rs=github.com/ORESoftware/ai-agent-coordinator.rs,
+    oresoftware/mip-solver-node.rs=github.com/ORESoftware/mip-solver-node.rs
+  TELEMETRY_BASE_BRANCH_MAP: >-
+    oresoftware/k8s-cluster=dev,
+    oresoftware/live-mutex=dev,
+    oresoftware/live-mutex-rs=dev
+  TELEMETRY_REPOSITORY_MAP: >-
+    dd-ai-agent-bridge=ORESoftware/ai-agent-bridge.rs,
+    dd-ai-agent-runner=ORESoftware/ai-agent-bridge.rs,
+    dd-agent-worker-broker=ORESoftware/k8s-cluster,
+    dd-cluster-mcp-rs=ORESoftware/k8s-cluster,
+    dd-remote-web-home=ORESoftware/k8s-cluster,
+    dd-remote-rest-api=ORESoftware/k8s-cluster,
+    dd-remote-auth=ORESoftware/k8s-cluster,
+    dd-build-server=ORESoftware/k8s-cluster,
+    dd-browser-mcp-rs=ORESoftware/k8s-cluster,
+    dd-contract-service=ORESoftware/k8s-cluster,
+    dd-container-pool=ORESoftware/k8s-cluster,
+    dd-dart-server=sagitta-stack/dart-server,
+    dd-sound-recorder-rs=sonus-auris/sonus-auris-backend.rs,
+    dd-soccer-rs=akrion-sim/akrion-backend.rs,
+    dd-akrion-web-server-rs=akrion-sim/akrion-web-server.rs,
+    dd-athleto-app-rs=athlet-o/athleto-app-rs,
+    dd-athleto-backend=athlet-o/athleto-backend.rs,
+    dd-billing-server=quaestor-ledger/billing-server.rs,
+    dd-canonical-cloud=canonical-cloud/canonical.cloud,
+    dd-data-viz-rs=claritas-viz/data-viz-server.rs,
+    dd-daedalus-api-server=daedalus-fab/daedalus-monorepo,
+    dd-daedalus-web-server=daedalus-fab/daedalus-monorepo,
+    dd-fabrication-server=daedalus-fab/fabrication-server.rs,
+    dd-fiducia-rs=fiducia-cloud/fiducia-customer.rs,
+    dd-gleam-lambda-runner=scintilla-run/gleam-lambda-runner,
+    dd-in-house-mip-solver-node=ORESoftware/mip-solver-node.rs,
+    dd-in-house-mip-solver-node-master=ORESoftware/mip-solver-node.rs,
+    dd-in-house-mip-solver-node-slave=ORESoftware/mip-solver-node.rs,
+    dd-rust-network-mutex=ORESoftware/live-mutex-rs,
+    dd-rust-network-mutex-raft=ORESoftware/live-mutex-rs,
+    dd-live-mutex-distributed=ORESoftware/live-mutex.distributed,
+    dd-shared-auth=shared-auth/shared-auth-monorepo,
+    dd-shared-auth-nats-bridge=shared-auth/shared-auth-nats-bridge.rs,
+    dd-t2v-api=ORESoftware/t2v-v2t.rs,
+    dd-t2v-web=ORESoftware/t2v-v2t.rs,
+    dd-threefa-web-server=3FA-app/3fa-web-server.rs,
+    dd-zed-api-server=zed-pkg/zed-monorepo,
+    dd-zed-web-server=zed-pkg/zed-monorepo,
+    usacc-rest-api-backend-rs=usa-acc/rest-api-backend.rs,
+    benefactor-backend-rs=benefactor-cc/backend.rs,
+    scintilla-app=scintilla-run/scintilla-run-monorepo,
+    scintilla-backend=scintilla-run/scintilla-run-monorepo,
+    scintilla-ui=scintilla-run/scintilla-run-monorepo

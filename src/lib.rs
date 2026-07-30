@@ -11,4 +11,5 @@ pub mod linear_delivery {
 }
 pub mod providers;
 pub mod security;
+pub mod telemetry;
 pub mod webhooks;
