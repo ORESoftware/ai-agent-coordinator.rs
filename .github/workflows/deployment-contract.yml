@@ -50,7 +50,8 @@ jobs:
           resources = actual_files.flat_map do |name|
             YAML.load_stream(File.read(File.join(root, name))).compact
           end
-          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy PersistentVolumeClaim Service ServiceAccount]
+          abort 'ServiceAccount is platform-owned and must not be rendered by the application kustomization' if resources.any? { |resource| resource['kind'] == 'ServiceAccount' }
+          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy PersistentVolumeClaim Service]
           resources.each do |resource|
             kind = resource.fetch('kind')
             abort "cluster-scoped or unexpected kind #{kind}" unless allowed_kinds.include?(kind)
@@ -66,9 +67,6 @@ jobs:
           pod_spec = spec.dig('template', 'spec')
           abort 'service account token must not be mounted' unless pod_spec['automountServiceAccountToken'] == false
           abort 'wrong tenant service account' unless pod_spec['serviceAccountName'] == 'ai-agent-coordinator'
-          service_account = resources.find { |resource| resource['kind'] == 'ServiceAccount' } or abort 'ServiceAccount missing'
-          abort 'wrong ServiceAccount name' unless service_account.dig('metadata', 'name') == 'ai-agent-coordinator'
-          abort 'ServiceAccount token automount must be disabled' unless service_account['automountServiceAccountToken'] == false
           network_policy = resources.find { |resource| resource['kind'] == 'NetworkPolicy' } or abort 'NetworkPolicy missing'
           abort 'coordinator NetworkPolicy must enforce ingress and egress' unless network_policy.dig('spec', 'policyTypes') == %w[Ingress Egress]
           container = pod_spec.fetch('containers').find { |entry| entry['name'] == 'coordinator' } or abort 'coordinator container missing'
