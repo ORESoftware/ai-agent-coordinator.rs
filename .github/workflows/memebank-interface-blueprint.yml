@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
       - name: Validate hierarchical agent instructions
         run: >-
-          python ../../../../scripts/validate_agents_md.py
+          python ../../../scripts/validate_agents_md.py
           --repo-root .
           --start-dir schemas/v1
       - name: Compile validators
