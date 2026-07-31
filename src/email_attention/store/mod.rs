@@ -222,7 +222,7 @@ impl AttentionStore {
             ))
             .await
             .context("failed to read email-attention item state")?;
-        row.map(|row| {
+        row.map(|row| -> Result<ItemState> {
             Ok(ItemState {
                 last_emitted_fingerprint: row.try_get("", "last_emitted_fingerprint")?,
                 last_emitted_at: row.try_get("", "last_emitted_at")?,
