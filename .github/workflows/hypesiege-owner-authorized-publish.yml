@@ -1,0 +1,194 @@
+name: Publish HypeSiege fleet with owner authorization
+
+on:
+  push:
+    branches:
+      - agent/hypesiege-streempilot-live-publish-20260731
+    paths:
+      - repository-fleets/hypesiege-streempilot/**
+      - .github/workflows/hypesiege-owner-authorized-publish.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: hypesiege-owner-authorized-publish
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Reconstruct, authorize, publish, and verify HypeSiege
+        shell: bash
+        env:
+          COMMENT_TOKEN: ${{ github.token }}
+          EXPECTED_LOGIN: ORESoftware
+          TARGET_ORG: hypesiege
+          GH_CONFIG_DIR: ${{ runner.temp }}/hypesiege-gh-config
+        run: |
+          set -Eeuo pipefail
+
+          publish_status() {
+            local state="$1"
+            local description="$2"
+            local context="${3:-hypesiege/repository-publication}"
+            GH_TOKEN="$COMMENT_TOKEN" gh api --method POST \
+              "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" \
+              -f state="$state" \
+              -f context="$context" \
+              -f description="$description" \
+              -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions" >/dev/null || true
+          }
+
+          auth_pid=""
+          auth_log="$RUNNER_TEMP/hypesiege-gh-auth.log"
+          auth_context="hypesiege/gh-device-auth"
+          cleanup() {
+            if [[ -n "$auth_pid" ]] && kill -0 "$auth_pid" 2>/dev/null; then
+              kill "$auth_pid" 2>/dev/null || true
+              wait "$auth_pid" 2>/dev/null || true
+            fi
+            rm -f "$auth_log"
+            rm -rf "$GH_CONFIG_DIR"
+          }
+          fail() {
+            publish_status failure "HypeSiege publication failed" "$auth_context"
+          }
+          trap fail ERR
+          trap cleanup EXIT
+
+          sudo mkdir -p /mnt/data
+          sudo chown "$(id -u):$(id -g)" /mnt/data
+          cat repository-fleets/hypesiege-streempilot/generator.py.gz.b64.part-* \
+            | base64 --decode \
+            | gzip --decompress > /tmp/generate_hypesiege_streempilot.py
+          python3 -m py_compile /tmp/generate_hypesiege_streempilot.py
+          python3 /tmp/generate_hypesiege_streempilot.py
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('/mnt/data/hypesiege-streempilot-fleet/publish.py')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          for index, line in enumerate(lines):
+              if "askpass.write_text('#!/bin/sh" not in line:
+                  continue
+              lines[index:index + 3] = [
+                  '        askpass.write_text(',
+                  "            '#!/bin/sh\\ncase \"$1\" in *Username*) echo x-access-token;; *) echo \"$GITHUB_REPOSITORY_ADMIN_TOKEN\";; esac\\n'",
+                  '        )',
+              ]
+              break
+          else:
+              raise SystemExit('generated askpass transport defect was not found')
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+
+          python3 -m py_compile /mnt/data/hypesiege-streempilot-fleet/publish.py
+          python3 /mnt/data/hypesiege-streempilot-fleet/publish.py --org hypesiege
+          test "$(git -C /mnt/data/hypesiege-streempilot-fleet/hypesiege/hypesiege-monorepo ls-files --stage apps | awk '$1 == 160000 {count++} END {print count+0}')" = 14
+
+          mkdir -p "$GH_CONFIG_DIR"
+          : >"$auth_log"
+          (
+            env -u GH_TOKEN -u GITHUB_TOKEN \
+              GH_PROMPT_DISABLED=1 \
+              NO_COLOR=1 \
+              BROWSER=/bin/false \
+              gh auth login \
+                --hostname github.com \
+                --git-protocol https \
+                --web \
+                --scopes repo,read:org \
+                --insecure-storage
+          ) >"$auth_log" 2>&1 &
+          auth_pid=$!
+
+          code=""
+          for _ in $(seq 1 30); do
+            code="$(tr -d '\r' <"$auth_log" | grep -Eo '[A-Z0-9]{4}-[A-Z0-9]{4}' | head -n1 || true)"
+            if [[ -n "$code" ]]; then
+              break
+            fi
+            if ! kill -0 "$auth_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ -z "$code" ]]; then
+            echo "::error::GitHub CLI did not emit a device authorization code."
+            exit 1
+          fi
+
+          auth_context="hypesiege/gh-device-auth/$code"
+          publish_status pending "Authorize at github.com/login/device" "$auth_context"
+          echo "::notice::HypeSiege owner authorization is required at github.com/login/device."
+
+          set +e
+          wait "$auth_pid"
+          auth_rc=$?
+          set -e
+          auth_pid=""
+          if [[ "$auth_rc" -ne 0 ]]; then
+            echo "::error::GitHub owner authorization failed or expired."
+            exit "$auth_rc"
+          fi
+
+          actual_login="$(env -u GH_TOKEN -u GITHUB_TOKEN gh api user --jq .login)"
+          if [[ "$actual_login" != "$EXPECTED_LOGIN" ]]; then
+            echo "::error::Authenticated as $actual_login, not $EXPECTED_LOGIN."
+            exit 1
+          fi
+          membership="$(env -u GH_TOKEN -u GITHUB_TOKEN gh api "/user/memberships/orgs/$TARGET_ORG" --jq '.role + ":" + .state')"
+          if [[ "$membership" != "admin:active" ]]; then
+            echo "::error::$EXPECTED_LOGIN is not an active admin of $TARGET_ORG ($membership)."
+            exit 1
+          fi
+          publish_status success "Authorized as ORESoftware hypesiege admin" "$auth_context"
+
+          token="$(env -u GH_TOKEN -u GITHUB_TOKEN gh auth token)"
+          echo "::add-mask::$token"
+          export GITHUB_REPOSITORY_ADMIN_TOKEN="$token"
+          publish_status pending "Creating and pushing 15 HypeSiege repositories"
+          python3 /mnt/data/hypesiege-streempilot-fleet/publish.py --execute --org hypesiege
+
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path('/mnt/data/hypesiege-streempilot-fleet')
+          manifest = json.loads((root / 'MANIFEST.json').read_text(encoding='utf-8'))
+          expected = [r for r in manifest['repositories'] if r['org'] == 'hypesiege']
+          if len(expected) != 15:
+              raise SystemExit(f'expected 15 HypeSiege repositories, found {len(expected)}')
+          env = os.environ.copy()
+          env['GH_TOKEN'] = env['GITHUB_REPOSITORY_ADMIN_TOKEN']
+          errors = []
+          for record in expected:
+              process = subprocess.run(
+                  ['gh', 'api', f"repos/{record['full_name']}/commits/main", '--jq', '.sha'],
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+                  env=env,
+              )
+              actual = process.stdout.strip() if process.returncode == 0 else ''
+              if actual != record['commit']:
+                  errors.append(f"{record['full_name']}: {actual or process.stderr.strip()} != {record['commit']}")
+          if errors:
+              raise SystemExit('\n'.join(errors))
+          print('verified 15/15 HypeSiege remote main heads')
+          PY
+
+          trap - ERR
+          publish_status success "Published and verified 15 HypeSiege repositories"
