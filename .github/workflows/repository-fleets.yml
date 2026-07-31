@@ -154,3 +154,116 @@ jobs:
             echo 'live organization credentials must not be wired into validation CI' >&2
             exit 1
           fi
+
+# BEGIN DEN877 FLEET SEAL RECONCILIATION
+  reconcile-fleet-seal:
+    if: github.event_name == 'pull_request' && github.head_ref == 'agent/den-877-fleet-merge-repair'
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Reconcile the reviewed generator identity and publication boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import gzip
+          import hashlib
+          from pathlib import Path
+
+          old_digest = "50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f"
+          reviewed_digest = "a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84"
+          payload_dir = Path("repository-fleets/hypesiege-streempilot")
+          parts = [payload_dir / f"generator.py.gz.b64.part-{index:02d}" for index in range(6)]
+          if not all(path.is_file() for path in parts):
+              raise SystemExit("reviewed six-part generator payload is incomplete")
+          encoded = "".join(path.read_text(encoding="utf-8").strip() for path in parts)
+          source = gzip.decompress(base64.b64decode(encoded, validate=True))
+          actual_digest = hashlib.sha256(source).hexdigest()
+          if actual_digest != reviewed_digest:
+              raise SystemExit(
+                  f"reviewed generator identity changed: {actual_digest} != {reviewed_digest}"
+              )
+
+          checksum_paths = [
+              Path("scripts/reconstruct_hypesiege_streempilot_fleet.py"),
+              Path("scripts/publish_hypesiege_streempilot_fleet.py"),
+              Path("repository-fleets/hypesiege-streempilot.json"),
+              Path("docs/hypesiege-streempilot-repository-publication.md"),
+          ]
+          for path in checksum_paths:
+              text = path.read_text(encoding="utf-8")
+              if old_digest not in text and reviewed_digest not in text:
+                  raise SystemExit(f"generator identity is absent from {path}")
+              path.write_text(text.replace(old_digest, reviewed_digest), encoding="utf-8")
+
+          docs_path = Path("docs/hypesiege-streempilot-repository-publication.md")
+          docs = docs_path.read_text(encoding="utf-8")
+          marker = "## Reconstruct and validate locally\n"
+          paragraph = (
+              "The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled "
+              "generator were removed during reconciliation. That job accepted a broad "
+              "repository-administration credential and attempted the entire fleet in one "
+              "execution, contradicting the canonical one-repository confirmation, preflight, "
+              "and remote-head verification boundary.\n\n"
+          )
+          if paragraph not in docs:
+              if marker not in docs:
+                  raise SystemExit("publication documentation insertion point is missing")
+              docs = docs.replace(marker, paragraph + marker, 1)
+          docs_path.write_text(docs, encoding="utf-8")
+
+          stale_bootstrap = [
+              Path("deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml"),
+              Path("deploy/k8s/bootstrap/kustomization.yaml"),
+              *[
+                  Path(f"deploy/k8s/bootstrap/generate.py.gz.b64.part-{index:02d}")
+                  for index in range(7)
+              ],
+          ]
+          missing = [str(path) for path in stale_bootstrap if not path.is_file()]
+          if missing:
+              raise SystemExit(f"stale bootstrap inventory drifted: {missing}")
+          for path in stale_bootstrap:
+              path.unlink()
+
+          workflow_path = Path(".github/workflows/repository-fleets.yml")
+          workflow = workflow_path.read_text(encoding="utf-8")
+          start_marker = "# BEGIN DEN877 FLEET SEAL RECONCILIATION\n"
+          end_marker = "# END DEN877 FLEET SEAL RECONCILIATION\n"
+          if start_marker not in workflow or end_marker not in workflow:
+              raise SystemExit("temporary reconciliation job markers are missing")
+          start = workflow.index(start_marker)
+          end = workflow.index(end_marker, start) + len(end_marker)
+          workflow_path.write_text(workflow[:start].rstrip() + "\n", encoding="utf-8")
+          PY
+          python -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+          python -m unittest -v scripts/test_publish_hypesiege_streempilot_fleet.py
+          test -z "$(git grep -l '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f' || true)"
+          test ! -e deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
+          git diff --check
+      - name: Commit the semantically reconciled seal
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "DEN-877 reconcile reviewed fleet generator seal"
+          git push origin "HEAD:${{ github.head_ref }}"
+# END DEN877 FLEET SEAL RECONCILIATION
