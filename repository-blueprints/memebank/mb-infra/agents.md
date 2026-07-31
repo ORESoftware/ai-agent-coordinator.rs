@@ -4,7 +4,7 @@ Load every ancestor lowercase `agents.md` from filesystem root to `$PWD` in root
 
 ## Merge policy
 
-- Avoid git rebase in favor of git merge.
+- avoid git rebase in favor of git merge.
 - Never force-push, rewrite shared history, bypass required checks, or resolve a conflict by selecting one side wholesale.
 - Resolve conflicts semantically. Preserve compatible dependency edges, sync waves, environment policy, worker isolation, artifact provenance, secret references, and operational documentation from both branches.
 - After every merge, scan the full worktree outside `.git` for conflict markers and run `make agent-check`.
