@@ -31,6 +31,27 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Require protected repository-administration credentials
+        shell: bash
+        env:
+          HYPESIEGE_REPOSITORY_ADMIN_TOKEN: ${{ secrets.HYPESIEGE_REPOSITORY_ADMIN_TOKEN || secrets.GITHUB_REPOSITORY_ADMIN_TOKEN }}
+          STREEMPILOT_REPOSITORY_ADMIN_TOKEN: ${{ secrets.STREEMPILOT_REPOSITORY_ADMIN_TOKEN || secrets.GITHUB_REPOSITORY_ADMIN_TOKEN }}
+        run: |
+          set -euo pipefail
+          missing=0
+          if [[ -z "${HYPESIEGE_REPOSITORY_ADMIN_TOKEN:-}" ]]; then
+            echo "::error::No HypeSiege repository-administration token is configured."
+            missing=1
+          fi
+          if [[ -z "${STREEMPILOT_REPOSITORY_ADMIN_TOKEN:-}" ]]; then
+            echo "::error::No StreemPilot repository-administration token is configured."
+            missing=1
+          fi
+          if [[ "$missing" -ne 0 ]]; then
+            echo "::error::Publication was not attempted; configure protected short-lived GitHub App installation tokens with repository Administration and Contents write access."
+            exit 78
+          fi
+
       - name: Reconstruct and validate the sealed fleet
         shell: bash
         run: |
@@ -73,31 +94,19 @@ jobs:
           test "$(git -C /mnt/data/hypesiege-streempilot-fleet/streempilot/streempilot-monorepo ls-files --stage apps | awk '$1 == 160000 {count++} END {print count+0}')" = 16
 
       - name: Publish HypeSiege
-        id: hypesiege
-        continue-on-error: true
         shell: bash
         env:
-          GITHUB_REPOSITORY_ADMIN_TOKEN: ${{ secrets.HYPESIEGE_REPOSITORY_ADMIN_TOKEN || secrets.REMOTE_DEV_GH_PAT || secrets.ORG_GITOPS_TOKEN || secrets.GITHUB_REPOSITORY_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY_ADMIN_TOKEN: ${{ secrets.HYPESIEGE_REPOSITORY_ADMIN_TOKEN || secrets.GITHUB_REPOSITORY_ADMIN_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "${GITHUB_REPOSITORY_ADMIN_TOKEN:-}" ]]; then
-            echo "::error::No HypeSiege repository-administration token is configured."
-            exit 78
-          fi
           python3 /mnt/data/hypesiege-streempilot-fleet/publish.py --execute --org hypesiege
 
       - name: Publish StreemPilot
-        id: streempilot
-        continue-on-error: true
         shell: bash
         env:
-          GITHUB_REPOSITORY_ADMIN_TOKEN: ${{ secrets.STREEMPILOT_REPOSITORY_ADMIN_TOKEN || secrets.REMOTE_DEV_GH_PAT || secrets.ORG_GITOPS_TOKEN || secrets.GITHUB_REPOSITORY_ADMIN_TOKEN }}
+          GITHUB_REPOSITORY_ADMIN_TOKEN: ${{ secrets.STREEMPILOT_REPOSITORY_ADMIN_TOKEN || secrets.GITHUB_REPOSITORY_ADMIN_TOKEN }}
         run: |
           set -euo pipefail
-          if [[ -z "${GITHUB_REPOSITORY_ADMIN_TOKEN:-}" ]]; then
-            echo "::error::No StreemPilot repository-administration token is configured."
-            exit 78
-          fi
           python3 /mnt/data/hypesiege-streempilot-fleet/publish.py --execute --org streempilot
 
       - name: Verify every remote main head
@@ -135,11 +144,3 @@ jobs:
           if errors:
               raise SystemExit('\n'.join(errors))
           PY
-
-      - name: Require both organization publications
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "${{ steps.hypesiege.outcome }}" = success
-          test "${{ steps.streempilot.outcome }}" = success
