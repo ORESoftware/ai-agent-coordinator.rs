@@ -5,6 +5,7 @@ on:
     branches:
       - agent/seaorm-reconcile-main-snapshot
       - agent/seaorm-reconcile-head-snapshot
+  pull_request:
 
 permissions:
   contents: read
