@@ -6,7 +6,10 @@ on:
       - repository-fleets/**
       - scripts/render_repository_fleet.py
       - scripts/test_render_repository_fleet.py
+      - scripts/publish_hypesiege_streempilot_fleet.py
+      - scripts/test_publish_hypesiege_streempilot_fleet.py
       - docs/memebank-repository-bootstrap.md
+      - docs/hypesiege-streempilot-repository-publication.md
       - .github/workflows/repository-fleets.yml
   push:
     branches: [main]
@@ -14,7 +17,10 @@ on:
       - repository-fleets/**
       - scripts/render_repository_fleet.py
       - scripts/test_render_repository_fleet.py
+      - scripts/publish_hypesiege_streempilot_fleet.py
+      - scripts/test_publish_hypesiege_streempilot_fleet.py
       - docs/memebank-repository-bootstrap.md
+      - docs/hypesiege-streempilot-repository-publication.md
       - .github/workflows/repository-fleets.yml
   workflow_dispatch:
 
@@ -70,4 +76,55 @@ jobs:
           )
           assert plan["repositories"][0]["full_name"] == "memebank/mb-interfaces"
           assert plan["repositories"][-1]["full_name"] == "memebank/memebank-monorepo"
+          PY
+
+  hypesiege-streempilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile sealed-fleet tools
+        run: |
+          python -m py_compile \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+      - name: Run sealed-fleet tests
+        run: |
+          python -m unittest -v \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+      - name: Render representative network-free plans
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/publish_hypesiege_streempilot_fleet.py \
+            --repository hypesiege/hypesiege-api-server.rs \
+            > hypesiege-plan.json
+          python scripts/publish_hypesiege_streempilot_fleet.py \
+            --repository streempilot/streempilot-monorepo \
+            > streempilot-plan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          hypesiege = json.loads(Path("hypesiege-plan.json").read_text())
+          streempilot = json.loads(Path("streempilot-plan.json").read_text())
+          assert hypesiege == {
+              "mode": "plan",
+              "repository": "hypesiege/hypesiege-api-server.rs",
+              "commit": "665de38a82f016b11dd60ddf70428c78605da75b",
+              "visibility": "public",
+              "remote": "https://github.com/hypesiege/hypesiege-api-server.rs.git",
+          }
+          assert streempilot == {
+              "mode": "plan",
+              "repository": "streempilot/streempilot-monorepo",
+              "commit": "a978ac20f41b09581012c3e8cbb48e2d2674c631",
+              "visibility": "public",
+              "remote": "https://github.com/streempilot/streempilot-monorepo.git",
+          }
           PY
