@@ -110,11 +110,6 @@ impl AttentionStore {
         Ok(Self { connection })
     }
 
-    #[cfg(test)]
-    pub(super) fn from_connection(connection: DatabaseConnection) -> Self {
-        Self { connection }
-    }
-
     pub(super) async fn verify_schema(&self) -> Result<()> {
         let row = self
             .connection
