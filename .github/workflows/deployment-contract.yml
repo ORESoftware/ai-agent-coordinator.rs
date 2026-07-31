@@ -51,7 +51,7 @@ jobs:
             YAML.load_stream(File.read(File.join(root, name))).compact
           end
           abort 'ServiceAccount is platform-owned and must not be rendered by the application kustomization' if resources.any? { |resource| resource['kind'] == 'ServiceAccount' }
-          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy PersistentVolumeClaim Service]
+          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret Job NetworkPolicy PersistentVolumeClaim Service]
           resources.each do |resource|
             kind = resource.fetch('kind')
             abort "cluster-scoped or unexpected kind #{kind}" unless allowed_kinds.include?(kind)
@@ -122,6 +122,63 @@ jobs:
           abort 'delivery CronJob must forbid overlap' unless delivery.dig('spec', 'concurrencyPolicy') == 'Forbid'
           abort 'nightly remediation must run at 04:00 Eastern' unless nightly.dig('spec', 'schedule') == '0 4 * * *' && nightly.dig('spec', 'timeZone') == 'America/New_York'
           abort 'nightly CronJob must forbid overlap' unless nightly.dig('spec', 'concurrencyPolicy') == 'Forbid'
+
+          jobs = resources.select { |resource| resource['kind'] == 'Job' }
+          abort 'only the exact meta-agent repository bootstrap Job is permitted' unless jobs.length <= 1
+          if (bootstrap = jobs.first)
+            abort 'unexpected bootstrap Job name' unless bootstrap.dig('metadata', 'name') == 'meta-agent-control-plane-repository-bootstrap-20260731'
+            abort 'bootstrap Job must use batch/v1' unless bootstrap['apiVersion'] == 'batch/v1'
+            job_spec = bootstrap.fetch('spec')
+            abort 'bootstrap Job must not retry' unless job_spec['backoffLimit'] == 0
+            abort 'bootstrap Job must have a five-minute active deadline' unless job_spec['activeDeadlineSeconds'] == 300
+            job_pod = job_spec.dig('template', 'spec')
+            abort 'bootstrap Job must not mount a service account token' unless job_pod['automountServiceAccountToken'] == false
+            abort 'bootstrap Job must never restart' unless job_pod['restartPolicy'] == 'Never'
+            pod_security = job_pod.fetch('securityContext')
+            abort 'bootstrap Job must run as non-root' unless pod_security['runAsNonRoot'] == true
+            abort 'bootstrap Job must use UID/GID 10001' unless pod_security['runAsUser'] == 10001 && pod_security['runAsGroup'] == 10001
+            abort 'bootstrap Job must use RuntimeDefault seccomp' unless pod_security.dig('seccompProfile', 'type') == 'RuntimeDefault'
+            job_containers = job_pod.fetch('containers')
+            abort 'bootstrap Job must have exactly one container' unless job_containers.length == 1
+            job_container = job_containers.first
+            abort 'unexpected bootstrap container name' unless job_container['name'] == 'create-repository'
+            abort 'bootstrap Job must pin the approved curl image digest' unless job_container['image'] == expected_curl_image
+            job_security = job_container.fetch('securityContext')
+            abort 'bootstrap Job must disable privilege escalation' unless job_security['allowPrivilegeEscalation'] == false
+            abort 'bootstrap Job root filesystem must be read-only' unless job_security['readOnlyRootFilesystem'] == true
+            abort 'bootstrap Job must drop all capabilities' unless job_security.dig('capabilities', 'drop') == ['ALL']
+            job_env = job_container.fetch('env')
+            abort 'bootstrap Job must mount only one environment variable' unless job_env.length == 1
+            token_ref = job_env.first
+            abort 'bootstrap Job must use the repository-admin variable name' unless token_ref['name'] == 'GITHUB_REPOSITORY_ADMIN_TOKEN'
+            secret_ref = token_ref.dig('valueFrom', 'secretKeyRef')
+            abort 'bootstrap Job must use the optional coordinator admin Secret' unless secret_ref == {
+              'name' => 'ai-agent-coordinator-admin',
+              'key' => 'GITHUB_REPOSITORY_ADMIN_TOKEN'
+            }
+            abort 'bootstrap Job command must be a fail-closed shell' unless job_container['command'] == ['/bin/sh', '-ec']
+            script = job_container.fetch('args').join("\n")
+            required_fragments = [
+              "target='meta-agents-demo/meta-agent-control-plane.rs'",
+              '/user/memberships/orgs/meta-agents-demo',
+              '"login"[[:space:]]*:[[:space:]]*"ORESoftware"',
+              '"role"[[:space:]]*:[[:space:]]*"admin"',
+              '"state"[[:space:]]*:[[:space:]]*"active"',
+              '"visibility":"public"',
+              '"auto_init":true',
+              'status=failed stage=create',
+              'status=failed stage=verify'
+            ]
+            missing = required_fragments.reject { |fragment| script.include?(fragment) }
+            abort "bootstrap Job script is missing required guards: #{missing.inspect}" unless missing.empty?
+            mounts = job_container.fetch('volumeMounts')
+            abort 'bootstrap Job must mount only the in-memory temporary volume' unless mounts == [{ 'name' => 'tmp', 'mountPath' => '/tmp' }]
+            volumes = job_pod.fetch('volumes')
+            abort 'bootstrap Job temporary storage must be an 8Mi memory volume' unless volumes == [{
+              'name' => 'tmp',
+              'emptyDir' => { 'medium' => 'Memory', 'sizeLimit' => '8Mi' }
+            }]
+          end
 
           pvc = resources.find { |resource| resource['kind'] == 'PersistentVolumeClaim' } or abort 'PVC missing'
           abort 'PVC must request ReadWriteOnce' unless pvc.dig('spec', 'accessModes') == ['ReadWriteOnce']
