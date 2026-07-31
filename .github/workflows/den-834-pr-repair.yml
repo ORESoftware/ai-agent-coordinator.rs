@@ -1,30 +1,43 @@
 name: DEN-834 PR repair
 
 on:
+  push:
+    branches:
+      - 'agent/den-834-prompt-intake-dry-run'
+    paths:
+      - '.github/workflows/den-834-pr-repair.yml'
+      - 'src/prompt_intake.rs'
   pull_request:
     branches:
       - main
     paths:
       - '.github/workflows/den-834-pr-repair.yml'
       - 'src/prompt_intake.rs'
+  workflow_dispatch:
 
 permissions:
   contents: write
   pull-requests: read
 
+concurrency:
+  group: den-834-pr-repair-${{ github.repository }}
+  cancel-in-progress: true
+
 jobs:
   repair:
     if: >-
-      github.actor != 'github-actions[bot]' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - name: Checkout exact feature branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: ${{ github.head_ref }}
+          ref: agent/den-834-prompt-intake-dry-run
           fetch-depth: 0
+          persist-credentials: true
       - name: Install pinned Rust toolchain
         uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
         with:
@@ -91,12 +104,14 @@ jobs:
             .github/workflows/den-834-pr-repair.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -A \
-            src/prompt_intake.rs \
-            src/bin/prompt-intake.rs \
-            .github/den-834-repair-trigger \
-            .github/workflows/den-834-source-repair.yml \
-            .github/workflows/den-834-pr-repair.yml
+          git add -A
           git diff --cached --check
+          changed="$(git diff --cached --name-only | sort)"
+          allowed=$'.github/workflows/den-834-pr-repair.yml\nsrc/bin/prompt-intake.rs\nsrc/prompt_intake.rs'
+          test "$changed" = "$allowed" || {
+            echo 'refusing repair: unexpected staged paths' >&2
+            printf '%s\n' "$changed" >&2
+            exit 1
+          }
           git commit -m 'fix(DEN-834): stabilize refinement grouping and formatting'
-          git push origin HEAD:${{ github.head_ref }}
+          git push origin HEAD:agent/den-834-prompt-intake-dry-run
