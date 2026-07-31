@@ -59,7 +59,7 @@ impl AppState {
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
         let linear_delivery_worker = LinearDeliveryWorker::from_env(database.clone())?;
         let telemetry_automation = TelemetryAutomation::from_env()?;
-        let email_attention_agent = EmailAttentionAgent::from_env(&config.database.path)?;
+        let email_attention_agent = EmailAttentionAgent::from_env(Some(&database_url)).await?;
         let api_token = config.api_token();
         let github_webhook_policy =
             webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
