@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Safely create and push one sealed HypeSiege or StreemPilot repository.
+"""Safely create and push one deterministic HypeSiege/StreemPilot repository.
 
-Planning is the default. Live execution is intentionally one repository at a
-time and requires an exact repository confirmation plus a short-lived GitHub
+Planning is network-free. Live execution is intentionally one repository at a
+time and requires exact confirmation plus a short-lived, least-privilege GitHub
 App installation token supplied only through the environment.
 """
 
@@ -12,6 +12,7 @@ import argparse
 import json
 import os
 import pathlib
+import re
 import shutil
 import stat
 import subprocess
@@ -25,6 +26,10 @@ API_VERSION = "2022-11-28"
 USER_AGENT = "ai-agent-coordinator-hypesiege-streempilot-publisher"
 TOKEN_ENV = "GITHUB_REPOSITORY_ADMIN_TOKEN"
 ALLOWED_ORGS = frozenset({"hypesiege", "streempilot"})
+EXPECTED_GENERATOR_SHA256 = "50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f"
+EXPECTED_REPOSITORIES = 32
+EXPECTED_FILES = 888
+EXPECTED_GITLINKS = 30
 
 
 class PublicationError(RuntimeError):
@@ -49,10 +54,23 @@ def run(args: list[str], cwd: pathlib.Path) -> str:
 def load_manifest(path: pathlib.Path) -> dict[str, Any]:
     manifest = json.loads(path.read_text(encoding="utf-8"))
     repositories = manifest.get("repositories")
-    if manifest.get("schema_version") != 1 or not isinstance(repositories, list):
+    if manifest.get("schema_version") != 2 or not isinstance(repositories, list):
         raise PublicationError("unsupported or malformed fleet manifest")
+    if manifest.get("generator_sha256") != EXPECTED_GENERATOR_SHA256:
+        raise PublicationError("fleet manifest generator checksum changed")
+    if manifest.get("repository_count") != EXPECTED_REPOSITORIES:
+        raise PublicationError("fleet manifest repository count changed")
     if manifest.get("repository_count") != len(repositories):
         raise PublicationError("repository_count does not match repositories")
+    if manifest.get("total_tracked_files") != EXPECTED_FILES:
+        raise PublicationError("fleet manifest tracked-file total changed")
+    if manifest.get("total_gitlinks") != EXPECTED_GITLINKS:
+        raise PublicationError("fleet manifest gitlink total changed")
+    if manifest.get("organizations") != {"hypesiege": 15, "streempilot": 17}:
+        raise PublicationError("fleet manifest organization counts changed")
+    full_names = [record.get("full_name") for record in repositories]
+    if len(set(full_names)) != len(full_names):
+        raise PublicationError("fleet manifest contains duplicate repositories")
     return manifest
 
 
@@ -69,14 +87,61 @@ def select_record(manifest: dict[str, Any], full_name: str) -> dict[str, Any]:
     name = record.get("name")
     if org not in ALLOWED_ORGS or full_name != f"{org}/{name}":
         raise PublicationError("repository is outside the approved fleet")
+    if record.get("default_branch") != "main":
+        raise PublicationError("repository default branch must be main")
     if record.get("visibility") not in {"public", "private"}:
         raise PublicationError("repository visibility must be explicit")
+    if not re.fullmatch(r"[0-9a-f]{40}", str(record.get("commit", ""))):
+        raise PublicationError("repository commit must be a full lowercase SHA")
+    expected_gitlinks = 0
+    if record.get("kind") == "monorepo":
+        expected_gitlinks = 14 if org == "hypesiege" else 16
+    if record.get("gitlinks") != expected_gitlinks:
+        raise PublicationError("repository gitlink count violates the fleet topology")
     return record
+
+
+def staged_gitlinks(repo: pathlib.Path) -> dict[str, str]:
+    gitlinks: dict[str, str] = {}
+    for line in run(["git", "ls-files", "--stage"], repo).splitlines():
+        metadata, path = line.split("\t", 1)
+        mode, object_id, _stage = metadata.split()
+        if mode == "160000":
+            gitlinks[path] = object_id
+    return gitlinks
+
+
+def gitmodule_paths(repo: pathlib.Path) -> set[str]:
+    path = repo / ".gitmodules"
+    if not path.is_file():
+        return set()
+    completed = subprocess.run(
+        [
+            "git",
+            "config",
+            "--file",
+            ".gitmodules",
+            "--get-regexp",
+            r"^submodule\..*\.path$",
+        ],
+        cwd=repo,
+        check=False,
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    if completed.returncode not in {0, 1}:
+        raise PublicationError(f"failed to parse {path}: {completed.stderr[:4096]}")
+    return {
+        line.split(maxsplit=1)[1]
+        for line in completed.stdout.splitlines()
+        if line.strip()
+    }
 
 
 def preflight_source(record: dict[str, Any], source_root: pathlib.Path) -> pathlib.Path:
     repo = source_root / record["org"] / record["name"]
-    if not (repo / ".git").is_dir():
+    if not (repo / ".git").exists():
         raise PublicationError(f"missing independent Git history: {repo}")
 
     checks = {
@@ -98,6 +163,26 @@ def preflight_source(record: dict[str, Any], source_root: pathlib.Path) -> pathl
         raise PublicationError(f"{record['full_name']} working tree is dirty")
     if checks["files"] != record["files"]:
         raise PublicationError(f"{record['full_name']} tracked-file count mismatch")
+
+    gitlinks = staged_gitlinks(repo)
+    if len(gitlinks) != record["gitlinks"]:
+        raise PublicationError(f"{record['full_name']} gitlink count mismatch")
+    if gitlinks:
+        expected_paths = gitmodule_paths(repo)
+        if expected_paths != set(gitlinks):
+            raise PublicationError(f"{record['full_name']} .gitmodules/index mismatch")
+        for path, expected_commit in gitlinks.items():
+            checkout = repo / path
+            if not (checkout / ".git").exists():
+                raise PublicationError(f"unmaterialized submodule checkout: {path}")
+            actual_commit = run(["git", "rev-parse", "HEAD"], checkout).strip()
+            if actual_commit != expected_commit:
+                raise PublicationError(
+                    f"submodule checkout drift for {path}: {actual_commit} != {expected_commit}"
+                )
+            if run(["git", "status", "--porcelain"], checkout):
+                raise PublicationError(f"submodule checkout is dirty: {path}")
+
     run(["git", "diff", "--check", "HEAD"], repo)
     run(["git", "fsck", "--full", "--no-dangling"], repo)
     return repo
@@ -125,7 +210,9 @@ def request_json(
         request.add_header("Content-Type", "application/json")
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
-            raw = response.read()
+            raw = response.read(256 * 1024 + 1)
+            if len(raw) > 256 * 1024:
+                raise PublicationError("GitHub API response exceeded 256 KiB")
             return response.status, json.loads(raw) if raw else None
     except urllib.error.HTTPError as error:
         raw = error.read(4096).decode("utf-8", errors="replace")
@@ -170,6 +257,36 @@ def ensure_repository(record: dict[str, Any], token: str) -> dict[str, Any]:
     return current
 
 
+def remote_main_commit(full_name: str, token: str) -> str | None:
+    status, payload = request_json("GET", f"/repos/{full_name}/commits/main", token)
+    if status == 404:
+        return None
+    if not isinstance(payload, dict) or not isinstance(payload.get("sha"), str):
+        raise PublicationError(f"GitHub returned invalid main-commit metadata for {full_name}")
+    return payload["sha"]
+
+
+def verify_monorepo_children(
+    manifest: dict[str, Any],
+    record: dict[str, Any],
+    token: str,
+) -> None:
+    if record["kind"] != "monorepo":
+        return
+    children = [
+        item
+        for item in manifest["repositories"]
+        if item["org"] == record["org"] and item["kind"] != "monorepo"
+    ]
+    for child in children:
+        actual = remote_main_commit(child["full_name"], token)
+        if actual != child["commit"]:
+            raise PublicationError(
+                f"cannot publish {record['full_name']}: child {child['full_name']} "
+                f"remote main is {actual!r}, expected {child['commit']}"
+            )
+
+
 def push_main(repo: pathlib.Path, token: str) -> None:
     directory = pathlib.Path(tempfile.mkdtemp(prefix="fleet-git-askpass-"))
     try:
@@ -184,15 +301,15 @@ def push_main(repo: pathlib.Path, token: str) -> None:
             encoding="utf-8",
         )
         askpass.chmod(stat.S_IRWXU)
-        env = os.environ.copy()
-        env[TOKEN_ENV] = token
-        env["GIT_ASKPASS"] = str(askpass)
-        env["GIT_ASKPASS_REQUIRE"] = "force"
-        env["GIT_TERMINAL_PROMPT"] = "0"
+        environment = os.environ.copy()
+        environment[TOKEN_ENV] = token
+        environment["GIT_ASKPASS"] = str(askpass)
+        environment["GIT_ASKPASS_REQUIRE"] = "force"
+        environment["GIT_TERMINAL_PROMPT"] = "0"
         completed = subprocess.run(
-            ["git", "push", "--set-upstream", "origin", "main"],
+            ["git", "push", "--porcelain", "--set-upstream", "origin", "main"],
             cwd=repo,
-            env=env,
+            env=environment,
             check=False,
             text=True,
             stdout=subprocess.PIPE,
@@ -232,6 +349,8 @@ def main() -> int:
                 "commit": record["commit"],
                 "visibility": record["visibility"],
                 "remote": record["remote"],
+                "files": record["files"],
+                "gitlinks": record["gitlinks"],
             },
             indent=2,
         )
@@ -245,6 +364,7 @@ def main() -> int:
         )
     if args.source_root is None:
         raise PublicationError("--source-root is required in execute mode")
+    repo = preflight_source(record, args.source_root.resolve())
     token = os.environ.get(TOKEN_ENV)
     if not token:
         raise PublicationError(
@@ -252,9 +372,15 @@ def main() -> int:
             "GitHub App installation token"
         )
 
-    repo = preflight_source(record, args.source_root.resolve())
+    verify_monorepo_children(manifest, record, token)
     current = ensure_repository(record, token)
     push_main(repo, token)
+    actual = remote_main_commit(record["full_name"], token)
+    if actual != record["commit"]:
+        raise PublicationError(
+            f"remote verification failed for {record['full_name']}: "
+            f"{actual!r} != {record['commit']}"
+        )
 
     print(
         json.dumps(
@@ -262,8 +388,9 @@ def main() -> int:
                 "published": record["full_name"],
                 "repository_id": current.get("id"),
                 "visibility": current.get("visibility"),
-                "default_branch": current.get("default_branch"),
-                "commit": record["commit"],
+                "default_branch": "main",
+                "commit": actual,
+                "verified": True,
             },
             indent=2,
         )
