@@ -209,6 +209,32 @@ jobs:
                   raise SystemExit(f"generator identity is absent from {path}")
               path.write_text(text.replace(old_digest, reviewed_digest), encoding="utf-8")
 
+          reconstructor_path = Path("scripts/reconstruct_hypesiege_streempilot_fleet.py")
+          reconstructor = reconstructor_path.read_text(encoding="utf-8")
+          old_relocation = '''    expected_literal = "ROOT = Path('/mnt/data/hypesiege-streempilot-fleet')"
+              replacement = f"ROOT = Path({str(output_root)!r})"
+              if source.count(expected_literal) != 1:
+                  raise ReconstructionError("generator output-root contract changed")
+              source = source.replace(expected_literal, replacement)
+          '''
+          new_relocation = '''    expected_literal = "ROOT = Path('/mnt/data/hypesiege-streempilot-fleet')"
+              replacement = f"ROOT = Path({str(output_root)!r})"
+              if source.count(expected_literal) != 1:
+                  raise ReconstructionError("generator output-root contract changed")
+              source = source.replace(expected_literal, replacement)
+
+              archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"
+              if archive_literal not in source:
+                  raise ReconstructionError("generator archive-output contract changed")
+              archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")
+              source = source.replace(archive_literal, archive_replacement)
+          '''
+          if old_relocation in reconstructor:
+              reconstructor = reconstructor.replace(old_relocation, new_relocation, 1)
+          elif "generator archive-output contract changed" not in reconstructor:
+              raise SystemExit("reconstructor output-relocation block drifted")
+          reconstructor_path.write_text(reconstructor, encoding="utf-8")
+
           docs_path = Path("docs/hypesiege-streempilot-repository-publication.md")
           docs = docs_path.read_text(encoding="utf-8")
           marker = "## Reconstruct and validate locally\n"
