@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.memebank.dev/v1/meme-clip-manifest.schema.json",
+  "title": "MemeClipManifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_id",
+    "asset_id",
+    "exact_digest",
+    "media_type",
+    "dimensions",
+    "variant",
+    "source_application",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "manifest_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "asset_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "exact_digest": {
+      "$ref": "common.schema.json#/$defs/Digest"
+    },
+    "media_type": {
+      "type": "string",
+      "pattern": "^image/[a-z0-9.+-]+$"
+    },
+    "dimensions": {
+      "$ref": "common.schema.json#/$defs/Dimensions"
+    },
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variant_id", "kind", "recipe"],
+      "properties": {
+        "variant_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["original", "normalized", "thumbnail", "preview", "animated_frame"]
+        },
+        "recipe": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      }
+    },
+    "source_application": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[.-][a-z0-9]+)+$",
+          "maxLength": 160
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?$"
+        }
+      }
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handoff_id", "audience", "nonce", "expires_at", "proof"],
+      "properties": {
+        "handoff_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "audience": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "nonce": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{22,128}$"
+        },
+        "expires_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "proof": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "key_id", "signature_b64url"],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "enum": ["ed25519", "ecdsa-p256-sha256"]
+            },
+            "key_id": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "signature_b64url": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9_-]{40,256}$"
+            }
+          }
+        }
+      }
+    }
+  }
+}
