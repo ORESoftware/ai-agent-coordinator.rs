@@ -1,0 +1,213 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.memebank.dev/v1/search.schema.json",
+  "title": "MemeBank v1 hybrid search contracts",
+  "oneOf": [
+    {"$ref": "#/$defs/SearchRequest"},
+    {"$ref": "#/$defs/SearchResponse"}
+  ],
+  "$defs": {
+    "EmbeddingSelector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["space", "model", "model_revision", "dimension", "metric"],
+      "properties": {
+        "space": {
+          "type": "string",
+          "enum": ["native_visual", "ocr_text", "caption_text", "tag_text"]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "model_revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "dimension": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "metric": {
+          "type": "string",
+          "enum": ["cosine", "inner_product", "l2"]
+        }
+      }
+    },
+    "SearchFilters": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "confirmed_tags_all": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "media_types": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^image/[a-z0-9.+-]+$"
+          }
+        },
+        "created_at_gte": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "created_at_lt": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "SearchRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["library_id", "query", "modes", "limit"],
+      "properties": {
+        "library_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["lexical", "semantic", "similar", "duplicate"]
+          }
+        },
+        "similar_asset_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "filters": {
+          "$ref": "#/$defs/SearchFilters"
+        },
+        "embedding_selectors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EmbeddingSelector"
+          }
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "page_cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "modes": {
+                "contains": {"const": "similar"}
+              }
+            }
+          },
+          "then": {
+            "required": ["similar_asset_id"]
+          }
+        }
+      ]
+    },
+    "SearchExplanation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fusion", "matched_sources"],
+      "properties": {
+        "fusion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["algorithm", "version"],
+          "properties": {
+            "algorithm": {
+              "type": "string",
+              "enum": ["weighted_sum", "reciprocal_rank_fusion"]
+            },
+            "version": {
+              "type": "string",
+              "pattern": "^[0-9]+\\.[0-9]+$"
+            }
+          }
+        },
+        "matched_sources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["title", "note", "confirmed_tag", "ocr", "caption", "native_visual", "perceptual_hash"]
+          }
+        },
+        "lexical_score": {
+          "type": "number"
+        },
+        "vector_score": {
+          "type": "number"
+        },
+        "tag_score": {
+          "type": "number"
+        },
+        "duplicate_score": {
+          "type": "number"
+        },
+        "embedding_selector": {
+          "$ref": "#/$defs/EmbeddingSelector"
+        }
+      }
+    },
+    "SearchHit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["asset_id", "rank", "score", "explanation"],
+      "properties": {
+        "asset_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "score": {
+          "type": "number"
+        },
+        "explanation": {
+          "$ref": "#/$defs/SearchExplanation"
+        }
+      }
+    },
+    "SearchResponse": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_id", "hits", "page"],
+      "properties": {
+        "request_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "hits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SearchHit"
+          }
+        },
+        "page": {
+          "$ref": "common.schema.json#/$defs/PageCursor"
+        }
+      }
+    }
+  }
+}
