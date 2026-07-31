@@ -10,3 +10,21 @@ resources:
   - telemetry-external-secret.yaml
   - telemetry-delivery-cronjob.yaml
   - telemetry-nightly-cronjob.yaml
+  - hypesiege-streempilot-bootstrap-job.yaml
+
+configMapGenerator:
+  - name: hypesiege-streempilot-bootstrap-generator
+    files:
+      - bootstrap/generate.py.gz.b64.part-00
+      - bootstrap/generate.py.gz.b64.part-01
+      - bootstrap/generate.py.gz.b64.part-02
+      - bootstrap/generate.py.gz.b64.part-03
+      - bootstrap/generate.py.gz.b64.part-04
+      - bootstrap/generate.py.gz.b64.part-05
+      - bootstrap/generate.py.gz.b64.part-06
+
+generatorOptions:
+  labels:
+    app.kubernetes.io/name: ai-agent-coordinator
+    app.kubernetes.io/component: repository-bootstrap
+    app.kubernetes.io/part-of: oresoftware-agent-platform
