@@ -1,0 +1,63 @@
+name: Deployment promotion guard
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/oci.yml'
+      - '.github/workflows/promotion-guard.yml'
+      - 'deploy/k8s/**'
+      - 'docs/postgres-rollout.md'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/oci.yml'
+      - '.github/workflows/promotion-guard.yml'
+      - 'deploy/k8s/**'
+      - 'docs/postgres-rollout.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/promotion-guard.yml
+      - name: Enforce coherent persistence promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby <<'RUBY'
+          require 'yaml'
+
+          deployment = YAML.safe_load(File.read('deploy/k8s/deployment.yaml'))
+          spec = deployment.fetch('spec')
+          resources = YAML.safe_load(File.read('deploy/k8s/kustomization.yaml')).fetch('resources')
+          sqlite_contract =
+            spec['replicas'] == 1 &&
+            spec.dig('strategy', 'type') == 'Recreate' &&
+            resources.include?('pvc.yaml')
+
+          if sqlite_contract
+            oci = File.read('.github/workflows/oci.yml')
+            abort 'SQLite deployment must not have an automatic deployment-pr job' if oci.match?(/^  deployment-pr:/)
+            abort 'SQLite deployment must not let OCI automation create pull requests' if oci.include?('gh pr create')
+            abort 'SQLite deployment must not let OCI automation rewrite the deployment manifest' if oci.include?('git add deploy/k8s/deployment.yaml')
+
+            rollout = File.read('docs/postgres-rollout.md')
+            abort 'rollout contract must identify DEN-1073' unless rollout.include?('DEN-1073')
+            abort 'rollout contract must prohibit image-only promotion' unless rollout.downcase.include?('image-only')
+          end
+          RUBY
