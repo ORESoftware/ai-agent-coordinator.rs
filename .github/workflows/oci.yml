@@ -165,10 +165,10 @@ jobs:
       - name: Record the cutover candidate without mutating deployment manifests
         shell: bash
         run: |
-          cat >> "$GITHUB_STEP_SUMMARY" <<EOF
-          ## PostgreSQL runtime image published
-
-          Immutable candidate: `${IMAGE_NAME}:sha-${GITHUB_SHA}`
-
-          This workflow deliberately does **not** open an image-only deployment pull request. The checked-in Kubernetes base still describes the verified SQLite image/PVC contract. A coherent SQLite-to-PostgreSQL promotion must satisfy DEN-1073, including schema evidence, protected database credentials, state-retention/backfill decisions, manifest changes, live smoke tests, and rollback proof.
-          EOF
+          {
+            echo '## PostgreSQL runtime image published'
+            echo
+            printf 'Immutable candidate: `%s:sha-%s`\n' "$IMAGE_NAME" "$GITHUB_SHA"
+            echo
+            echo 'This workflow deliberately does **not** open an image-only deployment pull request. The checked-in Kubernetes base still describes the verified SQLite image/PVC contract. A coherent SQLite-to-PostgreSQL promotion must satisfy DEN-1073, including schema evidence, protected database credentials, state-retention/backfill decisions, manifest changes, live smoke tests, and rollback proof.'
+          } >> "$GITHUB_STEP_SUMMARY"
