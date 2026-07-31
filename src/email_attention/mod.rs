@@ -28,6 +28,7 @@ use tracing::{error, info, warn};
 use uuid::Uuid;
 
 use self::{
+    classification::default_true,
     schedule::Schedule,
     store::{
         AttentionStore, DeliveryItem, ItemState, RunRecord, SeenItem,

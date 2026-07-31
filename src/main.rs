@@ -27,6 +27,7 @@ async fn main() -> anyhow::Result<()> {
     let config = Config::load(&args.config)?;
     let bind = config.server.bind.clone();
     let state = app::AppState::new(config).await?;
+    let _email_attention_scheduler = state.email_attention_agent.spawn_scheduler();
     let router = app::router(state);
     let listener = TcpListener::bind(&bind)
         .await

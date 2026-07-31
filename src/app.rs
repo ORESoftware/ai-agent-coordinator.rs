@@ -20,6 +20,7 @@ use tower_http::{
 use crate::{
     config::Config,
     db::Database,
+    email_attention::{EmailAttentionAgent, ManualEmailAttentionRunRequest},
     error::AppError,
     gateway::ModelGateway,
     github_admin::{CreateRepositoryRequest, GithubRepositoryAdmin},
@@ -42,6 +43,7 @@ pub struct AppState {
     pub github_repository_admin: GithubRepositoryAdmin,
     pub linear_delivery_worker: LinearDeliveryWorker,
     pub telemetry_automation: TelemetryAutomation,
+    pub email_attention_agent: EmailAttentionAgent,
     api_token: Option<String>,
     github_webhook_policy: webhooks::GithubWebhookPolicy,
 }
@@ -57,6 +59,7 @@ impl AppState {
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
         let linear_delivery_worker = LinearDeliveryWorker::from_env(database.clone())?;
         let telemetry_automation = TelemetryAutomation::from_env()?;
+        let email_attention_agent = EmailAttentionAgent::from_env(Some(&database_url)).await?;
         let api_token = config.api_token();
         let github_webhook_policy =
             webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
@@ -67,6 +70,7 @@ impl AppState {
             github_repository_admin,
             linear_delivery_worker,
             telemetry_automation,
+            email_attention_agent,
             api_token,
             github_webhook_policy,
         })
@@ -107,6 +111,11 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/cancel", post(cancel_job))
         .route("/v1/linear/plan/:id", post(plan_linear_delivery))
         .route("/v1/linear/deliver-next", post(deliver_next_linear_job))
+        .route("/v1/email-attention/status", get(email_attention_status))
+        .route(
+            "/v1/email-attention/run-test",
+            post(run_email_attention_test),
+        )
         .route(
             "/v1/telemetry/process-next",
             post(process_next_telemetry_incident),
@@ -373,6 +382,38 @@ async fn deliver_next_linear_job(
             ))
         }
     }
+}
+
+async fn email_attention_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, AppError> {
+    state.authorize(&headers)?;
+    let status = state
+        .email_attention_agent
+        .status()
+        .await
+        .map_err(AppError::Internal)?;
+    Ok(Json(json!({"email_attention": status})))
+}
+
+async fn run_email_attention_test(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<ManualEmailAttentionRunRequest>,
+) -> Result<Json<Value>, AppError> {
+    state.authorize(&headers)?;
+    if !state.email_attention_agent.enabled() {
+        return Err(AppError::BadRequest(
+            "email-attention agent is disabled".to_owned(),
+        ));
+    }
+    let report = state
+        .email_attention_agent
+        .run_manual_test(request)
+        .await
+        .map_err(AppError::Internal)?;
+    Ok(Json(json!({"email_attention": report})))
 }
 
 async fn create_github_repository(

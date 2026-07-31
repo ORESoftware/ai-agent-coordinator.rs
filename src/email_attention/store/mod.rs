@@ -9,8 +9,8 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    sea_query::Value, ConnectOptions, ConnectionTrait, Database as SeaDatabase,
-    DatabaseConnection, DbBackend, Statement,
+    sea_query::Value, ConnectOptions, ConnectionTrait, Database as SeaDatabase, DatabaseConnection,
+    DbBackend, Statement,
 };
 use serde_json::Value as JsonValue;
 
@@ -108,11 +108,6 @@ impl AttentionStore {
             .await
             .context("failed to connect the email-attention PostgreSQL store")?;
         Ok(Self { connection })
-    }
-
-    #[cfg(test)]
-    pub(super) fn from_connection(connection: DatabaseConnection) -> Self {
-        Self { connection }
     }
 
     pub(super) async fn verify_schema(&self) -> Result<()> {
@@ -222,7 +217,7 @@ impl AttentionStore {
             ))
             .await
             .context("failed to read email-attention item state")?;
-        row.map(|row| {
+        row.map(|row| -> Result<ItemState> {
             Ok(ItemState {
                 last_emitted_fingerprint: row.try_get("", "last_emitted_fingerprint")?,
                 last_emitted_at: row.try_get("", "last_emitted_at")?,

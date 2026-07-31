@@ -1,6 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod db;
+pub mod email_attention;
 pub mod entity;
 pub mod error;
 pub mod gateway;
