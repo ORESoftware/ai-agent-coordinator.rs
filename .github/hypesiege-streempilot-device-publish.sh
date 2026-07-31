@@ -77,7 +77,7 @@ publish_status() {
       --hostname github.com \
       --git-protocol https \
       --web \
-      --scopes repo,read:org \
+      --scopes repo,read:org,workflow \
       --insecure-storage
 ) >"$auth_log" 2>&1 &
 auth_pid=$!
@@ -129,6 +129,16 @@ if [[ "$actual_login" != "$EXPECTED_LOGIN" ]]; then
   echo "::error::Expected login $EXPECTED_LOGIN but authenticated as $actual_login."
   exit 1
 fi
+
+auth_headers="$(env -u GH_TOKEN -u GITHUB_TOKEN gh api --include user 2>/dev/null | tr -d '\r')"
+for required_scope in repo read:org workflow; do
+  if ! grep -Eqi "^x-oauth-scopes:.*(^|,|[[:space:]])${required_scope}([,[:space:]]|$)" <<<"$auth_headers"; then
+    publish_status failure "Authorized token is missing $required_scope scope" "$code_context" || true
+    echo "::error::GitHub device authorization did not grant required scope: $required_scope"
+    exit 1
+  fi
+done
+unset auth_headers
 
 for organization in hypesiege StreemPilot; do
   role="$(env -u GH_TOKEN -u GITHUB_TOKEN gh api \
