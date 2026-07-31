@@ -1,0 +1,78 @@
+name: MemeBank infra blueprint
+
+on:
+  pull_request:
+    paths:
+      - repository-blueprints/memebank/mb-infra/**
+      - .github/workflows/memebank-infra-blueprint.yml
+  push:
+    branches: [main]
+    paths:
+      - repository-blueprints/memebank/mb-infra/**
+      - .github/workflows/memebank-infra-blueprint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: repository-blueprints/memebank/mb-infra
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate changed workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/memebank-infra-blueprint.yml
+            repository-blueprints/memebank/mb-infra/.github/workflows/infra-check.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Validate hierarchical agent instructions
+        run: >-
+          python ../../../scripts/validate_agents_md.py
+          --repo-root .
+          --start-dir control-plane
+      - name: Compile validators
+        run: python -m py_compile scripts/*.py
+      - name: Run clean-checkout gate
+        run: make agent-check
+      - name: Inspect validation and rendered evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('.artifacts/infra-report.json').read_text(encoding='utf-8'))
+          index = json.loads(Path('.artifacts/rendered/render-index.json').read_text(encoding='utf-8'))
+          assert report['package'] == 'memebank/mb-infra'
+          assert report['repository_url'] == 'https://github.com/memebank/mb-infra.git'
+          assert report['application_count'] == 14
+          assert report['worker_profile_count'] == 3
+          assert report['promotion_ready_environment_count'] == 0
+          assert [item['environment'] for item in index['environments']] == ['dev', 'staging', 'prod']
+          assert all(item['selected_application_count'] == 12 for item in index['environments'])
+          assert all(item['promotion_ready'] is False for item in index['environments'])
+          assert report['environments']['prod']['auto_sync'] is False
+          PY
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4
+        with:
+          name: memebank-mb-infra-blueprint-evidence
+          path: |
+            repository-blueprints/memebank/mb-infra/.artifacts/infra-report.json
+            repository-blueprints/memebank/mb-infra/.artifacts/rendered/
+          if-no-files-found: error
+          retention-days: 14

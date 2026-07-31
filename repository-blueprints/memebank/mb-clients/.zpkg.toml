@@ -1,0 +1,34 @@
+[package]
+org = "memebank"
+name = "mb-clients"
+version = "0.1.0"
+description = "Behaviorally consistent Rust, Dart, and TypeScript MemeBank SDKs"
+license = "Apache-2.0"
+keywords = ["sdk", "rust", "dart", "typescript", "memebank"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/memebank/mb-clients"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "make agent-check"
+exclude = [".artifacts/**", "clients/rust/target/**"]
+
+[build]
+command = "make agent-check"
+outputs = [
+  "clients/rust",
+  "clients/dart",
+  "clients/typescript",
+  "generated/manifest.json",
+]
+
+[install]
+adapter = "none"
+
+[scripts]
+generate = "python3 scripts/generate_clients.py"
+test = "make agent-check"
+validate = "python3 scripts/validate_clients.py"

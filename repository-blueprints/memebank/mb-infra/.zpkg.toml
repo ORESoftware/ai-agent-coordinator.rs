@@ -1,0 +1,35 @@
+[package]
+org = "memebank"
+name = "mb-infra"
+version = "0.1.0"
+description = "MemeBank Argo CD app-of-apps, immutable artifact/model promotion, environment policy, and operational GitOps contracts"
+license = "Apache-2.0"
+keywords = ["argocd", "gitops", "kubernetes", "memebank", "supply-chain"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/memebank/mb-infra"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "make agent-check"
+exclude = [".artifacts/**"]
+
+[build]
+command = "make agent-check"
+outputs = [
+  "artifact-locks/bundle.json",
+  "control-plane/fleet.json",
+  "control-plane/worker-profiles.json",
+  "environments",
+  "bootstrap/argocd/root-application.template.json",
+]
+
+[install]
+adapter = "none"
+
+[scripts]
+test = "make agent-check"
+validate = "python3 scripts/validate_infra.py"
+render = "python3 scripts/render_infra.py"
