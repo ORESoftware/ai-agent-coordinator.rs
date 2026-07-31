@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "request": {
+    "default_timeout_ms": 30000,
+    "connect_timeout_ms": 5000,
+    "request_id_header": "X-Request-Id",
+    "authorization_header": "Authorization",
+    "user_agent_prefix": "memebank-client",
+    "max_error_body_bytes": 65536,
+    "max_json_body_bytes": 8388608
+  },
+  "retry": {
+    "max_attempts": 3,
+    "base_delay_ms": 100,
+    "max_delay_ms": 2000,
+    "jitter": "full",
+    "respect_retry_after": true,
+    "retry_statuses": [408, 425, 429, 500, 502, 503, 504],
+    "retry_transport_errors": ["connection_reset", "connection_refused", "dns_temporary", "timeout_before_headers"],
+    "never_retry_after_response_body_started": true
+  },
+  "auth": {
+    "provider_contract": "shared-auth/access-token-provider-v1",
+    "refresh_on_statuses": [401],
+    "max_refresh_attempts_per_request": 1,
+    "token_debug_output": "redacted"
+  },
+  "redaction": {
+    "header_names": ["authorization", "cookie", "set-cookie", "x-api-key", "x-provider-token"],
+    "query_parameter_names": ["token", "access_token", "signature", "sig", "x-amz-signature", "x-goog-signature"],
+    "json_field_names": ["access_token", "refresh_token", "upload_url", "download_url", "presigned_url", "provider_file_id", "ocr_text", "caption", "event_payload"],
+    "replacement": "[REDACTED]"
+  },
+  "pagination": {
+    "page_cursor_name": "cursor",
+    "sync_cursor_fields": ["epoch", "sequence"],
+    "advance_sync_cursor_from": "through_cursor",
+    "advance_on_final_page": true,
+    "max_page_limit": 1000
+  },
+  "observability": {
+    "emit_request_id": true,
+    "emit_operation_id": true,
+    "emit_attempt": true,
+    "emit_status_code": true,
+    "forbidden_attributes": ["authorization", "request_body", "response_body", "ocr_text", "caption", "signed_url"]
+  },
+  "publication": {
+    "source_branch": "main",
+    "require_clean_generated_tree": true,
+    "require_reviewed_commit": true,
+    "require_provenance": true,
+    "require_changelog": true
+  }
+}

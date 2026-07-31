@@ -1,0 +1,93 @@
+name: MemeBank client blueprint
+
+on:
+  pull_request:
+    paths:
+      - repository-blueprints/memebank/mb-clients/**
+      - .github/workflows/memebank-client-blueprint.yml
+  push:
+    branches: [main]
+    paths:
+      - repository-blueprints/memebank/mb-clients/**
+      - .github/workflows/memebank-client-blueprint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: repository-blueprints/memebank/mb-clients
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate changed workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/memebank-client-blueprint.yml
+            repository-blueprints/memebank/mb-clients/.github/workflows/client-check.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.1"
+      - uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: "1.85.1"
+      - uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1
+        with:
+          sdk: "3.12.2"
+      - name: Validate hierarchical agent instructions
+        run: >-
+          python ../../../scripts/validate_agents_md.py
+          --repo-root .
+          --start-dir contract
+      - name: Compile validators
+        run: python -m py_compile scripts/*.py
+      - name: Run clean-checkout gate
+        run: make agent-check
+      - name: Inspect generated and fail-closed evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('.artifacts/client-report.json').read_text(encoding='utf-8'))
+          manifest = json.loads(Path('generated/manifest.json').read_text(encoding='utf-8'))
+          assert report['package'] == 'memebank/mb-clients'
+          assert report['interface_package'] == 'memebank/mb-interfaces'
+          assert report['operation_count'] == 5
+          assert report['language_count'] == 3
+          assert report['scenario_counts'] == {
+              'redaction_scenarios': 2,
+              'request_scenarios': 4,
+              'retry_scenarios': 6,
+              'sync_scenarios': 1,
+          }
+          assert report['publication_ready'] is False
+          assert report['shared_auth_binding_complete'] is False
+          assert report['live_api_conformance_complete'] is False
+          assert manifest['contract_digest'] == report['contract_digest']
+          assert set(manifest['outputs']) == {'rust', 'dart', 'typescript'}
+          PY
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4
+        with:
+          name: memebank-mb-clients-blueprint-evidence
+          path: |
+            repository-blueprints/memebank/mb-clients/.artifacts/client-report.json
+            repository-blueprints/memebank/mb-clients/generated/manifest.json
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,7 @@
+.artifacts/
+__pycache__/
+*.pyc
+clients/rust/target/
+clients/dart/.dart_tool/
+clients/dart/pubspec.lock
+.DS_Store

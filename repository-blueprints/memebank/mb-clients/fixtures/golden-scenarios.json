@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "request_scenarios": [
+    {
+      "name": "create_import_requires_idempotency",
+      "operation_id": "createImport",
+      "path_parameters": {},
+      "query": {},
+      "headers": {"Idempotency-Key": "import-20260731-0001"},
+      "expected_method": "POST",
+      "expected_path": "/v1/imports",
+      "expected_retryable": true
+    },
+    {
+      "name": "asset_path_and_etag",
+      "operation_id": "getAsset",
+      "path_parameters": {"asset_id": "018fd2c0-0a24-7e20-a000-000000000001"},
+      "query": {},
+      "headers": {"If-None-Match": "\"asset-r7\""},
+      "expected_method": "GET",
+      "expected_path": "/v1/assets/018fd2c0-0a24-7e20-a000-000000000001",
+      "expected_retryable": true
+    },
+    {
+      "name": "sync_cursor_is_not_page_cursor",
+      "operation_id": "listSyncEvents",
+      "path_parameters": {},
+      "query": {"epoch": 4, "sequence": 88, "limit": 250},
+      "headers": {},
+      "expected_method": "GET",
+      "expected_path": "/v1/sync/events?epoch=4&limit=250&sequence=88",
+      "expected_retryable": true
+    },
+    {
+      "name": "clipboard_media_type",
+      "operation_id": "createClipboardManifest",
+      "path_parameters": {},
+      "query": {},
+      "headers": {"Idempotency-Key": "clip-20260731-0001"},
+      "expected_method": "POST",
+      "expected_path": "/v1/clipboard/manifests",
+      "expected_retryable": true
+    }
+  ],
+  "retry_scenarios": [
+    {"retry_class": "safe_read", "status": 503, "attempt": 1, "body_started": false, "expected": true},
+    {"retry_class": "idempotent_write", "status": 429, "attempt": 2, "body_started": false, "expected": true},
+    {"retry_class": "never", "status": 503, "attempt": 1, "body_started": false, "expected": false},
+    {"retry_class": "safe_read", "status": 400, "attempt": 1, "body_started": false, "expected": false},
+    {"retry_class": "safe_read", "status": 503, "attempt": 3, "body_started": false, "expected": false},
+    {"retry_class": "safe_read", "status": 503, "attempt": 1, "body_started": true, "expected": false}
+  ],
+  "redaction_scenarios": [
+    {
+      "name": "headers",
+      "headers": {"Authorization": "Bearer secret", "X-Request-Id": "req-1", "Cookie": "session=secret"},
+      "expected": {"Authorization": "[REDACTED]", "Cookie": "[REDACTED]", "X-Request-Id": "req-1"}
+    },
+    {
+      "name": "signed_url",
+      "url": "https://objects.example.test/a.png?X-Amz-Signature=secret&part=1&token=hidden",
+      "expected": "https://objects.example.test/a.png?X-Amz-Signature=%5BREDACTED%5D&part=1&token=%5BREDACTED%5D"
+    }
+  ],
+  "sync_scenarios": [
+    {
+      "current": {"epoch": 4, "sequence": 88},
+      "through_cursor": {"epoch": 4, "sequence": 95},
+      "has_more": false,
+      "expected": {"epoch": 4, "sequence": 95}
+    }
+  ]
+}
