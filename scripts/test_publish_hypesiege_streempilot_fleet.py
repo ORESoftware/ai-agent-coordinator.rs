@@ -108,7 +108,7 @@ class FleetManifestTests(unittest.TestCase):
         self.assertEqual(monorepo["gitlinks"], 16)
         self.assertEqual(
             monorepo["commit"],
-            "0e83a0dfa1c2f5c4a20c50c8b6f7d1453a24cc07",
+            "e1527280d6a21f49fcdc08dc9efc00bedfbf718c",
         )
         with self.assertRaises(PUBLISHER.PublicationError):
             PUBLISHER.select_record(manifest, "other/example")
@@ -135,7 +135,7 @@ class FleetManifestTests(unittest.TestCase):
         self.assertEqual(plan["gitlinks"], 16)
         self.assertEqual(
             plan["commit"],
-            "0e83a0dfa1c2f5c4a20c50c8b6f7d1453a24cc07",
+            "e1527280d6a21f49fcdc08dc9efc00bedfbf718c",
         )
 
     def test_execute_requires_exact_confirmation_before_credentials(self) -> None:
