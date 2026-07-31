@@ -17,7 +17,7 @@ errors_env = "FLAGS2ENV_PARSE_ERRORS"
 allow_unknown = false
 
 [env]
-ignore = ["COORDINATOR_API_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPOSITORY_ADMIN_TOKEN", "LINEAR_API_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"]
+ignore = ["COORDINATOR_API_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPOSITORY_ADMIN_TOKEN", "LINEAR_API_TOKEN", "EMAIL_ATTENTION_NOTIFICATION_TOKEN", "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "OPENAI_API_KEY"]
 
 [flags.config]
 env = "COORDINATOR_CONFIG"
@@ -114,6 +114,110 @@ aliases = ["linear-min-org-interval-ms"]
 type = "integer"
 default = "100"
 help = "Minimum delay between Linear requests for one GitHub organization."
+
+[flags.email-attention-enabled]
+env = "EMAIL_ATTENTION_ENABLED"
+aliases = ["email-attention-enabled"]
+type = "bool"
+default = "false"
+help = "Enable the fail-closed read-only Gmail and Outlook attention scheduler."
+
+[flags.email-attention-timezone]
+env = "EMAIL_ATTENTION_TIMEZONE"
+aliases = ["email-attention-timezone"]
+type = "string"
+default = "America/New_York"
+help = "Schedule timezone: America/New_York, UTC, or a fixed offset such as -05:00."
+
+[flags.email-attention-weekdays]
+env = "EMAIL_ATTENTION_WEEKDAYS"
+aliases = ["email-attention-weekdays"]
+type = "string"
+default = "mon,tue,wed,thu,fri"
+help = "Comma-separated schedule weekdays, daily, or *."
+
+[flags.email-attention-local-hour]
+env = "EMAIL_ATTENTION_LOCAL_HOUR"
+aliases = ["email-attention-local-hour"]
+type = "integer"
+default = "9"
+help = "Local schedule hour from 0 through 23."
+
+[flags.email-attention-local-minute]
+env = "EMAIL_ATTENTION_LOCAL_MINUTE"
+aliases = ["email-attention-local-minute"]
+type = "integer"
+default = "0"
+help = "Local schedule minute from 0 through 59."
+
+[flags.email-attention-notification-url]
+env = "EMAIL_ATTENTION_NOTIFICATION_URL"
+aliases = ["email-attention-notification-url"]
+type = "string"
+help = "HTTPS endpoint for the reviewed user-notification adapter."
+
+[flags.email-attention-notification-token-env]
+env = "EMAIL_ATTENTION_NOTIFICATION_TOKEN_ENV"
+aliases = ["email-attention-notification-token-env"]
+type = "string"
+default = "EMAIL_ATTENTION_NOTIFICATION_TOKEN"
+help = "Name of the environment variable containing the notification bearer token."
+
+[flags.email-attention-request-timeout-ms]
+env = "EMAIL_ATTENTION_REQUEST_TIMEOUT_MS"
+aliases = ["email-attention-request-timeout-ms"]
+type = "integer"
+default = "15000"
+help = "Mailbox connector and notification request timeout in milliseconds."
+
+[flags.email-attention-max-response-bytes]
+env = "EMAIL_ATTENTION_MAX_RESPONSE_BYTES"
+aliases = ["email-attention-max-response-bytes"]
+type = "integer"
+default = "524288"
+help = "Maximum mailbox connector response bytes."
+
+[flags.email-attention-max-messages-per-source]
+env = "EMAIL_ATTENTION_MAX_MESSAGES_PER_SOURCE"
+aliases = ["email-attention-max-messages-per-source"]
+type = "integer"
+default = "200"
+help = "Maximum messages requested from each source per scan."
+
+[flags.email-attention-max-notifications-per-run]
+env = "EMAIL_ATTENTION_MAX_NOTIFICATIONS_PER_RUN"
+aliases = ["email-attention-max-notifications-per-run"]
+type = "integer"
+default = "50"
+help = "Maximum attention items included in one notification."
+
+[flags.email-attention-reminder-interval-hours]
+env = "EMAIL_ATTENTION_REMINDER_INTERVAL_HOURS"
+aliases = ["email-attention-reminder-interval-hours"]
+type = "integer"
+default = "24"
+help = "Minimum interval for unchanged urgent-item reminders."
+
+[flags.email-attention-lease-seconds]
+env = "EMAIL_ATTENTION_LEASE_SECONDS"
+aliases = ["email-attention-lease-seconds"]
+type = "integer"
+default = "3600"
+help = "Cross-replica scheduled-run lease duration in seconds."
+
+[flags.email-attention-pending-retry-limit]
+env = "EMAIL_ATTENTION_PENDING_RETRY_LIMIT"
+aliases = ["email-attention-pending-retry-limit"]
+type = "integer"
+default = "20"
+help = "Maximum pending notification deliveries retried per scheduled run."
+
+[flags.email-attention-user-agent]
+env = "EMAIL_ATTENTION_USER_AGENT"
+aliases = ["email-attention-user-agent"]
+type = "string"
+default = "ai-agent-coordinator-email-attention"
+help = "User-Agent sent to mailbox connector and notification adapters."
 
 [flags.repository-admin-enabled]
 env = "GITHUB_REPOSITORY_ADMIN_ENABLED"
