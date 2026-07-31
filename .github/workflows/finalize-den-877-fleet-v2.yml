@@ -1,6 +1,8 @@
 name: Finalize clean DEN-877 fleet repair
 
 on:
+  pull_request:
+    branches: [main]
   push:
     branches:
       - agent/den-877-fleet-merge-repair-v2
@@ -14,6 +16,7 @@ concurrency:
 
 jobs:
   finalize:
+    if: github.event_name == 'push' || github.head_ref == 'agent/den-877-fleet-merge-repair-v2'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
