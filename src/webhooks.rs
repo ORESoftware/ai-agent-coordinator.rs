@@ -12,7 +12,6 @@ use serde_json::{json, Value};
 use sha2::Sha256;
 
 use crate::{db::Database, error::AppError, jobs::CreateJobRequest};
-<<<<<<< HEAD
 
 const ORG_SECRET_ENV_MAP: &str = "GITHUB_WEBHOOK_ORG_SECRET_ENVS";
 const PUSH_ALLOWED_REPOSITORIES: &str = "GITHUB_PUSH_ALLOWED_REPOSITORIES";
@@ -256,8 +255,6 @@ pub async fn process_github_webhook(
         "job": job,
     }))
 }
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
 
 pub fn verify_signature(
     headers: &HeaderMap,
@@ -410,7 +407,6 @@ fn extract_linear_directives(payload: &Value) -> Vec<LinearDirective> {
                 keyword,
             });
         }
-<<<<<<< HEAD
     }
 
     directives
@@ -436,15 +432,6 @@ fn parse_mapping(value: &str, variable: &str) -> anyhow::Result<HashMap<String, 
         let mapped_value = mapped_value.trim();
         if key.is_empty() || mapped_value.is_empty() {
             bail!("invalid {variable} entry {entry:?}; key and value are required");
-=======
-        "pull_request"
-            if matches!(
-                action.as_str(),
-                "opened" | "reopened" | "synchronize" | "labeled"
-            ) && has_any_label(&labels, review_trigger_labels) =>
-        {
-            Some("github_pr_review")
->>>>>>> origin/agent/den-319-github-repository-bootstrap
         }
         if result
             .insert(key.to_owned(), mapped_value.to_owned())
@@ -460,38 +447,11 @@ fn parse_bool_env(variable: &str, default: bool) -> anyhow::Result<bool> {
     let Ok(value) = env::var(variable) else {
         return Ok(default);
     };
-<<<<<<< HEAD
     match value.trim().to_ascii_lowercase().as_str() {
         "1" | "true" | "yes" | "on" => Ok(true),
         "0" | "false" | "no" | "off" => Ok(false),
         _ => bail!("{variable} must be a boolean value"),
     }
-=======
-
-    let request = CreateJobRequest {
-        org,
-        repo,
-        task_type: task_type.to_owned(),
-        payload,
-        priority: if task_type == "github_ci_failure" {
-            50
-        } else {
-            0
-        },
-        max_attempts: 3,
-        available_at: None,
-        budget_usd: None,
-    };
-    let idempotency_key = format!("github:{delivery}:{event}:{action}");
-    let job = database
-        .create_job(&request, Some(&idempotency_key))
-        .map_err(AppError::Internal)?;
-
-    Ok(json!({
-        "accepted": true,
-        "job": job,
-    }))
->>>>>>> origin/agent/den-319-github-repository-bootstrap
 }
 
 fn header<'a>(headers: &'a HeaderMap, name: &str) -> Result<&'a str, AppError> {

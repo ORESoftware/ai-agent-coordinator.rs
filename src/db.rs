@@ -70,23 +70,11 @@ impl Database {
         Ok(Self { connection })
     }
 
-<<<<<<< HEAD
     pub async fn ready(&self) -> Result<()> {
         self.connection
             .ping()
             .await
             .context("database readiness check failed")
-=======
-    pub fn ready(&self) -> Result<()> {
-        let connection = self.connection.lock();
-        let value: i64 = connection.query_row("SELECT 1", [], |row| row.get(0))?;
-        if value != 1 {
-            return Err(anyhow!(
-                "database readiness query returned an unexpected value"
-            ));
-        }
-        Ok(())
->>>>>>> origin/agent/den-319-github-repository-bootstrap
     }
 
     pub async fn create_job(
@@ -370,11 +358,8 @@ impl Database {
                 active.last_error = Set(None);
             }
             CompletionOutcome::Failed if request.retryable && job.attempts < job.max_attempts => {
-<<<<<<< HEAD
                 active.status = Set(JobStatus::Queued.as_str().to_owned());
                 active.last_error = Set(request.error.clone());
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
                 let delay = request.retry_delay_seconds.clamp(0, 86_400);
                 active.available_at = Set((now + ChronoDuration::seconds(delay)).into());
             }

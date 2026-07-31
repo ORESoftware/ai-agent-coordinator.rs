@@ -5,12 +5,12 @@ repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 config_path="$repo_root/.cli-flags.toml"
 
 usage() {
-  cat >&2 <<'EOF'
+  cat >&2 <<'USAGE'
 Usage:
   bash scripts/with-flags audit
   bash scripts/with-flags help
   bash scripts/with-flags [flags2env options] -- command [arguments...]
-EOF
+USAGE
 }
 
 reject_secret_flags() {
@@ -20,7 +20,14 @@ reject_secret_flags() {
     [[ "$argument" == "--" ]] && break
     option="${argument%%=*}"
     case "$option" in
+<<<<<<< HEAD
       --coordinator-api-token|--database-url|--ai-agent-coordinator-database-url|--target-database-url|--shadow-database-url|--github-webhook-secret|--github-repository-admin-token|--linear-api-token|--mistral-api-key|--openrouter-api-key|--openai-api-key)
+=======
+      --email-attention-notification-token-env)
+        # This is an environment-variable name, not a credential value.
+        ;;
+      --coordinator-api-token|--github-webhook-secret|--github-repository-admin-token|--linear-api-token|--email-attention-notification-token|--mistral-api-key|--openrouter-api-key|--openai-api-key|--*token*|--*secret*|--*password*)
+>>>>>>> origin/agent/den-830-email-attention-agent
         printf '%s\n' \
           'credential command-line options are not accepted; use environment-based secret injection' >&2
         exit 64

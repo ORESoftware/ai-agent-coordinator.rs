@@ -20,18 +20,15 @@ use tower_http::{
 use crate::{
     config::Config,
     db::Database,
+    email_attention::{EmailAttentionAgent, ManualEmailAttentionRunRequest},
     error::AppError,
     gateway::ModelGateway,
     github_admin::{CreateRepositoryRequest, GithubRepositoryAdmin},
-<<<<<<< HEAD
     jobs::{
         ClaimJobRequest, CompleteJobRequest, CompletionOutcome, CreateJobRequest,
         HeartbeatJobRequest,
     },
     linear_delivery::{LinearDeliveryRequest, LinearDeliveryWorker},
-=======
-    jobs::{ClaimJobRequest, CompleteJobRequest, CreateJobRequest, HeartbeatJobRequest},
->>>>>>> origin/agent/den-319-github-repository-bootstrap
     providers::ProviderRegistry,
     security::SecretScanner,
     telemetry::{AlertmanagerPayload, TelemetryAutomation, TelemetryError},
@@ -44,11 +41,9 @@ pub struct AppState {
     pub database: Database,
     pub gateway: ModelGateway,
     pub github_repository_admin: GithubRepositoryAdmin,
-<<<<<<< HEAD
     pub linear_delivery_worker: LinearDeliveryWorker,
     pub telemetry_automation: TelemetryAutomation,
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
+    pub email_attention_agent: EmailAttentionAgent,
     api_token: Option<String>,
     github_webhook_policy: webhooks::GithubWebhookPolicy,
 }
@@ -62,11 +57,9 @@ impl AppState {
         let scanner = SecretScanner::new()?;
         let gateway = ModelGateway::new(config.clone(), database.clone(), providers, scanner);
         let github_repository_admin = GithubRepositoryAdmin::from_env()?;
-<<<<<<< HEAD
         let linear_delivery_worker = LinearDeliveryWorker::from_env(database.clone())?;
         let telemetry_automation = TelemetryAutomation::from_env()?;
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
+        let email_attention_agent = EmailAttentionAgent::from_env(&config.database.path)?;
         let api_token = config.api_token();
         let github_webhook_policy =
             webhooks::GithubWebhookPolicy::from_env(config.github_webhook_secret())?;
@@ -75,11 +68,9 @@ impl AppState {
             database,
             gateway,
             github_repository_admin,
-<<<<<<< HEAD
             linear_delivery_worker,
             telemetry_automation,
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
+            email_attention_agent,
             api_token,
             github_webhook_policy,
         })
@@ -118,9 +109,16 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/heartbeat", post(heartbeat_job))
         .route("/v1/jobs/:id/complete", post(complete_job))
         .route("/v1/jobs/:id/cancel", post(cancel_job))
-<<<<<<< HEAD
         .route("/v1/linear/plan/:id", post(plan_linear_delivery))
         .route("/v1/linear/deliver-next", post(deliver_next_linear_job))
+        .route(
+            "/v1/email-attention/status",
+            get(email_attention_status),
+        )
+        .route(
+            "/v1/email-attention/run-test",
+            post(run_email_attention_test),
+        )
         .route(
             "/v1/telemetry/process-next",
             post(process_next_telemetry_incident),
@@ -129,8 +127,6 @@ pub fn router(state: AppState) -> Router {
             "/v1/telemetry/dispatch-remediation",
             post(dispatch_telemetry_remediation),
         )
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
         .route("/v1/github/repositories", post(create_github_repository))
         .route("/webhooks/github", post(github_webhook))
         .route("/webhooks/alertmanager", post(alertmanager_webhook))
@@ -276,7 +272,6 @@ async fn cancel_job(
     Ok(Json(json!({"job": job})))
 }
 
-<<<<<<< HEAD
 async fn plan_linear_delivery(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -392,8 +387,37 @@ async fn deliver_next_linear_job(
     }
 }
 
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
+async fn email_attention_status(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Value>, AppError> {
+    state.authorize(&headers)?;
+    let status = state
+        .email_attention_agent
+        .status()
+        .map_err(AppError::Internal)?;
+    Ok(Json(json!({"email_attention": status})))
+}
+
+async fn run_email_attention_test(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(request): Json<ManualEmailAttentionRunRequest>,
+) -> Result<Json<Value>, AppError> {
+    state.authorize(&headers)?;
+    if !state.email_attention_agent.enabled() {
+        return Err(AppError::BadRequest(
+            "email-attention agent is disabled".to_owned(),
+        ));
+    }
+    let report = state
+        .email_attention_agent
+        .run_manual_test(request)
+        .await
+        .map_err(AppError::Internal)?;
+    Ok(Json(json!({"email_attention": report})))
+}
+
 async fn create_github_repository(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -417,12 +441,7 @@ async fn github_webhook(
     headers: HeaderMap,
     body: Bytes,
 ) -> Result<Json<Value>, AppError> {
-<<<<<<< HEAD
     let response = webhooks::process_github_webhook(
-=======
-    webhooks::verify_signature(&headers, &body, state.github_webhook_secret.as_deref())?;
-    let response = webhooks::enqueue_from_github(
->>>>>>> origin/agent/den-319-github-repository-bootstrap
         &state.database,
         &headers,
         body,

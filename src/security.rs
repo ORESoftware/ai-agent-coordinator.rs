@@ -174,7 +174,6 @@ mod tests {
         assert_eq!(report.categories, vec!["named_secret".to_owned()]);
         assert!(!value.to_string().contains("abcdefghijk123456"));
     }
-<<<<<<< HEAD
 
     #[test]
     fn redacts_values_under_sensitive_json_keys_even_without_token_shapes() {
@@ -200,6 +199,4 @@ mod tests {
         assert_eq!(value["nested"]["cookie"], "[REDACTED:sensitive_json_key]");
         assert_eq!(value["nested"]["token_count"], 42);
     }
-=======
->>>>>>> origin/agent/den-319-github-repository-bootstrap
 }

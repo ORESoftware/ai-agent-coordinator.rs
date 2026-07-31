@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 mod agent;
 mod classification;
 mod schedule;
@@ -7,6 +8,11 @@ mod store;
 #[cfg(test)]
 mod tests;
 
+=======
+mod schedule;
+mod store;
+
+>>>>>>> origin/agent/den-830-email-attention-agent
 use std::{
     collections::{HashMap, HashSet},
     env,
@@ -59,7 +65,11 @@ const SCHEDULER_LEASE_NAME: &str = "email-attention-scheduler";
 pub struct EmailAttentionAgent {
     client: Client,
     settings: Arc<Settings>,
+<<<<<<< HEAD
     store: Option<AttentionStore>,
+=======
+    store: AttentionStore,
+>>>>>>> origin/agent/den-830-email-attention-agent
     run_lock: Arc<AsyncMutex<()>>,
     lease_holder: Arc<String>,
 }
@@ -341,3 +351,11 @@ struct RetryReport {
     success_count: usize,
     failure_count: usize,
 }
+<<<<<<< HEAD
+=======
+
+include!("agent.inc.rs");
+include!("settings.inc.rs");
+include!("classification.inc.rs");
+include!("tests.inc.rs");
+>>>>>>> origin/agent/den-830-email-attention-agent
