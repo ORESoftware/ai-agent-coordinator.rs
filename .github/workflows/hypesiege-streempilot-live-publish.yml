@@ -7,6 +7,12 @@ on:
     paths:
       - repository-fleets/hypesiege-streempilot/**
       - .github/workflows/hypesiege-streempilot-live-publish.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - repository-fleets/hypesiege-streempilot/**
+      - .github/workflows/hypesiege-streempilot-live-publish.yml
   workflow_dispatch:
 
 permissions:
