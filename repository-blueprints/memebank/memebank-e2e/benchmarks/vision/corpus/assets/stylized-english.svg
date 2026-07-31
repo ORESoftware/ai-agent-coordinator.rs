@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#334155"/>
+  <circle cx="320" cy="190" r="120" fill="#64748b"/>
+  <text x="320" y="82" text-anchor="middle" font-family="Impact, sans-serif" font-size="54" fill="#ffffff" stroke="#000000" stroke-width="4" paint-order="stroke">LOCKS NEED LEASES</text>
+  <text x="320" y="325" text-anchor="middle" font-family="Impact, sans-serif" font-size="46" fill="#ffffff" stroke="#000000" stroke-width="4" paint-order="stroke">NOT WISHFUL THINKING</text>
+</svg>
