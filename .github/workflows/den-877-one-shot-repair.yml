@@ -31,7 +31,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Reconcile the payload identity and deterministic ledger
+      - name: Reconcile the reviewed payload, output contract, and deterministic ledger
         shell: bash
         run: |
           set -euo pipefail
@@ -39,27 +39,70 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          old = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
-          new = 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84'
-          paths = [
+          old_digest = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
+          reviewed_digest = 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84'
+          digest_paths = [
               Path('scripts/reconstruct_hypesiege_streempilot_fleet.py'),
               Path('scripts/publish_hypesiege_streempilot_fleet.py'),
               Path('docs/hypesiege-streempilot-repository-publication.md'),
               Path('repository-fleets/hypesiege-streempilot.json'),
           ]
-          for path in paths:
+          for path in digest_paths:
               text = path.read_text(encoding='utf-8')
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f'{path}: expected one old digest, found {count}')
-              path.write_text(text.replace(old, new), encoding='utf-8')
+              old_count = text.count(old_digest)
+              new_count = text.count(reviewed_digest)
+              if old_count > 1:
+                  raise SystemExit(f'{path}: expected at most one old digest, found {old_count}')
+              if old_count == 0 and new_count == 0:
+                  raise SystemExit(f'{path}: reviewed generator identity is absent')
+              path.write_text(text.replace(old_digest, reviewed_digest), encoding='utf-8')
+
+          reconstructor_path = Path('scripts/reconstruct_hypesiege_streempilot_fleet.py')
+          reconstructor = reconstructor_path.read_text(encoding='utf-8')
+          anchor = '''    source = source.replace(expected_literal, replacement)
+'''
+          output_contract = '''    source = source.replace(expected_literal, replacement)
+
+    generated_output_literals = {
+        "/mnt/data/hypesiege-streempilot-fleet.tar.gz": str(
+            output_root.parent / f"{output_root.name}.tar.gz"
+        ),
+        "/mnt/data/hypesiege-streempilot-fleet.SHA256": str(
+            output_root.parent / f"{output_root.name}.SHA256"
+        ),
+    }
+    for expected_output, replacement_output in generated_output_literals.items():
+        if source.count(expected_output) != 1:
+            raise ReconstructionError(
+                f"generator output contract changed for {expected_output}"
+            )
+        source = source.replace(expected_output, replacement_output)
+'''
+          marker = 'generated_output_literals = {'
+          if marker not in reconstructor:
+              if reconstructor.count(anchor) != 1:
+                  raise SystemExit('reconstructor output-root anchor drifted')
+              reconstructor = reconstructor.replace(anchor, output_contract, 1)
+
+          old_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_archive.unlink(missing_ok=True)
+    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)
+'''
+          new_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
+    stale_archive.unlink(missing_ok=True)
+    stale_checksum.unlink(missing_ok=True)
+'''
+          if old_cleanup in reconstructor:
+              reconstructor = reconstructor.replace(old_cleanup, new_cleanup, 1)
+          elif 'stale_checksum = output_root.parent' not in reconstructor:
+              raise SystemExit('reconstructor generated-output cleanup drifted')
+
+          reconstructor_path.write_text(reconstructor, encoding='utf-8')
           PY
 
-          # The Kubernetes batch job embodied the superseded all-at-once,
-          # broad-admin-token publication path. Removing the whole isolated
-          # overlay preserves the canonical one-repository-at-a-time boundary.
-          test -f deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
-          test -f deploy/k8s/bootstrap/kustomization.yaml
+          # Remove the superseded all-at-once broad-admin bootstrap. The
+          # canonical publisher confirms and verifies one repository at a time.
           rm -rf deploy/k8s/bootstrap
 
           output_root="$RUNNER_TEMP/hypesiege-streempilot-fleet"
@@ -88,7 +131,10 @@ jobs:
           )
           for key in invariant_keys:
               if previous[key] != generated[key]:
-                  raise SystemExit(f'fleet invariant changed for {key}: {previous[key]!r} != {generated[key]!r}')
+                  raise SystemExit(
+                      f'fleet invariant changed for {key}: '
+                      f'{previous[key]!r} != {generated[key]!r}'
+                  )
 
           previous_names = [item['full_name'] for item in previous['repositories']]
           generated_names = [item['full_name'] for item in generated['repositories']]
@@ -100,21 +146,25 @@ jobs:
           for full_name in previous_names:
               before = previous_by_name[full_name]
               after = generated_by_name[full_name]
-              for key in ('org', 'name', 'kind', 'files', 'remote', 'description', 'visibility', 'default_branch', 'gitlinks'):
+              for key in (
+                  'org',
+                  'name',
+                  'kind',
+                  'files',
+                  'remote',
+                  'description',
+                  'visibility',
+                  'default_branch',
+                  'gitlinks',
+              ):
                   if before[key] != after[key]:
                       raise SystemExit(f'{full_name}: non-commit contract changed for {key}')
 
           checked_path.write_text(json.dumps(generated, indent=2) + '\n', encoding='utf-8')
 
           representative = {
-              'hypesiege/hypesiege-api-server.rs': {
-                  'test': 1,
-                  'workflow': 1,
-              },
-              'streempilot/streempilot-monorepo': {
-                  'test': 2,
-                  'workflow': 1,
-              },
+              'hypesiege/hypesiege-api-server.rs': {'test': 1, 'workflow': 1},
+              'streempilot/streempilot-monorepo': {'test': 2, 'workflow': 1},
           }
           target_paths = {
               'test': Path('scripts/test_publish_hypesiege_streempilot_fleet.py'),
@@ -129,7 +179,8 @@ jobs:
                   count = text.count(old_commit)
                   if count != expected_count:
                       raise SystemExit(
-                          f'{path}: expected {expected_count} references to {full_name} commit, found {count}'
+                          f'{path}: expected {expected_count} references to '
+                          f'{full_name} commit, found {count}'
                       )
                   if old_commit != new_commit:
                       path.write_text(text.replace(old_commit, new_commit), encoding='utf-8')
@@ -155,10 +206,11 @@ jobs:
           fi
           git diff --check
 
+          rm -f repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731
           rm .github/workflows/den-877-one-shot-repair.yml
           git add -A
           git diff --cached --check
           git config user.name 'ORESoftware'
           git config user.email '11139560+ORESoftware@users.noreply.github.com'
-          git commit -m 'fix(DEN-877): align the sealed fleet identity and remove unsafe bootstrap'
+          git commit -m 'fix(DEN-877): align the sealed fleet identity and output contract'
           git push origin HEAD:agent/den-877-fleet-merge-repair
