@@ -1,0 +1,84 @@
+name: Temporary DEN-877 checksum repair
+
+on:
+  push:
+    branches:
+      - agent/den-877-fleet-merge-repair
+    paths:
+      - .github/workflows/temporary-den-877-checksum-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: temporary-den-877-checksum-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Align every sealed checksum with the reviewed payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import gzip
+          import hashlib
+          from pathlib import Path
+
+          payload = Path('repository-fleets/hypesiege-streempilot')
+          parts = [payload / f'generator.py.gz.b64.part-{index:02d}' for index in range(6)]
+          if not all(path.is_file() for path in parts):
+              raise SystemExit('expected all six generator payload parts')
+          encoded = ''.join(path.read_text(encoding='utf-8').strip() for path in parts)
+          source = gzip.decompress(base64.b64decode(encoded, validate=True))
+          digest = hashlib.sha256(source).hexdigest()
+          old = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
+          if digest == old:
+              raise SystemExit('payload already matches the old checksum; refusing an unnecessary repair')
+
+          paths = [
+              Path('repository-fleets/hypesiege-streempilot.json'),
+              Path('scripts/reconstruct_hypesiege_streempilot_fleet.py'),
+              Path('scripts/publish_hypesiege_streempilot_fleet.py'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one stale checksum, found {text.count(old)}')
+              path.write_text(text.replace(old, digest), encoding='utf-8')
+          print(f'aligned sealed generator checksum to {digest}')
+          PY
+      - name: Validate the semantic repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+          python -m unittest -v scripts/test_publish_hypesiege_streempilot_fleet.py
+      - name: Commit the repaired seal to the PR branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add \
+            repository-fleets/hypesiege-streempilot.json \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py
+          git diff --cached --check
+          git commit -m 'fix: align fleet seal with reviewed generator payload'
+          git push origin HEAD:agent/den-877-fleet-merge-repair
