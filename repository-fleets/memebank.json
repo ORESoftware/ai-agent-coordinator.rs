@@ -45,36 +45,42 @@
     },
     {
       "order": 6,
+      "name": "memebank-media-worker.rs",
+      "visibility": null,
+      "description": "Rust media-enrichment worker for OCR, visual labels, captions, embeddings, deduplication, and idempotent analysis jobs."
+    },
+    {
+      "order": 7,
       "name": "memebank-flutter",
       "visibility": null,
       "description": "MemeBank Flutter applications for Android, iOS, macOS, Windows, and Linux."
     },
     {
-      "order": 7,
+      "order": 8,
       "name": "mb-infra",
       "visibility": null,
       "description": "Authoritative MemeBank Kubernetes and Argo CD app-of-apps GitOps control plane."
     },
     {
-      "order": 8,
+      "order": 9,
       "name": "memebank.github.io",
       "visibility": null,
       "description": "Astro marketing, documentation, privacy, support, and download site for MemeBank."
     },
     {
-      "order": 9,
+      "order": 10,
       "name": "memebank-mcp-server.rs",
       "visibility": null,
       "description": "Safe read-first Rust MCP server for MemeBank catalog, search, and diagnostics."
     },
     {
-      "order": 10,
+      "order": 11,
       "name": "memebank-e2e",
       "visibility": null,
       "description": "Cross-platform, provider-conformance, failure-injection, and release qualification for MemeBank."
     },
     {
-      "order": 11,
+      "order": 12,
       "name": "memebank-monorepo",
       "visibility": null,
       "description": "MemeBank cross-repository orchestration, pinned app gitlinks, release manifest, and validation."

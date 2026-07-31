@@ -10,16 +10,24 @@ as of 2026-07-31 (America/New_York)
 
 The ordinary connected GitHub App is not installed on the MemeBank organization,
 and the coordinator's repository-administration deployment is disabled. Do not
-interpret this manifest, a rendered plan, a pull request, or a Linear issue as
-evidence that a repository exists.
+interpret this manifest, a rendered plan, a pull request, a local archive, or a
+Linear issue as evidence that a repository exists or that source was pushed.
 
-The target fleet contains twelve repositories. Eleven ordinary repository names
-are eligible for the coordinator rendering path. The organization metadata
+The target fleet contains thirteen repositories. Twelve ordinary repository
+names are eligible for the coordinator rendering path. The organization metadata
 repository `.github` remains machine-readably deferred because the current
 coordinator validator rejects leading-dot repository names. It must not be sent
 to the coordinator until that validator explicitly supports the exact `.github`
 special case, or be created through an authorized organization-administration
 path with equivalent review and evidence.
+
+The dedicated `memebank-media-worker.rs` repository is part of the canonical
+fleet because OCR, visual labels, captions, deduplication, and image/text
+embedding jobs have different scaling, retry, provider-egress, and idempotency
+requirements from the synchronous API and web request paths. Omitting it would
+silently discard a repository already present in the sealed implementation
+source and would collapse an independently deployable failure domain back into
+the API server.
 
 ## Files
 
@@ -47,12 +55,13 @@ Coordinator-renderable batch:
 3. `mb-cli`
 4. `memebank-api-server.rs`
 5. `memebank-web-server.rs`
-6. `memebank-flutter`
-7. `mb-infra`
-8. `memebank.github.io`
-9. `memebank-mcp-server.rs`
-10. `memebank-e2e`
-11. `memebank-monorepo`
+6. `memebank-media-worker.rs`
+7. `memebank-flutter`
+8. `mb-infra`
+9. `memebank.github.io`
+10. `memebank-mcp-server.rs`
+11. `memebank-e2e`
+12. `memebank-monorepo`
 
 `mb-infra` is canonical. `memebank-infra` is forbidden because it is a
 superseded working name. `homebrew-memebank` is deferred until the release
@@ -69,7 +78,7 @@ python3 scripts/render_repository_fleet.py \
 
 The checked-in manifest intentionally has `visibility: null` for every active
 repository and `live_creation_enabled: false`. Therefore the current plan must
-report eleven visibility blockers, omit `.github` from executable requests, and
+report twelve visibility blockers, omit `.github` from executable requests, and
 must not render an executable request.
 
 Visibility is an explicit product and security decision. Review `public` or
@@ -87,7 +96,7 @@ python3 scripts/render_repository_fleet.py \
   --mode dry-run
 ```
 
-This renders eleven requests with `dry_run: true`. It does not send them. The
+This renders twelve requests with `dry_run: true`. It does not send them. The
 authorized executor must submit them to the protected coordinator endpoint and
 retain redacted responses. The deferred `.github` repository is intentionally
 not present in this output.
@@ -148,7 +157,8 @@ manifests, logs, workflow inputs, or Argo parameters.
 Create repositories one at a time and immediately verify the returned full name,
 repository ID, visibility, URL, initialization result, and default branch.
 Initialize each repository on `main`; then add the meaningful baseline through a
-feature branch and reviewed pull request.
+feature branch and reviewed pull request. A ZIP or tarball is transport material,
+not creation or push evidence.
 
 For `.github`, retain evidence of the exact creation route and prove that no
 broader leading-dot repository-name exception was introduced. For the active
@@ -156,7 +166,7 @@ batch, preserve the rendered dry-run and exact-confirmation evidence.
 
 Attach the following evidence to DEN-1005 and DEN-1043:
 
-- repository ID and canonical URL for all twelve targets;
+- repository ID and canonical URL for all thirteen targets;
 - reviewed visibility;
 - first `main` commit SHA;
 - baseline pull request and exact merged head;

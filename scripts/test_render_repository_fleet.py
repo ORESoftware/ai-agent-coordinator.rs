@@ -52,7 +52,7 @@ class RepositoryFleetTests(unittest.TestCase):
         self.assertEqual(output["organization"], "memebank")
         self.assertFalse(output["ready_for_dry_run"])
         self.assertFalse(output["ready_for_live"])
-        self.assertEqual(len(output["blockers"]), 11)
+        self.assertEqual(len(output["blockers"]), 12)
         self.assertIn(".github", manifest.deferred_repositories)
         self.assertNotIn(
             "memebank/.github",
@@ -86,7 +86,7 @@ class RepositoryFleetTests(unittest.TestCase):
             repository_name=None,
             confirmation=None,
         )
-        self.assertEqual(len(output["requests"]), 11)
+        self.assertEqual(len(output["requests"]), 12)
         self.assertTrue(all(request["dry_run"] for request in output["requests"]))
         self.assertNotIn("confirm_repository", output["requests"][0])
         self.assertNotIn(
