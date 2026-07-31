@@ -1,0 +1,87 @@
+name: Repair DEN-877 sealed fleet generator digest
+
+on:
+  push:
+    branches:
+      - agent/den-877-fleet-merge-repair
+    paths:
+      - .github/workflows/fix-den-877-fleet-generator-digest.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-den-877-fleet-generator-digest
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact writable branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-877-fleet-merge-repair
+          fetch-depth: 0
+          persist-credentials: true
+          show-progress: false
+
+      - name: Recompute and reconcile every digest consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import gzip
+          import hashlib
+
+          old = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
+          expected = 'a57b00f1d00d5268df618941dbaf7fa2d68c9116d1bc755b445e81f4ecd673e'
+          payload = Path('repository-fleets/hypesiege-streempilot')
+          parts = sorted(payload.glob('generator.py.gz.b64.part-*'))
+          if [path.name for path in parts] != [f'generator.py.gz.b64.part-{index:02d}' for index in range(6)]:
+              raise SystemExit('expected exactly generator payload parts 00 through 05')
+          encoded = ''.join(path.read_text().strip() for path in parts)
+          source = gzip.decompress(base64.b64decode(encoded, validate=True))
+          actual = hashlib.sha256(source).hexdigest()
+          if actual != expected:
+              raise SystemExit(f'recomputed generator digest {actual} != reviewed digest {expected}')
+
+          paths = [
+              Path('scripts/reconstruct_hypesiege_streempilot_fleet.py'),
+              Path('scripts/publish_hypesiege_streempilot_fleet.py'),
+              Path('deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml'),
+              Path('repository-fleets/hypesiege-streempilot.json'),
+          ]
+          replacements = 0
+          for path in paths:
+              text = path.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one stale digest, found {count}')
+              path.write_text(text.replace(old, expected, 1))
+              replacements += count
+          if replacements != 4:
+              raise SystemExit(f'expected four digest consumers, updated {replacements}')
+          PY
+          python3 -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py
+          git diff --check
+
+      - name: Remove repair carrier and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/fix-den-877-fleet-generator-digest.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only | grep 'fix-den-877-fleet-generator-digest.yml' || true)"
+          git commit -m 'fix(DEN-877): align sealed fleet generator digest'
+          git push origin HEAD:agent/den-877-fleet-merge-repair
