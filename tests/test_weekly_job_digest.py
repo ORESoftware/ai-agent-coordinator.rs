@@ -18,6 +18,15 @@ weekly = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = weekly
 SPEC.loader.exec_module(weekly)
 
+TEST_PROFILE = {
+    "target_roles": ["Synthetic Platform Engineer"],
+    "skills": ["Synthetic distributed systems"],
+    "work_authorization": {"review_required": True},
+    "preferred_arrangement": ["Synthetic remote"],
+    "compensation": {"review_required": True},
+    "test_marker": "private-profile-marker",
+}
+
 
 class WeeklyJobDigestTests(unittest.TestCase):
     def test_dst_winter_and_summer_gate_at_0917_eastern(self) -> None:
@@ -52,22 +61,37 @@ class WeeklyJobDigestTests(unittest.TestCase):
         self.assertEqual(ordinary.run_key, forced.run_key)
         self.assertEqual(ordinary.run_key, "job-agent:platform-sre-cto:2026-W31")
 
+    def test_profile_is_loaded_from_json_and_sensitive_fields_are_rejected(self) -> None:
+        profile = weekly.load_candidate_profile(json.dumps(TEST_PROFILE))
+        self.assertEqual(profile, TEST_PROFILE)
+
+        with self.assertRaises(weekly.JobDigestError):
+            weekly.load_candidate_profile(
+                json.dumps({"target_roles": ["Role"], "password": "forbidden"})
+            )
+        with self.assertRaises(weekly.JobDigestError):
+            weekly.load_candidate_profile(json.dumps({"skills": ["missing roles"]}))
+        with self.assertRaises(weekly.JobDigestError):
+            weekly.load_candidate_profile("not-json")
+
     def test_payload_is_discovery_only_and_routes_submission(self) -> None:
         decision = weekly.schedule_decision(
             datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
-        payload = weekly.build_payload(decision.run_key, decision.local_time)
+        payload = weekly.build_payload(
+            decision.run_key,
+            decision.local_time,
+            TEST_PROFILE,
+        )
         inner = payload["payload"]
         self.assertEqual(payload["task_type"], "job_opportunity_digest")
         self.assertEqual(inner["linear"]["canonical_issue"], "DEN-826")
         self.assertEqual(inner["linear"]["browser_application_issue"], "DEN-256")
+        self.assertEqual(inner["candidate_profile"], TEST_PROFILE)
         self.assertIn("submit_application", inner["forbidden_actions"])
         self.assertIn("send_email", inner["forbidden_actions"])
         self.assertNotIn("submit_application", inner["allowed_actions"])
         self.assertTrue(inner["safety"]["separate_explicit_action_required_for_every_send"])
-        self.assertEqual(
-            inner["candidate_profile"]["compensation_target_usd"], 175000
-        )
         self.assertEqual(
             inner["volume_boundary"]["requested_range"],
             {"minimum": 150, "maximum": 350},
@@ -89,20 +113,32 @@ class WeeklyJobDigestTests(unittest.TestCase):
             "http://127.0.0.1:8080",
         )
 
-    def test_dry_run_redacts_bearer(self) -> None:
+    def test_dry_run_redacts_candidate_profile_and_bearer(self) -> None:
         decision = weekly.schedule_decision(
             datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
-        payload = weekly.build_payload(decision.run_key, decision.local_time)
+        payload = weekly.build_payload(
+            decision.run_key,
+            decision.local_time,
+            TEST_PROFILE,
+        )
         plan = weekly.redacted_plan(
             "https://coordinator.example.com", decision.run_key, payload
         )
         serialized = json.dumps(plan)
         self.assertIn("[REDACTED]", serialized)
-        self.assertNotIn("secret-value", serialized)
+        self.assertNotIn("private-profile-marker", serialized)
+        self.assertEqual(
+            plan["request"]["payload"]["candidate_profile"],
+            {"redacted": True},
+        )
 
-    def test_main_dry_run_never_reads_token(self) -> None:
-        with patch.dict(os.environ, {"AI_AGENT_COORDINATOR_API_TOKEN": "secret-value"}):
+    def test_main_dry_run_never_prints_token_or_candidate_profile(self) -> None:
+        environment = {
+            "AI_AGENT_COORDINATOR_API_TOKEN": "secret-value",
+            "AI_AGENT_JOB_PROFILE_JSON": json.dumps(TEST_PROFILE),
+        }
+        with patch.dict(os.environ, environment, clear=True):
             with patch.object(weekly, "enqueue") as enqueue:
                 with patch("sys.stdout", new_callable=io.StringIO) as stdout:
                     rc = weekly.main(
@@ -119,6 +155,22 @@ class WeeklyJobDigestTests(unittest.TestCase):
         output = stdout.getvalue()
         self.assertIn("[REDACTED]", output)
         self.assertNotIn("secret-value", output)
+        self.assertNotIn("private-profile-marker", output)
+
+    def test_not_due_does_not_require_candidate_profile(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            with patch("sys.stdout", new_callable=io.StringIO) as stdout:
+                rc = weekly.main(
+                    [
+                        "--endpoint",
+                        "https://coordinator.example.com",
+                        "--now",
+                        "2026-07-27T13:30:00Z",
+                        "--dry-run",
+                    ]
+                )
+        self.assertEqual(rc, 0)
+        self.assertIn('"status": "not_due"', stdout.getvalue())
 
     def test_enqueue_sends_idempotent_bearer_request_and_returns_safe_summary(self) -> None:
         class FakeResponse:
@@ -152,7 +204,11 @@ class WeeklyJobDigestTests(unittest.TestCase):
         decision = weekly.schedule_decision(
             datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
-        payload = weekly.build_payload(decision.run_key, decision.local_time)
+        payload = weekly.build_payload(
+            decision.run_key,
+            decision.local_time,
+            TEST_PROFILE,
+        )
         fake = FakeOpener()
         with patch.object(weekly, "build_opener", return_value=fake):
             result = weekly.enqueue(
@@ -176,7 +232,11 @@ class WeeklyJobDigestTests(unittest.TestCase):
         decision = weekly.schedule_decision(
             datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
-        payload = weekly.build_payload(decision.run_key, decision.local_time)
+        payload = weekly.build_payload(
+            decision.run_key,
+            decision.local_time,
+            TEST_PROFILE,
+        )
         with patch.object(weekly, "build_opener") as opener:
             with self.assertRaises(weekly.JobDigestError):
                 weekly.enqueue(
