@@ -1,0 +1,58 @@
+name: Infra contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/infra-check.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile validators
+        run: python -m py_compile scripts/*.py
+      - name: Run clean-checkout gate
+        run: make agent-check
+      - name: Inspect fail-closed report
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('.artifacts/infra-report.json').read_text(encoding='utf-8'))
+          assert report['package'] == 'memebank/mb-infra'
+          assert report['application_count'] == 14
+          assert report['worker_profile_count'] == 3
+          assert report['promotion_ready_environment_count'] == 0
+          assert report['environments']['dev']['renderable'] is True
+          assert report['environments']['prod']['auto_sync'] is False
+          PY
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4
+        with:
+          name: mb-infra-contract-evidence
+          path: |
+            .artifacts/infra-report.json
+            .artifacts/rendered/
+          if-no-files-found: error
+          retention-days: 14

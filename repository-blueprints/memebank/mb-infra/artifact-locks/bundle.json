@@ -1,0 +1,88 @@
+{
+  "bundle_id": "memebank-bootstrap-0.1.0",
+  "compatibility_sets": {
+    "cloud_dispatch": {
+      "embedding_spaces": [],
+      "images": ["enrichment_cloud_dispatch"],
+      "interfaces": "mb-interfaces/v1",
+      "models": [],
+      "promotable": false
+    },
+    "local_cpu": {
+      "embedding_spaces": ["ocr_text"],
+      "images": ["api", "enrichment_local_cpu"],
+      "interfaces": "mb-interfaces/v1",
+      "models": ["synthetic_fixture_ocr"],
+      "promotable": false
+    },
+    "local_gpu": {
+      "embedding_spaces": ["ocr_text"],
+      "images": ["enrichment_local_gpu"],
+      "interfaces": "mb-interfaces/v1",
+      "models": ["synthetic_fixture_ocr"],
+      "promotable": false
+    }
+  },
+  "images": {
+    "api": {
+      "bootstrap_placeholder": true,
+      "promotable": false,
+      "provenance_digest": "sha256:PLACEHOLDER",
+      "ref": "ghcr.io/memebank/memebank-api-server@sha256:PLACEHOLDER",
+      "sbom_digest": "sha256:PLACEHOLDER",
+      "source_commit": "PLACEHOLDER"
+    },
+    "enrichment_cloud_dispatch": {
+      "bootstrap_placeholder": true,
+      "promotable": false,
+      "provenance_digest": "sha256:PLACEHOLDER",
+      "ref": "ghcr.io/memebank/memebank-media-worker-cloud@sha256:PLACEHOLDER",
+      "sbom_digest": "sha256:PLACEHOLDER",
+      "source_commit": "PLACEHOLDER"
+    },
+    "enrichment_local_cpu": {
+      "bootstrap_placeholder": true,
+      "promotable": false,
+      "provenance_digest": "sha256:PLACEHOLDER",
+      "ref": "ghcr.io/memebank/memebank-media-worker-cpu@sha256:PLACEHOLDER",
+      "sbom_digest": "sha256:PLACEHOLDER",
+      "source_commit": "PLACEHOLDER"
+    },
+    "enrichment_local_gpu": {
+      "bootstrap_placeholder": true,
+      "promotable": false,
+      "provenance_digest": "sha256:PLACEHOLDER",
+      "ref": "ghcr.io/memebank/memebank-media-worker-gpu@sha256:PLACEHOLDER",
+      "sbom_digest": "sha256:PLACEHOLDER",
+      "source_commit": "PLACEHOLDER"
+    }
+  },
+  "interfaces": {
+    "bootstrap_placeholder": true,
+    "package": "memebank/mb-interfaces",
+    "promotable": false,
+    "schema_revision": "mb-interfaces/v1",
+    "source_commit": "PLACEHOLDER",
+    "version": "0.1.0"
+  },
+  "models": {
+    "synthetic_fixture_ocr": {
+      "artifact": "oci://ghcr.io/memebank/models/synthetic-fixture-ocr@sha256:PLACEHOLDER",
+      "bootstrap_placeholder": true,
+      "checksum": "sha256:PLACEHOLDER",
+      "license": "CC0-1.0",
+      "logical_id": "synthetic-fixture-ocr-v1",
+      "observation_schema": "mb-interfaces/v1/image-observation",
+      "processor_revision": "synthetic-fixture-processor-v1",
+      "promotable": false,
+      "runtime": {
+        "execution_providers": ["cpu"],
+        "name": "onnxruntime",
+        "version": "bootstrap-placeholder"
+      },
+      "source_url": "https://models.example.invalid/synthetic-fixture-ocr"
+    }
+  },
+  "promotable": false,
+  "schema_version": 1
+}
