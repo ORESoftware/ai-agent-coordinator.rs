@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Reconcile payload identity, caller-owned archive output, and publication boundary
+      - name: Reconcile payload identity, caller-owned outputs, and publication boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -69,11 +69,11 @@ jobs:
           reconstructor_path = Path('scripts/reconstruct_hypesiege_streempilot_fleet.py')
           reconstructor = reconstructor_path.read_text(encoding='utf-8')
           anchor = '''    source = source.replace(expected_literal, replacement)\n'''
-          archive_contract = '''\n    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"\n    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")\n    if source.count(archive_literal) != 1:\n        raise ReconstructionError("generator archive-output contract changed")\n    source = source.replace(archive_literal, archive_replacement)\n'''
-          if archive_contract not in reconstructor:
+          output_contract = '''\n    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"\n    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")\n    if source.count(archive_literal) != 1:\n        raise ReconstructionError("generator archive-output contract changed")\n    source = source.replace(archive_literal, archive_replacement)\n\n    checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"\n    checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")\n    if source.count(checksum_literal) != 1:\n        raise ReconstructionError("generator checksum-output contract changed")\n    source = source.replace(checksum_literal, checksum_replacement)\n'''
+          if output_contract not in reconstructor:
               if reconstructor.count(anchor) != 1:
                   raise SystemExit('reconstructor output-root insertion point drifted')
-              reconstructor = reconstructor.replace(anchor, anchor + archive_contract, 1)
+              reconstructor = reconstructor.replace(anchor, anchor + output_contract, 1)
           reconstructor_path.write_text(reconstructor, encoding='utf-8')
 
           docs_path = Path('docs/hypesiege-streempilot-repository-publication.md')
@@ -139,8 +139,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f \
+            .github/workflows/temporary-den-877-semantic-repair.yml \
+            .github/workflows/den-877-fleet-repair.yml \
+            .github/workflows/den-877-one-shot-repair.yml \
+            repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m 'fix: reconcile sealed fleet payload and caller-owned output'
+          git diff --cached --check
+          git commit -m 'fix: reconcile sealed fleet payload and caller-owned outputs'
           git push origin HEAD:${{ github.head_ref }}
