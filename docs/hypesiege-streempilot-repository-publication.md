@@ -27,6 +27,8 @@ The checked-in ledger therefore represents **32 deterministic independent Git hi
 
 The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled generator were removed during reconciliation. That job accepted a broad repository-administration credential and attempted the entire fleet in one execution, contradicting the canonical one-repository confirmation, preflight, and remote-head verification boundary.
 
+The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled generator were removed during reconciliation. That job accepted a broad repository-administration credential and attempted the entire fleet in one execution, contradicting the canonical one-repository confirmation, preflight, and remote-head verification boundary. Generated repositories are sealed from their complete staged trees as deterministic parentless commits, so source history depth cannot silently alter publication identity.
+
 ## Reconstruct and validate locally
 
 The gzip/base64 parts under `repository-fleets/hypesiege-streempilot/` contain the complete reviewed source generator. The reconstruction wrapper checks the decoded generator against SHA-256 `a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84` before executing it.
