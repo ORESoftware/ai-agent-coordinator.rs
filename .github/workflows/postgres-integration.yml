@@ -53,13 +53,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - name: Checkout pinned shared schema contract
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          repository: ORESoftware/k8s-libs-and-shared-defs
-          ref: 86ff698a77c9458b6d6ab27bbb3c6d2e80d381bc
-          path: vendor/k8s-libs-and-shared-defs
-          persist-credentials: false
       - name: Validate workflow
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
         with:
@@ -68,12 +61,20 @@ jobs:
         with:
           toolchain: '1.97.0'
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Apply the canonical ai_agent_coordinator schema
+      - name: Verify the pinned canonical schema fixture
         shell: bash
         run: |
           set -euo pipefail
-          schema="$GITHUB_WORKSPACE/vendor/k8s-libs-and-shared-defs/pg-defs/schema/databases/ai_agent_coordinator/schema.sql"
+          schema="$GITHUB_WORKSPACE/tests/fixtures/ai_agent_coordinator.schema.sql"
           test -f "$schema"
+          actual=$(sha256sum "$schema" | awk '{print $1}')
+          expected=bb6162034600fe7e3f3566375f96c4624214566bc63cdb9c060aa875727eac87
+          test "$actual" = "$expected"
+      - name: Apply the canonical ai_agent_coordinator schema fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          schema="$GITHUB_WORKSPACE/tests/fixtures/ai_agent_coordinator.schema.sql"
           docker run --rm \
             --network host \
             --env PGPASSWORD=postgres \
