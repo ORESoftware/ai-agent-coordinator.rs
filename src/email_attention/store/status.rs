@@ -174,7 +174,7 @@ impl AttentionStore {
             .query_one(statement(sql, vec![]))
             .await
             .context("failed to read email-attention run state")?;
-        row.map(|row| {
+        row.map(|row| -> Result<RunState> {
             let attention_item_count: i64 = row.try_get("", "attention_item_count")?;
             let source_success_count: i64 = row.try_get("", "source_success_count")?;
             let source_failure_count: i64 = row.try_get("", "source_failure_count")?;
