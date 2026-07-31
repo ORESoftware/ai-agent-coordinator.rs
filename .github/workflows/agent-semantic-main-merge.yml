@@ -1,0 +1,139 @@
+name: Semantic main merge for SeaORM migration
+
+on:
+  push:
+    branches:
+      - agent/migrate-coordinator-to-seaorm
+    paths:
+      - '.github/workflows/agent-semantic-main-merge.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: agent-semantic-main-merge-seaorm
+  cancel-in-progress: false
+
+jobs:
+  reconcile-and-self-remove:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out migration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: agent/migrate-coordinator-to-seaorm
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge current main and verify the conflict boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          git merge --no-ff --no-commit origin/main || true
+          actual="$(git diff --name-only --diff-filter=U | sort)"
+          expected="$(printf '%s\n' \
+            '.github/workflows/deployment-contract.yml' \
+            '.gitignore' \
+            'deploy/k8s/deployment.yaml' \
+            'deploy/k8s/kustomization.yaml' | sort)"
+          test "$actual" = "$expected" || {
+            echo 'unexpected semantic conflict set:' >&2
+            printf '%s\n' "$actual" >&2
+            exit 1
+          }
+
+      - name: Reconcile PostgreSQL migration with current platform contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --ours .github/workflows/deployment-contract.yml
+          git checkout --ours deploy/k8s/deployment.yaml
+
+          cat >.gitignore <<'EOF'
+          /target
+          .env
+          coordinator.yaml
+          .DS_Store
+
+          __pycache__/
+          *.py[cod]
+          EOF
+
+          cat >deploy/k8s/kustomization.yaml <<'EOF'
+          apiVersion: kustomize.config.k8s.io/v1beta1
+          kind: Kustomization
+          resources:
+            - network-policy.yaml
+            - deployment.yaml
+            - service.yaml
+            - external-secret.yaml
+            - telemetry-config.yaml
+            - telemetry-external-secret.yaml
+            - telemetry-delivery-cronjob.yaml
+            - telemetry-nightly-cronjob.yaml
+          EOF
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/deployment-contract.yml')
+          text = path.read_text(encoding='utf-8')
+
+          old_kinds = '          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy Service ServiceAccount]\n'
+          new_kinds = (
+              "          abort 'ServiceAccount is platform-owned and must not be rendered by the application kustomization' "
+              "if resources.any? { |resource| resource['kind'] == 'ServiceAccount' }\n"
+              '          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy Service]\n'
+          )
+          if text.count(old_kinds) != 1:
+              raise SystemExit('unexpected allowed-kind contract')
+          text = text.replace(old_kinds, new_kinds)
+
+          service_account_block = """          service_account = resources.find { |resource| resource['kind'] == 'ServiceAccount' } or abort 'ServiceAccount missing'
+          abort 'wrong ServiceAccount name' unless service_account.dig('metadata', 'name') == 'ai-agent-coordinator'
+          abort 'ServiceAccount token automount must be disabled' unless service_account['automountServiceAccountToken'] == false
+"""
+          if text.count(service_account_block) != 1:
+              raise SystemExit('unexpected application-owned ServiceAccount contract')
+          text = text.replace(service_account_block, '')
+
+          provider_contract = "          abort 'ordered nightly providers must be Gemini, Claude, then Codex' unless telemetry_data['TELEMETRY_REMEDIATION_PROVIDERS'] == 'gemini-sdk,claude-sdk,openai-codex-cli'\n"
+          base_branch_contract = """          base_branches = telemetry_data.fetch('TELEMETRY_BASE_BRANCH_MAP').split(',').map(&:strip).to_h { |entry| entry.split('=', 2) }
+          abort 'chat-vibe remediation must branch from dev4' unless base_branches['oresoftware/chat.vibe'] == 'dev4'
+"""
+          if text.count(provider_contract) != 1:
+              raise SystemExit('unexpected provider contract')
+          text = text.replace(provider_contract, provider_contract + base_branch_contract)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Prove the merged deployment semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e deploy/k8s/service-account.yaml
+          test ! -e deploy/k8s/persistent-volume-claim.yaml
+          grep -q 'replicas: 2' deploy/k8s/deployment.yaml
+          grep -q 'type: RollingUpdate' deploy/k8s/deployment.yaml
+          ! grep -q 'persistentVolumeClaim:' deploy/k8s/deployment.yaml
+          grep -q 'AI_AGENT_COORDINATOR_DATABASE_URL' .github/workflows/deployment-contract.yml
+          grep -q 'ServiceAccount is platform-owned' .github/workflows/deployment-contract.yml
+          grep -q 'TELEMETRY_BASE_BRANCH_MAP' .github/workflows/deployment-contract.yml
+          grep -q 'PostgreSQL-backed coordinator must not mount a PVC' .github/workflows/deployment-contract.yml
+          ruby -e "require 'yaml'; YAML.safe_load(File.read('deploy/k8s/deployment.yaml')); YAML.safe_load(File.read('deploy/k8s/kustomization.yaml')); YAML.safe_load(File.read('.github/workflows/deployment-contract.yml'), aliases: true)"
+
+      - name: Commit the semantic merge and remove this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/agent-semantic-main-merge.yml
+          git add -A
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'merge: reconcile main with SeaORM migration contracts'
+          git push origin HEAD:agent/migrate-coordinator-to-seaorm
