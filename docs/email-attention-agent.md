@@ -107,7 +107,7 @@ The notification adapter is responsible for the final user-visible channel, such
 
 ## Durable deduplication and privacy
 
-The agent uses namespaced tables in the coordinator SQLite database. It stores:
+The agent uses namespaced `email_attention_*` tables in the canonical `ai_agent_coordinator` PostgreSQL schema. The application verifies that the externally managed schema is present at startup and never creates or migrates tables itself. It stores:
 
 - per-source opaque cursors and redacted health;
 - opaque source/message identities;
