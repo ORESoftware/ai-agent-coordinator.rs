@@ -29,7 +29,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Reconcile the preserved generator and publication boundary
+      - name: Reconcile payload, history, and publication boundaries
         shell: bash
         run: |
           set -euo pipefail
@@ -74,39 +74,173 @@ jobs:
 
           reconstructor_path = root / 'scripts/reconstruct_hypesiege_streempilot_fleet.py'
           reconstructor = reconstructor_path.read_text(encoding='utf-8')
-          root_anchor = '    source = source.replace(expected_literal, replacement)\n'
-          output_contract = '''\n    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"\n    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")\n    if source.count(archive_literal) != 1:\n        raise ReconstructionError("generator archive-output contract changed")\n    source = source.replace(archive_literal, archive_replacement)\n\n    checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"\n    checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")\n    if source.count(checksum_literal) != 1:\n        raise ReconstructionError("generator checksum-output contract changed")\n    source = source.replace(checksum_literal, checksum_replacement)\n'''
-          if output_contract not in reconstructor:
-              if reconstructor.count(root_anchor) != 1:
-                  raise SystemExit('reconstructor output-root insertion point drifted')
-              reconstructor = reconstructor.replace(root_anchor, root_anchor + output_contract, 1)
 
-          cleanup_anchor = '''    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)\n'''
-          cleanup_contract = '''    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"\n    stale_checksum.unlink(missing_ok=True)\n'''
-          if cleanup_contract not in reconstructor:
-              if reconstructor.count(cleanup_anchor) != 1:
-                  raise SystemExit('reconstructor archive-cleanup insertion point drifted')
+          output_marker = 'generated_output_literals = {'
+          output_anchor = '    source = source.replace(expected_literal, replacement)\n'
+          output_contract = '''
+    generated_output_literals = {
+        "/mnt/data/hypesiege-streempilot-fleet.tar.gz": str(
+            output_root.parent / f"{output_root.name}.tar.gz"
+        ),
+        "/mnt/data/hypesiege-streempilot-fleet.SHA256": str(
+            output_root.parent / f"{output_root.name}.SHA256"
+        ),
+    }
+    for expected_output, replacement_output in generated_output_literals.items():
+        if source.count(expected_output) != 1:
+            raise ReconstructionError(
+                f"generator output contract changed for {expected_output}"
+            )
+        source = source.replace(expected_output, replacement_output)
+'''
+          if output_marker not in reconstructor:
+              legacy_archive_contract = '''
+    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"
+    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")
+    if source.count(archive_literal) != 1:
+        raise ReconstructionError("generator archive-output contract changed")
+    source = source.replace(archive_literal, archive_replacement)
+
+    checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"
+    checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")
+    if source.count(checksum_literal) != 1:
+        raise ReconstructionError("generator checksum-output contract changed")
+    source = source.replace(checksum_literal, checksum_replacement)
+'''
+              if legacy_archive_contract in reconstructor:
+                  reconstructor = reconstructor.replace(
+                      legacy_archive_contract,
+                      output_contract,
+                      1,
+                  )
+              elif reconstructor.count(output_anchor) == 1:
+                  reconstructor = reconstructor.replace(
+                      output_anchor,
+                      output_anchor + output_contract,
+                      1,
+                  )
+              else:
+                  raise SystemExit('reconstructor output-root insertion point drifted')
+
+          old_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_archive.unlink(missing_ok=True)
+    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)
+'''
+          new_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
+    stale_archive.unlink(missing_ok=True)
+    stale_checksum.unlink(missing_ok=True)
+'''
+          appended_cleanup = old_cleanup + '''    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
+    stale_checksum.unlink(missing_ok=True)
+'''
+          if appended_cleanup in reconstructor:
+              reconstructor = reconstructor.replace(appended_cleanup, new_cleanup, 1)
+          elif old_cleanup in reconstructor:
+              reconstructor = reconstructor.replace(old_cleanup, new_cleanup, 1)
+          elif new_cleanup not in reconstructor:
+              raise SystemExit('reconstructor generated-output cleanup drifted')
+
+          old_history_function = '''def amend_root_commit(repository: pathlib.Path) -> str:
+    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":
+        raise ReconstructionError(f"{repository} must contain exactly one source commit")
+    run(
+        ["git", "commit", "--amend", "--no-edit", "--reset-author"],
+        cwd=repository,
+        env=git_environment(),
+    )
+    return run(["git", "rev-parse", "HEAD"], cwd=repository).strip()
+'''
+          new_history_function = '''def seal_repository_tree(repository: pathlib.Path) -> str:
+    """Collapse generated source commits into one deterministic root tree.
+
+    The content generator may use multiple implementation commits for a
+    monorepo. Publication needs a reproducible repository root, not a fragile
+    assumption about how many temporary commits the generator used. Preserve
+    every final tracked path and the source commit subjects, then replace the
+    generated history with one parentless commit under fixed identity/time.
+    """
+
+    branch = run(["git", "branch", "--show-current"], cwd=repository).strip()
+    if branch != "main":
+        raise ReconstructionError(f"{repository} must be generated on main")
+    subjects = [
+        line.strip()
+        for line in run(
+            ["git", "log", "--reverse", "--format=%s"],
+            cwd=repository,
+        ).splitlines()
+        if line.strip()
+    ]
+    if not subjects:
+        raise ReconstructionError(f"{repository} has no source intent to preserve")
+
+    run(["git", "add", "-A"], cwd=repository)
+    tree = run(["git", "write-tree"], cwd=repository).strip()
+    message = (
+        "chore: seal deterministic repository tree\n\n"
+        "Preserved source intent:\n"
+        + "".join(f"- {subject}\n" for subject in subjects)
+    )
+    commit = run(
+        ["git", "-c", "commit.gpgSign=false", "commit-tree", tree, "-m", message],
+        cwd=repository,
+        env=git_environment(),
+    ).strip()
+    run(["git", "update-ref", "refs/heads/main", commit], cwd=repository)
+    run(["git", "reset", "--hard", commit], cwd=repository)
+    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":
+        raise ReconstructionError(f"{repository} was not sealed as one root commit")
+    return commit
+'''
+          if old_history_function in reconstructor:
               reconstructor = reconstructor.replace(
-                  cleanup_anchor,
-                  cleanup_anchor + cleanup_contract,
+                  old_history_function,
+                  new_history_function,
                   1,
               )
+          elif 'def seal_repository_tree(repository: pathlib.Path) -> str:' not in reconstructor:
+              raise SystemExit('reconstructor source-history contract drifted')
+          call_count = reconstructor.count('record["commit"] = amend_root_commit(repository)')
+          if call_count:
+              if call_count != 2:
+                  raise SystemExit(
+                      f'expected two history-sealing call sites, found {call_count}'
+                  )
+              reconstructor = reconstructor.replace(
+                  'record["commit"] = amend_root_commit(repository)',
+                  'record["commit"] = seal_repository_tree(repository)',
+              )
+          elif reconstructor.count(
+              'record["commit"] = seal_repository_tree(repository)'
+          ) != 2:
+              raise SystemExit('reconstructor history-sealing call sites drifted')
+
           reconstructor_path.write_text(reconstructor, encoding='utf-8')
 
           docs_path = root / 'docs/hypesiege-streempilot-repository-publication.md'
           docs = docs_path.read_text(encoding='utf-8')
           marker = '## Reconstruct and validate locally\n'
-          paragraph = (
-              'The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled '
-              'generator were removed during reconciliation. That job accepted a broad '
-              'repository-administration credential and attempted the entire fleet in one '
-              'execution, contradicting the canonical one-repository confirmation, preflight, '
-              'and remote-head verification boundary.\n\n'
-          )
-          if paragraph not in docs:
-              if marker not in docs:
-                  raise SystemExit('publication documentation insertion point is missing')
-              docs = docs.replace(marker, paragraph + marker, 1)
+          paragraphs = [
+              (
+                  'The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled '
+                  'generator were removed during reconciliation. That job accepted a broad '
+                  'repository-administration credential and attempted the entire fleet in one '
+                  'execution, contradicting the canonical one-repository confirmation, preflight, '
+                  'and remote-head verification boundary.\n\n'
+              ),
+              (
+                  'Generated repositories are sealed from their final index trees into one '
+                  'deterministic parentless commit. This preserves all tracked content, real '
+                  'mode-`160000` gitlinks, and source commit subjects while avoiding any '
+                  'dependency on the generator’s temporary commit count or timestamps.\n\n'
+              ),
+          ]
+          for paragraph in reversed(paragraphs):
+              if paragraph not in docs:
+                  if marker not in docs:
+                      raise SystemExit('publication documentation insertion point is missing')
+                  docs = docs.replace(marker, paragraph + marker, 1)
           docs_path.write_text(docs, encoding='utf-8')
 
           bootstrap = root / 'deploy/k8s/bootstrap'
@@ -140,16 +274,6 @@ jobs:
               workflow = workflow[:start].rstrip() + '\n' + workflow[end:].lstrip()
           fleet_workflow.write_text(workflow, encoding='utf-8')
 
-          temporary_paths = [
-              root / '.github/workflows/den-877-fleet-repair.yml',
-              root / '.github/workflows/den-877-one-shot-repair.yml',
-              root / '.github/workflows/temporary-den-877-semantic-repair.yml',
-              root / '.github/workflows/den-877-final-semantic-repair.yml',
-              payload_dir / 'RECONCILE-TRIGGER-20260731',
-          ]
-          for path in temporary_paths:
-              path.unlink(missing_ok=True)
-
           previous_manifest = json.loads(
               (root / 'repository-fleets/hypesiege-streempilot.json').read_text(
                   encoding='utf-8'
@@ -159,6 +283,17 @@ jobs:
               json.dumps(previous_manifest),
               encoding='utf-8',
           )
+
+          temporary_paths = [
+              root / '.github/workflows/den-877-final-semantic-repair.yml',
+              root / '.github/workflows/den-877-fleet-repair.yml',
+              root / '.github/workflows/den-877-one-shot-repair.yml',
+              root / '.github/workflows/fix-den-877-fleet-payload.yml',
+              root / '.github/workflows/temporary-den-877-semantic-repair.yml',
+              payload_dir / 'RECONCILE-TRIGGER-20260731',
+          ]
+          for path in temporary_paths:
+              path.unlink(missing_ok=True)
           PY
 
       - name: Reconstruct and reconcile the deterministic ledger
@@ -240,7 +375,7 @@ jobs:
                       path.write_text(text.replace(old_commit, new_commit), encoding='utf-8')
           PY
 
-      - name: Validate the final semantic merge
+      - name: Validate the complete semantic merge twice
         shell: bash
         run: |
           set -euo pipefail
@@ -253,12 +388,29 @@ jobs:
             --repository hypesiege/hypesiege-api-server.rs > /tmp/hypesiege-plan.json
           python scripts/publish_hypesiege_streempilot_fleet.py \
             --repository streempilot/streempilot-monorepo > /tmp/streempilot-plan.json
+
+          second_root="$RUNNER_TEMP/hypesiege-streempilot-fleet-second"
+          second_manifest="$RUNNER_TEMP/hypesiege-streempilot-manifest-second.json"
+          python scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            --output-root "$second_root" \
+            --manifest-out "$second_manifest"
+          cmp "$RUNNER_TEMP/hypesiege-streempilot-manifest.json" "$second_manifest"
+
           test ! -e deploy/k8s/bootstrap
+          test ! -e .github/workflows/den-877-final-semantic-repair.yml
           test ! -e .github/workflows/den-877-fleet-repair.yml
           test ! -e .github/workflows/den-877-one-shot-repair.yml
+          test ! -e .github/workflows/fix-den-877-fleet-payload.yml
           test ! -e .github/workflows/temporary-den-877-semantic-repair.yml
-          test ! -e .github/workflows/den-877-final-semantic-repair.yml
           test ! -e repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731
+          if git grep -n '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f' -- \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            repository-fleets/hypesiege-streempilot.json \
+            docs/hypesiege-streempilot-repository-publication.md; then
+            echo 'stale generator identity remains' >&2
+            exit 1
+          fi
           if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- .; then
             echo 'conflict markers remain' >&2
             exit 1
