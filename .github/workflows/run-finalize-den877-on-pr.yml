@@ -42,7 +42,7 @@ jobs:
       - name: Execute the audited finalizer blocks in order
         shell: bash
         env:
-          FINALIZER_PARENT: c163b873a615f88acfdc9a23e8cec2acb19ee7e4
+          FINALIZER_PARENT: feb1bca74a94a68d0d0bc243913a25f43af2e9a3
         run: |
           set -euo pipefail
           python3 - <<'PY'
@@ -81,9 +81,30 @@ jobs:
           scripts[0] = scripts[0].replace(old_parent, new_parent, 1)
 
           environment = os.environ.copy()
+          workflow_paths = [
+              '.github/workflows/repository-fleets.yml',
+              '.github/workflows/finalize-den-877-semantic-merge.yml',
+              '.github/workflows/hypesiege-streempilot-device-publish-temporary.yml',
+              '.github/workflows/run-finalize-den877-on-pr.yml',
+          ]
           for position, script in enumerate(scripts, start=1):
               if position == 3:
-                  wrapper.unlink(missing_ok=True)
+                  subprocess.run(
+                      ['git', 'checkout', 'HEAD', '--', *workflow_paths],
+                      check=True,
+                      env=environment,
+                  )
+                  changed_workflows = subprocess.run(
+                      ['git', 'diff', '--name-only', '--', '.github/workflows'],
+                      check=True,
+                      text=True,
+                      stdout=subprocess.PIPE,
+                      env=environment,
+                  ).stdout.strip()
+                  if changed_workflows:
+                      raise SystemExit(
+                          f'workflow changes leaked into Actions push: {changed_workflows}'
+                      )
               subprocess.run(
                   ['bash', '-euo', 'pipefail', '-c', script],
                   check=True,
