@@ -18,9 +18,11 @@ Therefore the rollout has two reviewed phases:
 - `src/**` uses SeaORM and schema-qualified `ai_agent_coordinator` entities.
 - The application never creates or migrates tables at startup.
 - `scripts/dpm.sh` consumes the schema owned by `k8s-libs-and-shared-defs`.
-- PostgreSQL integration CI applies the pinned shared schema and runs the complete Rust test suite with `TEST_DATABASE_URL` set.
+- PostgreSQL integration CI applies the canonical schema and runs the complete Rust test suite with `TEST_DATABASE_URL` set.
 - The checked-in `deploy/k8s` base remains the last verified SQLite deployment until phase two.
 - The Sonus Auris and Daedalus Fab cross-organization Linear pilot overlay remains intact and fail-closed.
+
+The ordinary pull-request `GITHUB_TOKEN` cannot read the private sibling shared-definitions repository. For deterministic pull-request testing, `tests/fixtures/ai_agent_coordinator.schema.sql` is an exact byte-for-byte mirror of the canonical schema at shared-definitions commit `86ff698a77c9458b6d6ab27bbb3c6d2e80d381bc`, Git blob `1158f5586538492d7f1415f165457a34a117691c`. CI verifies that blob identity before applying the fixture. The fixture is test input only; it does not become migration authority and must be updated in the same reviewed change whenever the canonical schema revision advances.
 
 ## Phase-two prerequisites
 
