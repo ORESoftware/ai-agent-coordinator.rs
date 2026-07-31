@@ -18,7 +18,7 @@ permissions:
 
 concurrency:
   group: fix-den-877-fleet-payload
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   repair:
@@ -75,9 +75,17 @@ jobs:
               if text.count(stale_digest) != 1:
                   raise SystemExit(f'{path}: expected exactly one stale digest')
               path.write_text(text.replace(stale_digest, reviewed_digest, 1))
+
+          reconstructor = Path('scripts/reconstruct_hypesiege_streempilot_fleet.py')
+          text = reconstructor.read_text()
+          anchor = '''    source = source.replace(expected_literal, replacement)\n\n    with tempfile.TemporaryDirectory(prefix="hypesiege-streempilot-generator-") as temp:\n'''
+          replacement = '''    source = source.replace(expected_literal, replacement)\n\n    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"\n    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")\n    if source.count(archive_literal) != 1:\n        raise ReconstructionError("generator archive-path contract changed")\n    source = source.replace(archive_literal, archive_replacement)\n\n    with tempfile.TemporaryDirectory(prefix="hypesiege-streempilot-generator-") as temp:\n'''
+          if text.count(anchor) != 1:
+              raise SystemExit('expected one reconstructor output-root anchor')
+          reconstructor.write_text(text.replace(anchor, replacement, 1))
           PY
 
-      - name: Remove the obsolete all-at-once Kubernetes publisher
+      - name: Remove obsolete broad publication and repair carriers
         shell: bash
         run: |
           set -euo pipefail
@@ -88,6 +96,12 @@ jobs:
             deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
           test "$(find deploy/k8s/bootstrap -maxdepth 1 -type f | wc -l | tr -d ' ')" = '9'
           rm -rf deploy/k8s/bootstrap
+          rm -f \
+            .github/workflows/den-877-final-semantic-repair.yml \
+            .github/workflows/den-877-fleet-repair.yml \
+            .github/workflows/den-877-one-shot-repair.yml \
+            .github/workflows/temporary-den-877-semantic-repair.yml \
+            repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731
 
       - name: Prove deterministic reconstruction and fail-closed publication
         shell: bash
@@ -98,9 +112,10 @@ jobs:
             scripts/publish_hypesiege_streempilot_fleet.py \
             scripts/test_publish_hypesiege_streempilot_fleet.py
           python3 -m unittest -v scripts/test_publish_hypesiege_streempilot_fleet.py
-          test -z "$(git grep -l '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f' || true)"
-          test -z "$(git grep -l 'hypesiege-streempilot-bootstrap-job' || true)"
-          test -z "$(git grep -l 'hypesiege-streempilot-fleet/publish.py --execute' || true)"
+          test -z "$(git grep -l '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f' -- ':!.github/workflows/fix-den-877-fleet-payload.yml' || true)"
+          test -z "$(git grep -l 'hypesiege-streempilot-bootstrap-job' -- ':!.github/workflows/fix-den-877-fleet-payload.yml' || true)"
+          test -z "$(git grep -l 'hypesiege-streempilot-fleet/publish.py --execute' -- ':!.github/workflows/fix-den-877-fleet-payload.yml' || true)"
+          test -z "$(find .github/workflows -maxdepth 1 -type f -name '*den-877*repair*.yml' ! -name 'fix-den-877-fleet-payload.yml' -print)"
           git diff --check
           if git grep -nE '^(<<<<<<< |=======|>>>>>>> )' -- \
             repository-fleets/hypesiege-streempilot.json \
@@ -119,7 +134,7 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          test -z "$(git diff --cached --name-only | grep 'fix-den-877-fleet-payload.yml' || true)"
+          test -z "$(git diff --cached --name-only | grep -E 'fix-den-877-fleet-payload|den-877-.*repair|RECONCILE-TRIGGER' || true)"
           git diff --cached --name-status
           git commit -m 'fix(DEN-877): bind fleet ledger to reviewed generator'
           git push origin HEAD:agent/den-877-fleet-merge-repair
