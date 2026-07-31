@@ -52,7 +52,16 @@ class RepositoryFleetTests(unittest.TestCase):
         self.assertEqual(output["organization"], "memebank")
         self.assertFalse(output["ready_for_dry_run"])
         self.assertFalse(output["ready_for_live"])
-        self.assertEqual(len(output["blockers"]), 12)
+        self.assertEqual(len(output["blockers"]), 11)
+        self.assertIn(".github", manifest.deferred_repositories)
+        self.assertNotIn(
+            "memebank/.github",
+            [repository["full_name"] for repository in output["repositories"]],
+        )
+        self.assertEqual(
+            output["repositories"][0]["full_name"],
+            "memebank/mb-interfaces",
+        )
         self.assertEqual(
             output["repositories"][-1]["full_name"],
             "memebank/memebank-monorepo",
@@ -77,9 +86,16 @@ class RepositoryFleetTests(unittest.TestCase):
             repository_name=None,
             confirmation=None,
         )
-        self.assertEqual(len(output["requests"]), 12)
+        self.assertEqual(len(output["requests"]), 11)
         self.assertTrue(all(request["dry_run"] for request in output["requests"]))
         self.assertNotIn("confirm_repository", output["requests"][0])
+        self.assertNotIn(
+            "memebank/.github",
+            [
+                f"{request['organization']}/{request['name']}"
+                for request in output["requests"]
+            ],
+        )
 
     def test_live_rendering_requires_switch_single_repo_and_exact_confirmation(self) -> None:
         raw = self.resolve_visibility(self.load_raw())

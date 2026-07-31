@@ -54,11 +54,20 @@ jobs:
           import json
           from pathlib import Path
 
+          manifest = json.loads(
+              Path("repository-fleets/memebank.json").read_text(encoding="utf-8")
+          )
           plan = json.loads(Path("memebank-plan.json").read_text(encoding="utf-8"))
           assert plan["organization"] == "memebank"
           assert plan["tracking_issue"] == "DEN-1043"
           assert plan["ready_for_dry_run"] is False
           assert plan["ready_for_live"] is False
-          assert len(plan["blockers"]) == 12
+          assert len(plan["blockers"]) == 11
+          assert ".github" in manifest["deferred_repositories"]
+          assert all(
+              repository["full_name"] != "memebank/.github"
+              for repository in plan["repositories"]
+          )
+          assert plan["repositories"][0]["full_name"] == "memebank/mb-interfaces"
           assert plan["repositories"][-1]["full_name"] == "memebank/memebank-monorepo"
           PY
