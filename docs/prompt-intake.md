@@ -82,7 +82,7 @@ For each prompt, the planner derives:
 - **scope signature** from bounded semantic tokens plus repository identities;
 - **mutation key** from schema version, source identity, and content fingerprint.
 
-Exact duplicate content is grouped across threads. Material variants inside one thread are grouped as possible refinements when they retain the same scope signature but differ in content fingerprint.
+Exact duplicate content is grouped across threads. Material variants inside one thread are grouped as possible refinements when they retain the same normalized scope but differ in content fingerprint. Numeric rolling-window values and their `day`/`hour` units are treated as scope modifiers for refinement grouping, while each variant keeps its distinct bounded summary and content fingerprint so the changed requirement remains visible and auditable.
 
 ## Classification and planning
 
