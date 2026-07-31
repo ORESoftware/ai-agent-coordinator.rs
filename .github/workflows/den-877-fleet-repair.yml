@@ -20,7 +20,7 @@ jobs:
       github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
       github.ref == 'refs/heads/agent/den-877-fleet-merge-repair'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out the exact repair branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -50,6 +50,7 @@ jobs:
           import json
           import os
           import pathlib
+          import re
           import shutil
 
           root = pathlib.Path.cwd()
@@ -88,22 +89,116 @@ jobs:
                   )
 
           reconstructor = reconstructor_path.read_text(encoding='utf-8')
-          marker = '    source = source.replace(expected_literal, replacement)\n'
-          archive_patch = (
-              marker
-              + '    legacy_archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"\n'
-              + '    if source.count(legacy_archive_literal) != 1:\n'
-              + '        raise ReconstructionError("generator archive path contract changed")\n'
-              + '    source = source.replace(\n'
-              + '        legacy_archive_literal,\n'
-              + '        str(output_root.parent / f"{output_root.name}.tar.gz"),\n'
-              + '    )\n'
-          )
-          if archive_patch not in reconstructor:
-              if reconstructor.count(marker) != 1:
+
+          output_anchor = '    source = source.replace(expected_literal, replacement)\n'
+          output_patch = '''
+    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"
+    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")
+    if source.count(archive_literal) != 1:
+        raise ReconstructionError("generator archive-output contract changed")
+    source = source.replace(archive_literal, archive_replacement)
+
+    checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"
+    checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")
+    if source.count(checksum_literal) != 1:
+        raise ReconstructionError("generator checksum-output contract changed")
+    source = source.replace(checksum_literal, checksum_replacement)
+'''
+          if 'checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"' not in reconstructor:
+              if reconstructor.count(output_anchor) != 1:
                   raise SystemExit('reconstructor output-root insertion point drifted')
-              reconstructor = reconstructor.replace(marker, archive_patch, 1)
-              reconstructor_path.write_text(reconstructor, encoding='utf-8')
+              reconstructor = reconstructor.replace(
+                  output_anchor,
+                  output_anchor + output_patch,
+                  1,
+              )
+
+          function_pattern = re.compile(
+              r'def amend_root_commit\(repository: pathlib\.Path\) -> str:\n.*?(?=\n\ndef write_gitmodules)',
+              re.DOTALL,
+          )
+          replacement_function = '''def reseal_root_commit(
+    repository: pathlib.Path,
+    *,
+    expected_source_commits: int,
+) -> str:
+    source_commits = int(
+        run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip()
+    )
+    if source_commits != expected_source_commits:
+        raise ReconstructionError(
+            f"{repository} source history has {source_commits} commits; "
+            f"expected {expected_source_commits}"
+        )
+    roots = run(
+        ["git", "rev-list", "--max-parents=0", "HEAD"], cwd=repository
+    ).splitlines()
+    if len(roots) != 1:
+        raise ReconstructionError(f"{repository} must contain exactly one root commit")
+    run(["git", "reset", "--hard", roots[0]], cwd=repository)
+    run(
+        ["git", "commit", "--amend", "--no-edit", "--reset-author"],
+        cwd=repository,
+        env=git_environment(),
+    )
+    return run(["git", "rev-parse", "HEAD"], cwd=repository).strip()
+'''
+          reconstructor, function_count = function_pattern.subn(
+              replacement_function,
+              reconstructor,
+              count=1,
+          )
+          if function_count != 1:
+              raise SystemExit('root-commit resealing function drifted')
+
+          monorepo_old = '''        write_gitmodules(repository, child_records)
+        add_local_gitlinks(output_root, repository, child_records)
+        record = dict(record)
+        record["commit"] = amend_root_commit(repository)
+        record["files"] = len(run(["git", "ls-files"], cwd=repository).splitlines())
+'''
+          monorepo_new = '''        reseal_root_commit(repository, expected_source_commits=2)
+        write_gitmodules(repository, child_records)
+        add_local_gitlinks(output_root, repository, child_records)
+        run(
+            ["git", "commit", "-m", "chore: pin canonical repository fleet"],
+            cwd=repository,
+            env=git_environment(),
+        )
+        record = dict(record)
+        record["commit"] = run(
+            ["git", "rev-parse", "HEAD"], cwd=repository
+        ).strip()
+        record["files"] = len(run(["git", "ls-files"], cwd=repository).splitlines())
+'''
+          if reconstructor.count(monorepo_old) != 1:
+              raise SystemExit('monorepo resealing block drifted')
+          reconstructor = reconstructor.replace(monorepo_old, monorepo_new, 1)
+
+          child_call = 'record["commit"] = amend_root_commit(repository)'
+          if reconstructor.count(child_call) != 1:
+              raise SystemExit('child repository resealing call drifted')
+          reconstructor = reconstructor.replace(
+              child_call,
+              'record["commit"] = reseal_root_commit(\n'
+              '            repository, expected_source_commits=1\n'
+              '        )',
+              1,
+          )
+
+          old_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_archive.unlink(missing_ok=True)
+    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)
+'''
+          new_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
+    stale_archive.unlink(missing_ok=True)
+    stale_checksum.unlink(missing_ok=True)
+'''
+          if reconstructor.count(old_cleanup) != 1:
+              raise SystemExit('generated-output cleanup contract drifted')
+          reconstructor = reconstructor.replace(old_cleanup, new_cleanup, 1)
+          reconstructor_path.write_text(reconstructor, encoding='utf-8')
 
           docs = docs_path.read_text(encoding='utf-8')
           docs_marker = '## Reconstruct and validate locally\n'
@@ -113,7 +208,9 @@ jobs:
               'repository-administration credential. The retained publisher instead '
               'requires one exact repository confirmation, complete local preflight, '
               'child-before-monorepo ordering, a short-lived installation token, and '
-              'post-push remote-head verification.\n\n'
+              'post-push remote-head verification. Monorepositories preserve the intended '
+              'two-stage history: a deterministic foundation commit followed by a '
+              'deterministic commit pinning exact child gitlinks.\n\n'
           )
           if docs_paragraph not in docs:
               if docs_marker not in docs:
@@ -139,7 +236,9 @@ jobs:
 
           for temporary in (
               root / '.github' / 'workflows' / 'den-877-one-shot-repair.yml',
+              root / '.github' / 'workflows' / 'temporary-den-877-semantic-repair.yml',
               root / '.github' / 'workflows' / 'temporary-den-877-checksum-repair.yml',
+              root / 'repository-fleets' / 'hypesiege-streempilot' / 'RECONCILE-TRIGGER-20260731',
           ):
               temporary.unlink(missing_ok=True)
 
@@ -259,7 +358,7 @@ jobs:
           test -z "$(git grep -l '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f' || true)"
           test ! -e deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
           test ! -e .github/workflows/den-877-one-shot-repair.yml
-          test ! -e .github/workflows/temporary-den-877-checksum-repair.yml
+          test ! -e .github/workflows/temporary-den-877-semantic-repair.yml
           if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- .; then
             echo 'conflict markers remain' >&2
             exit 1
@@ -270,10 +369,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          rm -f .github/workflows/den-877-fleet-repair.yml
           git add -A
           git diff --cached --check
           test -n "$(git diff --cached --name-only)"
           git config user.name 'ORESoftware'
           git config user.email '11139560+ORESoftware@users.noreply.github.com'
-          git commit -m 'fix(DEN-877): reconcile the sealed fleet and safe publisher'
+          git commit -m 'fix(DEN-877): preserve deterministic fleet history and safe publication'
           git push origin HEAD:agent/den-877-fleet-merge-repair
