@@ -16,7 +16,7 @@ on:
       - docs/weekly-job-opportunity-digest.md
   schedule:
     # 09:17 America/New_York in daylight and standard time. The script
-    # rejects the non-09:00 invocation, so only one ISO-week job is created.
+    # accepts only the invocation whose converted local time is exactly 09:17.
     - cron: '17 13 * * 1'
     - cron: '17 14 * * 1'
   workflow_dispatch:
