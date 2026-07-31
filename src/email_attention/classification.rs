@@ -189,7 +189,7 @@ pub(super) fn should_emit(
             .is_some_and(|last_emitted| last_emitted + reminder_interval <= now)
 }
 
-fn validate_sources(sources: &[SourceConfig]) -> Result<()> {
+pub(super) fn validate_sources(sources: &[SourceConfig]) -> Result<()> {
     if sources.len() > 32 {
         bail!("{SOURCES_ENV} may contain at most 32 enabled sources");
     }
@@ -298,7 +298,7 @@ fn validate_bounded_field(name: &str, value: &str, min: usize, max: usize) -> Re
     Ok(())
 }
 
-fn validate_safe_endpoint(value: &str, variable: &str) -> Result<()> {
+pub(super) fn validate_safe_endpoint(value: &str, variable: &str) -> Result<()> {
     let url = Url::parse(value).with_context(|| format!("{variable} contains an invalid URL"))?;
     if !url.username().is_empty() || url.password().is_some() || url.fragment().is_some() {
         bail!("{variable} URLs must not contain credentials or fragments");
@@ -313,7 +313,7 @@ fn validate_safe_endpoint(value: &str, variable: &str) -> Result<()> {
     Ok(())
 }
 
-fn optional_env_name(value: &str) -> Result<Option<String>> {
+pub(super) fn optional_env_name(value: &str) -> Result<Option<String>> {
     let value = value.trim();
     if value.is_empty() {
         return Ok(None);
@@ -345,7 +345,7 @@ pub(super) fn read_secret_env(name: &str) -> Result<String> {
         .ok_or_else(|| anyhow!("required credential environment variable {name} is not set"))
 }
 
-fn read_bool_env(name: &str, default: bool) -> Result<bool> {
+pub(super) fn read_bool_env(name: &str, default: bool) -> Result<bool> {
     match env::var(name) {
         Ok(value) => match value.trim().to_ascii_lowercase().as_str() {
             "1" | "true" | "yes" | "on" => Ok(true),
@@ -357,7 +357,7 @@ fn read_bool_env(name: &str, default: bool) -> Result<bool> {
     }
 }
 
-fn read_u32_env(name: &str, default: u32, min: u32, max: u32) -> Result<u32> {
+pub(super) fn read_u32_env(name: &str, default: u32, min: u32, max: u32) -> Result<u32> {
     let value = match env::var(name) {
         Ok(value) => value
             .trim()
@@ -372,7 +372,7 @@ fn read_u32_env(name: &str, default: u32, min: u32, max: u32) -> Result<u32> {
     Ok(value)
 }
 
-fn read_u64_env(name: &str, default: u64, min: u64, max: u64) -> Result<u64> {
+pub(super) fn read_u64_env(name: &str, default: u64, min: u64, max: u64) -> Result<u64> {
     let value = match env::var(name) {
         Ok(value) => value
             .trim()
@@ -387,7 +387,7 @@ fn read_u64_env(name: &str, default: u64, min: u64, max: u64) -> Result<u64> {
     Ok(value)
 }
 
-fn read_i64_env(name: &str, default: i64, min: i64, max: i64) -> Result<i64> {
+pub(super) fn read_i64_env(name: &str, default: i64, min: i64, max: i64) -> Result<i64> {
     let value = match env::var(name) {
         Ok(value) => value
             .trim()
@@ -402,7 +402,7 @@ fn read_i64_env(name: &str, default: i64, min: i64, max: i64) -> Result<i64> {
     Ok(value)
 }
 
-fn read_usize_env(name: &str, default: usize, min: usize, max: usize) -> Result<usize> {
+pub(super) fn read_usize_env(name: &str, default: usize, min: usize, max: usize) -> Result<usize> {
     let value = match env::var(name) {
         Ok(value) => value
             .trim()
@@ -562,6 +562,6 @@ pub(super) fn bounded_text(value: &str, max_chars: usize) -> String {
     value.chars().take(max_chars).collect()
 }
 
-fn default_true() -> bool {
+pub(super) fn default_true() -> bool {
     true
 }

@@ -1,7 +1,7 @@
 use super::*;
 
 impl Settings {
-    fn from_env() -> Result<Self> {
+    pub(super) fn from_env() -> Result<Self> {
         let enabled = read_bool_env(ENABLED_ENV, false)?;
         let source_json = env::var(SOURCES_ENV).unwrap_or_else(|_| "[]".to_owned());
         let mut sources: Vec<SourceConfig> = serde_json::from_str(&source_json)
