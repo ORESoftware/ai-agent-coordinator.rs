@@ -85,7 +85,11 @@ For each directive, the worker:
 - adds a marked structured comment only when that marker is absent;
 - applies a configured completed-state UUID only for a closing directive whose signed intake already passed default-branch policy.
 
-Linear attachments are keyed by issue and URL, while the coordinator also records a SQLite mutation ledger keyed by organization, repository, commit, issue, keyword, and action. This makes retries and duplicate GitHub deliveries idempotent.
+Linear attachments are keyed by issue and URL, while the coordinator records a
+SeaORM-backed PostgreSQL mutation ledger in
+`ai_agent_coordinator.linear_mutations`, keyed by organization, repository,
+commit, issue, keyword, and action. This makes retries and duplicate GitHub
+deliveries idempotent across coordinator replicas.
 
 ## Transport and failure controls
 

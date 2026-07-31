@@ -194,6 +194,8 @@ jobs:
               test "$GITHUB_API_USER_AGENT" = "ai-agent-coordinator-ci"
               test "$RUST_LOG" = "warn"
               test -z "${COORDINATOR_API_TOKEN+x}"
+              test -z "${AI_AGENT_COORDINATOR_DATABASE_URL+x}"
+              test -z "${DATABASE_URL+x}"
               test -z "${GITHUB_WEBHOOK_SECRET+x}"
               test -z "${GITHUB_REPOSITORY_ADMIN_TOKEN+x}"
               test -z "${LINEAR_API_TOKEN+x}"
@@ -242,7 +244,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          for option in coordinator-api-token linear-api-token; do
+          for option in coordinator-api-token database-url linear-api-token; do
             output="$(bash scripts/with-flags "--${option}=must-not-be-accepted" -- true 2>&1)"
             status=$?
             test "$status" -eq 64
@@ -264,4 +266,7 @@ jobs:
         with:
           tool: cargo-audit@0.22.2
       - name: Dependency audit
-        run: cargo audit --deny warnings
+        # SeaORM's PostgreSQL feature locks SQLx's optional, disabled MySQL
+        # dependency graph. RUSTSEC-2023-0071 is in that unbuilt sqlx-mysql
+        # graph (`cargo tree -i rsa` is empty for this crate).
+        run: cargo audit --deny warnings --ignore RUSTSEC-2023-0071

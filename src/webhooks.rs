@@ -122,7 +122,7 @@ impl GithubWebhookPolicy {
     }
 }
 
-pub fn process_github_webhook(
+pub async fn process_github_webhook(
     database: &Database,
     headers: &HeaderMap,
     body: Bytes,
@@ -247,6 +247,7 @@ pub fn process_github_webhook(
     };
     let job = database
         .create_job(&request, Some(&idempotency_key))
+        .await
         .map_err(AppError::Internal)?;
 
     Ok(json!({
@@ -502,9 +503,13 @@ mod tests {
         assert!(verify_signature(&headers, b"changed", Some(SECRET)).is_err());
     }
 
-    #[test]
-    fn signed_default_branch_pushes_enqueue_directives_idempotently() {
-        let database = Database::open(":memory:").unwrap();
+    #[tokio::test]
+    async fn signed_default_branch_pushes_enqueue_directives_idempotently() {
+        let Ok(database_url) = std::env::var("TEST_DATABASE_URL") else {
+            eprintln!("skipping PostgreSQL integration test: TEST_DATABASE_URL is not set");
+            return;
+        };
+        let database = Database::open(&database_url).await.unwrap();
         let policy = GithubWebhookPolicy::test_policy("sonus-auris", SECRET, REPOSITORY, "main");
         let body = Bytes::from(
             serde_json::to_vec(&json!({
@@ -533,6 +538,7 @@ mod tests {
             &[],
             false,
         )
+        .await
         .unwrap();
         let second = process_github_webhook(
             &database,
@@ -543,6 +549,7 @@ mod tests {
             &[],
             false,
         )
+        .await
         .unwrap();
 
         assert_eq!(first["accepted"], true);

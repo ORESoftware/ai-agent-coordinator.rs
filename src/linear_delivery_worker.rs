@@ -2,22 +2,23 @@ use std::{
     collections::HashMap,
     env,
     net::IpAddr,
-    path::Path,
     str::FromStr,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use anyhow::{bail, Context};
+#[cfg(test)]
 use chrono::Utc;
-use parking_lot::Mutex as ParkingMutex;
 use reqwest::{header::RETRY_AFTER, redirect::Policy, Client, StatusCode, Url};
-use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::{sync::Mutex, time::sleep};
 
-use crate::jobs::{ClaimJobRequest, Job};
+use crate::{
+    db::Database,
+    jobs::{ClaimJobRequest, Job},
+};
 
 const LINEAR_API_TOKEN_ENV: &str = "LINEAR_API_TOKEN";
 const DEFAULT_LINEAR_API_URL: &str = "https://api.linear.app/graphql";
@@ -221,18 +222,32 @@ pub struct LinearDeliveryWorker {
 }
 
 impl LinearDeliveryWorker {
-    pub fn from_env(database_path: &str) -> anyhow::Result<Self> {
-        Self::new(LinearDeliveryConfig::from_env()?, database_path)
+    pub fn from_env(database: Database) -> anyhow::Result<Self> {
+        Self::new(LinearDeliveryConfig::from_env()?, database)
     }
 
-    pub fn new(config: LinearDeliveryConfig, database_path: &str) -> anyhow::Result<Self> {
+    pub fn new(config: LinearDeliveryConfig, database: Database) -> anyhow::Result<Self> {
+        Self::with_ledger(config, LinearMutationLedger::Postgres(database))
+    }
+
+    #[cfg(test)]
+    fn new_for_test(config: LinearDeliveryConfig) -> anyhow::Result<Self> {
+        Self::with_ledger(
+            config,
+            LinearMutationLedger::Memory(Arc::new(Mutex::new(HashMap::new()))),
+        )
+    }
+
+    fn with_ledger(
+        config: LinearDeliveryConfig,
+        ledger: LinearMutationLedger,
+    ) -> anyhow::Result<Self> {
         let client = Client::builder()
             .redirect(Policy::none())
             .timeout(config.timeout)
             .user_agent("ai-agent-coordinator-linear-delivery/1")
             .build()
             .context("failed to build Linear HTTP client")?;
-        let ledger = LinearMutationLedger::open(database_path)?;
         Ok(Self {
             config: Arc::new(config),
             client,
@@ -311,6 +326,7 @@ impl LinearDeliveryWorker {
             if self
                 .ledger
                 .is_succeeded(&key)
+                .await
                 .map_err(LinearDeliveryError::internal)?
             {
                 reports.push(LinearDirectiveReport {
@@ -329,6 +345,7 @@ impl LinearDeliveryWorker {
 
             self.ledger
                 .begin(&key, &job.id, &job.org, &job.repo, directive)
+                .await
                 .map_err(LinearDeliveryError::internal)?;
             let outcome = self
                 .deliver_directive(job, &envelope, directive, &expected_project, &key)
@@ -337,11 +354,12 @@ impl LinearDeliveryWorker {
                 Ok(report) => {
                     self.ledger
                         .succeed(&key)
+                        .await
                         .map_err(LinearDeliveryError::internal)?;
                     reports.push(report);
                 }
                 Err(error) => {
-                    let _ = self.ledger.fail(&key, &error.public_message);
+                    let _ = self.ledger.fail(&key, &error.public_message).await;
                     return Err(error);
                 }
             }
@@ -941,71 +959,26 @@ fn require_success(data: &Value, field: &str) -> Result<(), LinearDeliveryError>
 }
 
 #[derive(Clone)]
-struct LinearMutationLedger {
-    connection: Arc<ParkingMutex<Connection>>,
+enum LinearMutationLedger {
+    Postgres(Database),
+    #[cfg(test)]
+    Memory(Arc<Mutex<HashMap<String, TestMutationState>>>),
 }
 
 impl LinearMutationLedger {
-    fn open(database_path: &str) -> anyhow::Result<Self> {
-        if database_path != ":memory:" {
-            if let Some(parent) = Path::new(database_path).parent() {
-                std::fs::create_dir_all(parent).with_context(|| {
-                    format!(
-                        "failed to create Linear ledger directory {}",
-                        parent.display()
-                    )
-                })?;
-            }
+    async fn is_succeeded(&self, key: &str) -> anyhow::Result<bool> {
+        match self {
+            Self::Postgres(database) => database.linear_mutation_succeeded(key).await,
+            #[cfg(test)]
+            Self::Memory(states) => Ok(states
+                .lock()
+                .await
+                .get(key)
+                .is_some_and(|state| state.status == "succeeded")),
         }
-        let connection = Connection::open(database_path)
-            .with_context(|| format!("failed to open Linear mutation ledger at {database_path}"))?;
-        connection
-            .busy_timeout(Duration::from_secs(5))
-            .context("failed to configure Linear ledger busy timeout")?;
-        connection.execute_batch(
-            r#"
-            PRAGMA foreign_keys = ON;
-            PRAGMA journal_mode = WAL;
-            PRAGMA synchronous = NORMAL;
-
-            CREATE TABLE IF NOT EXISTS linear_mutations (
-                mutation_key TEXT PRIMARY KEY,
-                job_id TEXT NOT NULL,
-                organization TEXT NOT NULL,
-                repository TEXT NOT NULL,
-                issue_identifier TEXT NOT NULL,
-                commit_id TEXT NOT NULL,
-                keyword TEXT NOT NULL,
-                action TEXT NOT NULL,
-                status TEXT NOT NULL,
-                attempts INTEGER NOT NULL DEFAULT 0,
-                last_error TEXT,
-                created_at_ms INTEGER NOT NULL,
-                updated_at_ms INTEGER NOT NULL
-            );
-
-            CREATE INDEX IF NOT EXISTS linear_mutations_status_idx
-                ON linear_mutations(status, updated_at_ms);
-            "#,
-        )?;
-        Ok(Self {
-            connection: Arc::new(ParkingMutex::new(connection)),
-        })
     }
 
-    fn is_succeeded(&self, key: &str) -> anyhow::Result<bool> {
-        let connection = self.connection.lock();
-        let status: Option<String> = connection
-            .query_row(
-                "SELECT status FROM linear_mutations WHERE mutation_key = ?1",
-                params![key],
-                |row| row.get(0),
-            )
-            .optional()?;
-        Ok(status.as_deref() == Some("succeeded"))
-    }
-
-    fn begin(
+    async fn begin(
         &self,
         key: &str,
         job_id: &str,
@@ -1013,58 +986,68 @@ impl LinearMutationLedger {
         repository: &str,
         directive: &LinearDirectiveInput,
     ) -> anyhow::Result<()> {
-        let now = Utc::now().timestamp_millis();
         let action = if directive.closes_issue {
             "reference_and_transition"
         } else {
             "reference"
         };
-        let connection = self.connection.lock();
-        connection.execute(
-            r#"
-            INSERT INTO linear_mutations (
-                mutation_key, job_id, organization, repository, issue_identifier,
-                commit_id, keyword, action, status, attempts, created_at_ms, updated_at_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, 'pending', 1, ?9, ?9)
-            ON CONFLICT(mutation_key) DO UPDATE SET
-                status = CASE WHEN linear_mutations.status = 'succeeded'
-                              THEN 'succeeded' ELSE 'pending' END,
-                attempts = linear_mutations.attempts + 1,
-                last_error = NULL,
-                updated_at_ms = excluded.updated_at_ms
-            "#,
-            params![
-                key,
-                job_id,
-                organization,
-                repository,
-                directive.issue_identifier,
-                directive.commit_id,
-                directive.keyword,
-                action,
-                now,
-            ],
-        )?;
-        Ok(())
+        match self {
+            Self::Postgres(database) => {
+                database
+                    .begin_linear_mutation(
+                        key,
+                        job_id,
+                        organization,
+                        repository,
+                        &directive.issue_identifier,
+                        &directive.commit_id,
+                        &directive.keyword,
+                        action,
+                    )
+                    .await
+            }
+            #[cfg(test)]
+            Self::Memory(states) => {
+                let mut states = states.lock().await;
+                let state = states.entry(key.to_owned()).or_default();
+                state.status = "pending".to_owned();
+                state.attempts += 1;
+                Ok(())
+            }
+        }
     }
 
-    fn succeed(&self, key: &str) -> anyhow::Result<()> {
-        let connection = self.connection.lock();
-        connection.execute(
-            "UPDATE linear_mutations SET status = 'succeeded', last_error = NULL, updated_at_ms = ?1 WHERE mutation_key = ?2",
-            params![Utc::now().timestamp_millis(), key],
-        )?;
-        Ok(())
+    async fn succeed(&self, key: &str) -> anyhow::Result<()> {
+        match self {
+            Self::Postgres(database) => database.succeed_linear_mutation(key).await,
+            #[cfg(test)]
+            Self::Memory(states) => {
+                let mut states = states.lock().await;
+                states.entry(key.to_owned()).or_default().status = "succeeded".to_owned();
+                Ok(())
+            }
+        }
     }
 
-    fn fail(&self, key: &str, error: &str) -> anyhow::Result<()> {
-        let connection = self.connection.lock();
-        connection.execute(
-            "UPDATE linear_mutations SET status = 'failed', last_error = ?1, updated_at_ms = ?2 WHERE mutation_key = ?3",
-            params![truncate(error, 512), Utc::now().timestamp_millis(), key],
-        )?;
-        Ok(())
+    async fn fail(&self, key: &str, error: &str) -> anyhow::Result<()> {
+        match self {
+            Self::Postgres(database) => database.fail_linear_mutation(key, error).await,
+            #[cfg(test)]
+            Self::Memory(states) => {
+                let mut states = states.lock().await;
+                let state = states.entry(key.to_owned()).or_default();
+                state.status = "failed".to_owned();
+                Ok(())
+            }
+        }
     }
+}
+
+#[cfg(test)]
+#[derive(Default)]
+struct TestMutationState {
+    status: String,
+    attempts: i64,
 }
 
 async fn read_bounded(
@@ -1245,10 +1228,6 @@ fn is_loopback_host(host: Option<&str>) -> bool {
     }
 }
 
-fn truncate(value: &str, max_chars: usize) -> String {
-    value.chars().take(max_chars).collect()
-}
-
 #[cfg(test)]
 mod tests {
     use std::{
@@ -1257,7 +1236,6 @@ mod tests {
     };
 
     use axum::{extract::State, http::StatusCode, routing::post, Json, Router};
-    use tempfile::TempDir;
     use tokio::net::TcpListener;
 
     use super::*;
@@ -1360,12 +1338,8 @@ mod tests {
     #[tokio::test]
     async fn dry_run_is_safe_and_makes_no_requests_or_ledger_entries() {
         let (url, requests) = mock_server(vec![]).await;
-        let temp = TempDir::new().unwrap();
-        let worker = LinearDeliveryWorker::new(
-            LinearDeliveryConfig::test(url, true),
-            temp.path().join("ledger.db").to_str().unwrap(),
-        )
-        .unwrap();
+        let worker =
+            LinearDeliveryWorker::new_for_test(LinearDeliveryConfig::test(url, true)).unwrap();
         let report = worker.plan_job(&job(false)).unwrap();
         assert!(report.dry_run);
         assert_eq!(report.directives[0].status, "planned");
@@ -1389,12 +1363,8 @@ mod tests {
             ),
         ])
         .await;
-        let temp = TempDir::new().unwrap();
-        let worker = LinearDeliveryWorker::new(
-            LinearDeliveryConfig::test(url, false),
-            temp.path().join("ledger.db").to_str().unwrap(),
-        )
-        .unwrap();
+        let worker =
+            LinearDeliveryWorker::new_for_test(LinearDeliveryConfig::test(url, false)).unwrap();
         let first = worker.deliver_job(&job(false)).await.unwrap();
         let second = worker.deliver_job(&job(false)).await.unwrap();
         assert_eq!(first.directives[0].status, "delivered");
@@ -1423,12 +1393,8 @@ mod tests {
             ),
         ])
         .await;
-        let temp = TempDir::new().unwrap();
-        let worker = LinearDeliveryWorker::new(
-            LinearDeliveryConfig::test(url, false),
-            temp.path().join("ledger.db").to_str().unwrap(),
-        )
-        .unwrap();
+        let worker =
+            LinearDeliveryWorker::new_for_test(LinearDeliveryConfig::test(url, false)).unwrap();
         let report = worker.deliver_job(&job(true)).await.unwrap();
         assert_eq!(report.directives[0].action, "reference_and_transition");
         let requests = requests.lock().unwrap();
@@ -1450,12 +1416,8 @@ mod tests {
             issue_response("github.com/fiducia-cloud", "started", vec![]),
         )])
         .await;
-        let temp = TempDir::new().unwrap();
-        let worker = LinearDeliveryWorker::new(
-            LinearDeliveryConfig::test(url, false),
-            temp.path().join("ledger.db").to_str().unwrap(),
-        )
-        .unwrap();
+        let worker =
+            LinearDeliveryWorker::new_for_test(LinearDeliveryConfig::test(url, false)).unwrap();
         let error = worker.deliver_job(&job(false)).await.unwrap_err();
         assert!(!error.retryable);
         assert!(error.public_message.contains("does not belong to project"));
@@ -1483,12 +1445,8 @@ mod tests {
             ),
         ])
         .await;
-        let temp = TempDir::new().unwrap();
-        let worker = LinearDeliveryWorker::new(
-            LinearDeliveryConfig::test(url, false),
-            temp.path().join("ledger.db").to_str().unwrap(),
-        )
-        .unwrap();
+        let worker =
+            LinearDeliveryWorker::new_for_test(LinearDeliveryConfig::test(url, false)).unwrap();
         worker.deliver_job(&job(false)).await.unwrap();
         assert_eq!(requests.lock().unwrap().len(), 4);
     }
@@ -1514,12 +1472,8 @@ mod tests {
             ),
         ])
         .await;
-        let temp = TempDir::new().unwrap();
-        let worker = LinearDeliveryWorker::new(
-            LinearDeliveryConfig::test(url, false),
-            temp.path().join("ledger.db").to_str().unwrap(),
-        )
-        .unwrap();
+        let worker =
+            LinearDeliveryWorker::new_for_test(LinearDeliveryConfig::test(url, false)).unwrap();
 
         let error = worker.deliver_job(&job(false)).await.unwrap_err();
         assert!(error.retryable);

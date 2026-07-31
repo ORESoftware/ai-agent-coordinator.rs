@@ -63,9 +63,3 @@ impl IntoResponse for AppError {
             .into_response()
     }
 }
-
-impl From<rusqlite::Error> for AppError {
-    fn from(value: rusqlite::Error) -> Self {
-        Self::Internal(value.into())
-    }
-}

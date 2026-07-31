@@ -20,7 +20,7 @@ reject_secret_flags() {
     [[ "$argument" == "--" ]] && break
     option="${argument%%=*}"
     case "$option" in
-      --coordinator-api-token|--github-webhook-secret|--github-repository-admin-token|--linear-api-token|--mistral-api-key|--openrouter-api-key|--openai-api-key)
+      --coordinator-api-token|--database-url|--ai-agent-coordinator-database-url|--target-database-url|--shadow-database-url|--github-webhook-secret|--github-repository-admin-token|--linear-api-token|--mistral-api-key|--openrouter-api-key|--openai-api-key)
         printf '%s\n' \
           'credential command-line options are not accepted; use environment-based secret injection' >&2
         exit 64
