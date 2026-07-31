@@ -209,6 +209,10 @@ impl EmailAttentionAgent {
         for source in &self.settings.sources {
             if matches!(mode, RunMode::Scheduled) {
                 self.renew_scheduler_lease().await?;
+                // Reset any stale cursor or health state if the source's provider changed.
+                self.store()?
+                    .ensure_source(&source.id, source.provider.as_str(), Utc::now())
+                    .await?;
             }
             let cursor = self.store()?.source_cursor(&source.id).await?;
             match self
