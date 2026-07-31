@@ -1,0 +1,68 @@
+name: agents.md contract
+
+on:
+  pull_request:
+    paths:
+      - agents.md
+      - .claude/CLAUDE.md
+      - .gemini/GEMINI.md
+      - .openai/AGENTS.md
+      - .github/actions/validate-agents-md/action.yml
+      - .github/workflows/agents-md.yml
+      - docs/agents-md.md
+      - scripts/validate_agents_md.py
+      - scripts/test_validate_agents_md.py
+  push:
+    branches: [main]
+    paths:
+      - agents.md
+      - .claude/CLAUDE.md
+      - .gemini/GEMINI.md
+      - .openai/AGENTS.md
+      - .github/actions/validate-agents-md/action.yml
+      - .github/workflows/agents-md.yml
+      - docs/agents-md.md
+      - scripts/validate_agents_md.py
+      - scripts/test_validate_agents_md.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/agents-md.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile validator and tests
+        run: >-
+          python -m py_compile
+          scripts/validate_agents_md.py
+          scripts/test_validate_agents_md.py
+      - name: Run positive and negative fixtures
+        run: python scripts/test_validate_agents_md.py -v
+      - name: Validate this repository from a nested path
+        uses: ./.github/actions/validate-agents-md
+        with:
+          repo-root: ${{ github.workspace }}
+          start-dir: ${{ github.workspace }}/src
+      - name: Emit comparison snapshot
+        run: >-
+          python scripts/validate_agents_md.py
+          --repo-root .
+          --start-dir src
+          --json

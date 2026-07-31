@@ -1,0 +1,23 @@
+name: Validate hierarchical agents.md
+description: Validate lowercase root instructions, tool pointers, ancestor discovery, merge policy, and conflict markers.
+inputs:
+  repo-root:
+    description: Repository worktree to validate.
+    required: false
+    default: "."
+  start-dir:
+    description: Existing path used to prove root-to-leaf ancestor discovery.
+    required: false
+    default: "."
+runs:
+  using: composite
+  steps:
+    - name: Validate hierarchical agents.md contract
+      shell: bash
+      env:
+        AGENTS_MD_REPO_ROOT: ${{ inputs.repo-root }}
+        AGENTS_MD_START_DIR: ${{ inputs.start-dir }}
+      run: >-
+        python3 "$GITHUB_ACTION_PATH/../../../scripts/validate_agents_md.py"
+        --repo-root "$AGENTS_MD_REPO_ROOT"
+        --start-dir "$AGENTS_MD_START_DIR"
