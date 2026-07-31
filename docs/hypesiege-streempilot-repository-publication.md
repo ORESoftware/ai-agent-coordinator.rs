@@ -25,9 +25,11 @@ The canonical implementation combines the compatible intent instead of selecting
 
 The checked-in ledger therefore represents **32 deterministic independent Git histories, 888 tracked files, and 30 immutable gitlinks**. Running the reconstruction twice produces identical commit SHAs for all repositories.
 
+The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled generator were removed during reconciliation. That job accepted a broad repository-administration credential and attempted the entire fleet in one execution, contradicting the canonical one-repository confirmation, preflight, and remote-head verification boundary.
+
 ## Reconstruct and validate locally
 
-The gzip/base64 parts under `repository-fleets/hypesiege-streempilot/` contain the complete reviewed source generator. The reconstruction wrapper checks the decoded generator against SHA-256 `50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f` before executing it.
+The gzip/base64 parts under `repository-fleets/hypesiege-streempilot/` contain the complete reviewed source generator. The reconstruction wrapper checks the decoded generator against SHA-256 `a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84` before executing it.
 
 ```bash
 python scripts/reconstruct_hypesiege_streempilot_fleet.py \
