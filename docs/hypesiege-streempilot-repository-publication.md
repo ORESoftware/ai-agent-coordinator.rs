@@ -17,7 +17,7 @@ The canonical implementation combines the compatible intent instead of selecting
 1. preserve the complete source-generator payload and verify its SHA-256 identity;
 2. discard the all-at-once live workflow and organization-secret wiring;
 3. reconstruct the 32 source repositories in a caller-owned directory;
-4. replace timestamp-dependent commits with fixed author, committer, and date metadata;
+4. replace timestamp-dependent histories with deterministic commits using fixed author, committer, and date metadata;
 5. seal all 30 child repositories before the two monorepos;
 6. materialize clean local child checkouts while committing only exact mode-`160000` gitlinks and canonical `.gitmodules` URLs;
 7. compare the regenerated schema-v2 manifest byte-for-byte with the checked-in ledger; and
@@ -25,7 +25,7 @@ The canonical implementation combines the compatible intent instead of selecting
 
 The checked-in ledger therefore represents **32 deterministic independent Git histories, 888 tracked files, and 30 immutable gitlinks**. Running the reconstruction twice produces identical commit SHAs for all repositories.
 
-The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled generator were removed during reconciliation. That job accepted a broad repository-administration credential and attempted the entire fleet in one execution, contradicting the canonical one-repository confirmation, preflight, and remote-head verification boundary.
+The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled generator were removed during reconciliation. That job accepted a broad repository-administration credential and attempted the entire fleet in one execution, contradicting the canonical one-repository confirmation, preflight, and remote-head verification boundary. Each generated repository is sealed from its complete staged tree as a deterministic parentless commit, so preexisting source-history depth cannot silently alter the published content or identity.
 
 ## Reconstruct and validate locally
 
@@ -40,7 +40,7 @@ cmp /tmp/reconstructed-manifest.json \
   repository-fleets/hypesiege-streempilot.json
 ```
 
-The reconstruction fails closed on payload drift, malformed generation output, a non-single-commit source history, branch or origin drift, dirty repositories, Git corruption, tracked-file drift, missing or wrong gitlinks, mismatched submodule checkouts, or fleet totals other than 32 repositories, 888 tracked files, and 30 gitlinks.
+The reconstruction fails closed on payload drift, malformed generation output, an empty or malformed source history, branch or origin drift, dirty repositories, Git corruption, tracked-file drift, missing or wrong gitlinks, mismatched submodule checkouts, or fleet totals other than 32 repositories, 888 tracked files, and 30 gitlinks.
 
 Transport archives are recovery material only. An archive checksum is not a substitute for the per-repository commit ledger, a remote metadata read, or successful push verification.
 
