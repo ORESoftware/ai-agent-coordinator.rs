@@ -1,0 +1,121 @@
+name: Weekly job opportunity digest
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/weekly-job-opportunity-digest.yml
+      - tools/enqueue_weekly_job_digest.py
+      - tests/test_weekly_job_digest.py
+      - docs/weekly-job-opportunity-digest.md
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/weekly-job-opportunity-digest.yml
+      - tools/enqueue_weekly_job_digest.py
+      - tests/test_weekly_job_digest.py
+      - docs/weekly-job-opportunity-digest.md
+  schedule:
+    # 09:17 America/New_York in daylight and standard time. The script
+    # rejects the non-09:00 invocation, so only one ISO-week job is created.
+    - cron: '17 13 * * 1'
+    - cron: '17 14 * * 1'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate only, or enqueue the current ISO-week job.
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - enqueue
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Compile scheduler sources
+        run: >-
+          python3 -m py_compile
+          tools/enqueue_weekly_job_digest.py
+          tests/test_weekly_job_digest.py
+      - name: Run scheduler tests
+        run: >-
+          python3 -m unittest discover
+          -s tests
+          -p 'test_weekly_job_digest.py'
+          -v
+      - name: Verify deterministic redacted plan
+        run: >-
+          python3 tools/enqueue_weekly_job_digest.py
+          --endpoint https://coordinator.example.invalid
+          --now 2026-07-27T13:17:00Z
+          --dry-run
+          > /tmp/weekly-job-plan.json
+      - name: Assert discovery-only plan
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          plan = json.loads(Path("/tmp/weekly-job-plan.json").read_text())
+          assert plan["status"] == "dry_run"
+          assert plan["authorization"] == "Bearer [REDACTED]"
+          request = plan["request"]
+          assert request["task_type"] == "job_opportunity_digest"
+          payload = request["payload"]
+          assert payload["linear"]["canonical_issue"] == "DEN-826"
+          assert payload["linear"]["browser_application_issue"] == "DEN-256"
+          assert "submit_application" in payload["forbidden_actions"]
+          assert "send_email" in payload["forbidden_actions"]
+          assert "submit_application" not in payload["allowed_actions"]
+          assert payload["volume_boundary"]["requested_range"] == {
+              "minimum": 150,
+              "maximum": 350,
+          }
+          assert payload["volume_boundary"]["automatic_submission"] is False
+          PY
+
+  enqueue:
+    needs: validate
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'enqueue')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: weekly-job-digest
+    env:
+      AI_AGENT_COORDINATOR_URL: ${{ vars.AI_AGENT_COORDINATOR_URL }}
+      AI_AGENT_COORDINATOR_API_TOKEN: ${{ secrets.AI_AGENT_COORDINATOR_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Require protected coordinator configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${AI_AGENT_COORDINATOR_URL}"
+          test -n "${AI_AGENT_COORDINATOR_API_TOKEN}"
+      - name: Enqueue one discovery-only job
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" ]]; then
+            args+=(--force)
+          fi
+          python3 tools/enqueue_weekly_job_digest.py "${args[@]}"
