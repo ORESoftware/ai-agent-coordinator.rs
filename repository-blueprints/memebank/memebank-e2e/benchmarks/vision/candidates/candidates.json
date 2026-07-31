@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "candidates": [
+    {
+      "candidate_id": "fixture-local-rust",
+      "display_name": "Synthetic local Rust reference",
+      "lane": "local",
+      "runtime": "rust",
+      "recording_status": "synthetic-reference",
+      "live_provider_capable": false,
+      "privacy_route": "local-only",
+      "capabilities": [
+        "ocr",
+        "regions",
+        "tags",
+        "captions",
+        "retrieval"
+      ],
+      "verification": {
+        "verified_at": "2026-07-31",
+        "source_kind": "synthetic-fixture",
+        "notes": "Exercises the harness only; not evidence for a production dependency."
+      },
+      "artifacts": [
+        {
+          "name": "fixture-ocr-model",
+          "version": "0.0.0-test",
+          "source": "fixture://memebank/local-rust/ocr",
+          "license": "CC0-1.0",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+          "processor_version": "fixture-preprocess-v1",
+          "redistribution": "fixture-only",
+          "update_owner": "MemeBank research"
+        }
+      ],
+      "budget": {
+        "currency": "USD",
+        "max_run_cost_usd": 0.0
+      }
+    },
+    {
+      "candidate_id": "fixture-remote-api",
+      "display_name": "Synthetic remote API reference",
+      "lane": "cloud",
+      "runtime": "https",
+      "recording_status": "synthetic-reference",
+      "live_provider_capable": true,
+      "privacy_route": "remote-opt-in",
+      "capabilities": [
+        "ocr",
+        "regions",
+        "tags",
+        "captions",
+        "retrieval"
+      ],
+      "verification": {
+        "verified_at": "2026-07-31",
+        "source_kind": "synthetic-fixture",
+        "notes": "Recorded synthetic comparator; not a claim about any named cloud provider."
+      },
+      "artifacts": [
+        {
+          "name": "fixture-remote-api-version",
+          "version": "2026-07-31-test",
+          "source": "fixture://memebank/remote-api",
+          "license": "service-fixture",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+          "processor_version": "fixture-remote-v1",
+          "redistribution": "metadata-only",
+          "update_owner": "MemeBank research"
+        }
+      ],
+      "budget": {
+        "currency": "USD",
+        "max_run_cost_usd": 0.05
+      }
+    }
+  ]
+}
