@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "provider_kind": "google_drive",
+  "ownership": "user_owned",
+  "addressing": "provider_file_id",
+  "operations": {
+    "put": true,
+    "read": true,
+    "stat": true,
+    "delete": true,
+    "list": true,
+    "server_side_copy": true,
+    "restore_version": false
+  },
+  "upload_modes": ["resumable_session"],
+  "conditional_writes": ["opaque_revision_guard", "create_only"],
+  "consistency": "provider_defined",
+  "versioning": "opaque_revision",
+  "change_tracking": "delta_cursor",
+  "presigned_access": false,
+  "lifecycle_management": false,
+  "integrity_metadata": ["provider_hash", "client_verified_only"],
+  "limits": {
+    "max_object_bytes": null,
+    "max_part_bytes": null,
+    "min_part_bytes": null,
+    "max_parts": null
+  },
+  "notes": [
+    "Provider file IDs and revision metadata are opaque and must not be treated as S3 object keys or ETags."
+  ]
+}
