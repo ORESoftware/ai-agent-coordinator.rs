@@ -1,397 +1,432 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "generated_at": "2026-07-31T00:00:00-04:00",
+  "generator_sha256": "a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84",
   "default_branch": "main",
   "repository_count": 32,
+  "total_tracked_files": 888,
+  "total_gitlinks": 30,
   "organizations": {
     "hypesiege": 15,
     "streempilot": 17
   },
-  "publication_status": "local histories sealed; remote authorization required",
+  "publication_status": "deterministic histories sealed; remote authorization required",
   "repositories": [
     {
       "org": "hypesiege",
       "name": "hypesiege-analytics.rs",
       "full_name": "hypesiege/hypesiege-analytics.rs",
       "kind": "rust-worker",
-      "commit": "8ef058ce46060a94e84700fddf3bef63911516a2",
+      "commit": "3eb8efba49bd4f932b7cc673c66b3788e3f458c1",
       "files": 26,
       "remote": "https://github.com/hypesiege/hypesiege-analytics.rs.git",
       "description": "Analytics ingestion, normalization, attribution, and reporting services for HypeSiege.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-api-server.rs",
       "full_name": "hypesiege/hypesiege-api-server.rs",
       "kind": "rust-api",
-      "commit": "665de38a82f016b11dd60ddf70428c78605da75b",
+      "commit": "8b1b00ecc3ef421d03db9f9231a703bfbec6df9f",
       "files": 25,
       "remote": "https://github.com/hypesiege/hypesiege-api-server.rs.git",
       "description": "Rust Axum, SeaORM, and Utoipa API for HypeSiege.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-cli.rs",
       "full_name": "hypesiege/hypesiege-cli.rs",
       "kind": "rust-cli",
-      "commit": "74968ba3ffb76f26b5a6f9f07a1fafd94bb6a9f3",
+      "commit": "8a1e52a8ec039ccafc10ff2776f15550758fcf93",
       "files": 25,
       "remote": "https://github.com/hypesiege/hypesiege-cli.rs.git",
       "description": "Rust command-line client for safe HypeSiege publishing and operations.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-clients",
       "full_name": "hypesiege/hypesiege-clients",
       "kind": "clients",
-      "commit": "d4506fb6f1d71137ad311522d0919b5c62da3521",
+      "commit": "1cd40b4a7ac16a660cb3753a331a6c4cde1f5cc3",
       "files": 43,
       "remote": "https://github.com/hypesiege/hypesiege-clients.git",
       "description": "Generated and hand-written HypeSiege SDKs for Rust, TypeScript, Go, Dart, WASM, Gleam, Erlang, Java, and Swift.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-connectors",
       "full_name": "hypesiege/hypesiege-connectors",
       "kind": "rust-lib",
-      "commit": "edb930d304bf5854a3a014aecda30a30b4f5e86f",
+      "commit": "773b69f8dae2ab5fb943ab9a8fcab46873645e98",
       "files": 25,
       "remote": "https://github.com/hypesiege/hypesiege-connectors.git",
       "description": "Provider adapters for social networks, media stores, link services, and analytics sources.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-e2e",
       "full_name": "hypesiege/hypesiege-e2e",
       "kind": "e2e",
-      "commit": "90e5679b848ff0df11c348a4aea5cc4950bbe403",
+      "commit": "4e38c1ca73ffb795565c62eb8933dd51b1d55c8c",
       "files": 24,
       "remote": "https://github.com/hypesiege/hypesiege-e2e.git",
       "description": "End-to-end, resilience, accessibility, and release qualification for HypeSiege.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-flutter-app",
       "full_name": "hypesiege/hypesiege-flutter-app",
       "kind": "flutter",
-      "commit": "73b997df6beabd1e3d2fd6e5299982a5f26d936b",
+      "commit": "f334c0dbe51c35fcba96e4feb24dda53dd8b1cc1",
       "files": 26,
       "remote": "https://github.com/hypesiege/hypesiege-flutter-app.git",
       "description": "Cross-platform Flutter application for composing, approving, scheduling, and analyzing social content.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-infra",
       "full_name": "hypesiege/hypesiege-infra",
       "kind": "infra",
-      "commit": "37d9c8d69397f14ff48b55618ca15d7f581e30e3",
+      "commit": "c7221a5b8bdc4c2825c7d138f77095d739128bfa",
       "files": 28,
       "remote": "https://github.com/hypesiege/hypesiege-infra.git",
       "description": "Kubernetes, Argo CD, observability, backup, and environment definitions for HypeSiege.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-interfaces",
       "full_name": "hypesiege/hypesiege-interfaces",
       "kind": "interfaces",
-      "commit": "537810974ce98d5c1cfc25468ad13050b9d620fe",
+      "commit": "1c6fb6bc57d5f49667d99f87076102119b6c3fc9",
       "files": 28,
       "remote": "https://github.com/hypesiege/hypesiege-interfaces.git",
       "description": "Canonical HypeSiege OpenAPI, AsyncAPI, JSON Schema, PostgreSQL, and NATS contracts.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-mcp-server.rs",
       "full_name": "hypesiege/hypesiege-mcp-server.rs",
       "kind": "rust-mcp",
-      "commit": "01587acf5b5aebfa3546bc0b81e9bb635877fc89",
+      "commit": "9796aac3b52524bfc89a1e5b445e8e3de73623ee",
       "files": 25,
       "remote": "https://github.com/hypesiege/hypesiege-mcp-server.rs.git",
       "description": "Read-first Rust MCP server for HypeSiege diagnostics and scoped operations.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-publishing-worker.rs",
       "full_name": "hypesiege/hypesiege-publishing-worker.rs",
       "kind": "rust-worker",
-      "commit": "057033ee9f4b42bfb37b478d9db3c999239e0d93",
+      "commit": "0278b9cc86e7ea3b11d33dd987be6689dc06aba0",
       "files": 26,
       "remote": "https://github.com/hypesiege/hypesiege-publishing-worker.rs.git",
       "description": "Provider-aware publishing worker with safe retries and reconciliation.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-scheduler.rs",
       "full_name": "hypesiege/hypesiege-scheduler.rs",
       "kind": "rust-worker",
-      "commit": "5ff25a77d028bcc89d6c97d596bb82ea7663e034",
+      "commit": "e8a739d9e658e9cef8f1dc938a412b923dbff57d",
       "files": 26,
       "remote": "https://github.com/hypesiege/hypesiege-scheduler.rs.git",
       "description": "Durable schedule, lease, retry, and idempotency coordinator for social publishing.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-sync",
       "full_name": "hypesiege/hypesiege-sync",
       "kind": "rust-lib",
-      "commit": "4196a63bbc9b315af8e48fd29a40a6e9bfbf605e",
+      "commit": "de65f3d422a9e97d245352a33444ddee2aff874f",
       "files": 25,
       "remote": "https://github.com/hypesiege/hypesiege-sync.git",
       "description": "Offline-first multi-device synchronization engine for HypeSiege drafts and publishing state.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-web-server.rs",
       "full_name": "hypesiege/hypesiege-web-server.rs",
       "kind": "rust-web",
-      "commit": "ddd458694702bab80b59b248bc10526e1352e834",
+      "commit": "a76cac9567de6ef49e053350cfdf8b224a06a9c1",
       "files": 25,
       "remote": "https://github.com/hypesiege/hypesiege-web-server.rs.git",
       "description": "MASH web application for HypeSiege using Maud, Axum, Supabase, HTMX, and SeaORM.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "hypesiege",
       "name": "hypesiege-monorepo",
       "full_name": "hypesiege/hypesiege-monorepo",
       "kind": "monorepo",
-      "commit": "4e4465f7f7e66016ef10d784e89ec368db2b12cb",
-      "files": 26,
+      "commit": "669c91b1bf96643fe5c11b79f862716d3fb59558",
+      "files": 41,
       "remote": "https://github.com/hypesiege/hypesiege-monorepo.git",
       "description": "Contributor and integration superproject for the HypeSiege social publishing platform.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 14
     },
     {
       "org": "streempilot",
       "name": "streempilot-api-server.rs",
       "full_name": "streempilot/streempilot-api-server.rs",
       "kind": "rust-api",
-      "commit": "505aad986665851e1d3eee859fb677ef121bffae",
+      "commit": "baa4f4d71ce3c706301308881d3bee2f9abd18ac",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-api-server.rs.git",
       "description": "Rust Axum, SeaORM, and Utoipa control API for StreemPilot.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-chat.rs",
       "full_name": "streempilot/streempilot-chat.rs",
       "kind": "rust-api",
-      "commit": "9595d706e243ccba99b4dc039ab8c77874705af8",
+      "commit": "f26ef8a8bcc04bb8092a31cea4305c6a4efb9881",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-chat.rs.git",
       "description": "Unified live-chat ingestion, moderation, reactions, and overlay event service.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-cli.rs",
       "full_name": "streempilot/streempilot-cli.rs",
       "kind": "rust-cli",
-      "commit": "c96b99ac8be6998206df40062f2f10a3ecd90156",
+      "commit": "f51540faafb37a6e4481a04806fb5d0cd6f3d194",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-cli.rs.git",
       "description": "Rust command-line client for scoped StreemPilot studio and live-operation workflows.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-clients",
       "full_name": "streempilot/streempilot-clients",
       "kind": "clients",
-      "commit": "3d13f66621e1c50859cc0c93814524cce0c31526",
+      "commit": "a25aa1aa4a963c7af864bce22e648390ad420529",
       "files": 43,
       "remote": "https://github.com/streempilot/streempilot-clients.git",
       "description": "Generated and hand-written StreemPilot SDKs for Rust, TypeScript, Go, Dart, WASM, Gleam, Erlang, Java, and Swift.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-compositor.rs",
       "full_name": "streempilot/streempilot-compositor.rs",
       "kind": "rust-worker",
-      "commit": "ad3be19f0f6e6b6a01e55055b9e330527f5d578c",
+      "commit": "ea7c1c8042122b4e4a7689aee026113fb607421d",
       "files": 26,
       "remote": "https://github.com/streempilot/streempilot-compositor.rs.git",
       "description": "Scene graph, layout, overlays, transitions, and program-output compositor.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-destinations",
       "full_name": "streempilot/streempilot-destinations",
       "kind": "rust-lib",
-      "commit": "14fe8364fc201d007975b8ab51dcc8c8eebd0a73",
+      "commit": "acaff0ab1fcbbae82eb52c72120a6edb10243a77",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-destinations.git",
       "description": "Adapters for RTMP, SRT, platform destinations, credentials, and delivery health.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-e2e",
       "full_name": "streempilot/streempilot-e2e",
       "kind": "e2e",
-      "commit": "b301aa3106db9c2ea1e1a7f80f231acedd2762cd",
+      "commit": "ab6713b2dd06be1c59eb35773c2d86cfde95fd2e",
       "files": 24,
       "remote": "https://github.com/streempilot/streempilot-e2e.git",
       "description": "Media compatibility, network impairment, resilience, accessibility, and release qualification for StreemPilot.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-flutter-app",
       "full_name": "streempilot/streempilot-flutter-app",
       "kind": "flutter",
-      "commit": "7019a2e99019ac03f2f8027136101a3520003ce9",
+      "commit": "44a5dcec274b9072deffde0253224d9b63ac7d3c",
       "files": 26,
       "remote": "https://github.com/streempilot/streempilot-flutter-app.git",
       "description": "Cross-platform Flutter studio for hosting, producing, recording, and monitoring live streams.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-infra",
       "full_name": "streempilot/streempilot-infra",
       "kind": "infra",
-      "commit": "ab0cb064714ae2c6b55413413217ead0cd702ac3",
+      "commit": "4f4738c00f7d3f3e3bfbcf402b443e4f42063f4a",
       "files": 28,
       "remote": "https://github.com/streempilot/streempilot-infra.git",
       "description": "Kubernetes, Argo CD, observability, recording storage, and environment definitions for StreemPilot.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-interfaces",
       "full_name": "streempilot/streempilot-interfaces",
       "kind": "interfaces",
-      "commit": "6408d9447cd7f317e45382715ebeb2c402a0db26",
+      "commit": "57efaf50aece60c9160a94518f5f6c102a66703a",
       "files": 28,
       "remote": "https://github.com/streempilot/streempilot-interfaces.git",
       "description": "Canonical StreemPilot OpenAPI, AsyncAPI, media, PostgreSQL, and NATS contracts.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-mcp-server.rs",
       "full_name": "streempilot/streempilot-mcp-server.rs",
       "kind": "rust-mcp",
-      "commit": "949bfd6d88b3e8ddc040525acbdcbc36bfd302e6",
+      "commit": "1ee0bdd66252fb997f5a227524ee6ccbf842f67e",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-mcp-server.rs.git",
       "description": "Read-first Rust MCP server for StreemPilot diagnostics and guarded controls.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-media-router.rs",
       "full_name": "streempilot/streempilot-media-router.rs",
       "kind": "rust-worker",
-      "commit": "ce55b943da3ff394f8f7a6aa25eb5fba5aad4cbf",
+      "commit": "a3b01146f85ee61400b72ed3f333c76b4413a4fa",
       "files": 26,
       "remote": "https://github.com/streempilot/streempilot-media-router.rs.git",
       "description": "Tenant-safe media routing, forwarding, congestion, and quality-control service.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-recording.rs",
       "full_name": "streempilot/streempilot-recording.rs",
       "kind": "rust-worker",
-      "commit": "8ad75880c07dc5bdfb7ec4e7ab90d6f2308eb7c8",
+      "commit": "8145e4717a9906c759ada560bff28adbda68667c",
       "files": 26,
       "remote": "https://github.com/streempilot/streempilot-recording.rs.git",
       "description": "Segmented recording, upload, manifest, retention, and recovery service.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-sync",
       "full_name": "streempilot/streempilot-sync",
       "kind": "rust-lib",
-      "commit": "7b24906d069fc65169921872e4584b136b9a2200",
+      "commit": "14283c100b5b803533b84104dc38ba13a6fbf7a6",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-sync.git",
       "description": "Offline-first synchronization for studio layouts, assets, drafts, and session metadata.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-web-server.rs",
       "full_name": "streempilot/streempilot-web-server.rs",
       "kind": "rust-web",
-      "commit": "b8572a8fb8bf7a55894de5c97af6207fa1eaf698",
+      "commit": "ef3376e0ed8f46b561fdc35e8be36fe2cb68c26b",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-web-server.rs.git",
       "description": "MASH web studio for StreemPilot using Maud, Axum, Supabase, HTMX, and SeaORM.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-webrtc-adapter.rs",
       "full_name": "streempilot/streempilot-webrtc-adapter.rs",
       "kind": "rust-api",
-      "commit": "c0be9cf216a448994b3ed8b19f0322d6ff533b0d",
+      "commit": "471360a2ceba65432e542f5ef58caac83b645210",
       "files": 25,
       "remote": "https://github.com/streempilot/streempilot-webrtc-adapter.rs.git",
       "description": "Typed compatibility adapter for the shared ORESoftware Kubernetes WebRTC signaling service.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 0
     },
     {
       "org": "streempilot",
       "name": "streempilot-monorepo",
       "full_name": "streempilot/streempilot-monorepo",
       "kind": "monorepo",
-      "commit": "a978ac20f41b09581012c3e8cbb48e2d2674c631",
-      "files": 26,
+      "commit": "e1527280d6a21f49fcdc08dc9efc00bedfbf718c",
+      "files": 43,
       "remote": "https://github.com/streempilot/streempilot-monorepo.git",
       "description": "Contributor and integration superproject for the StreemPilot live-production platform.",
       "visibility": "public",
-      "default_branch": "main"
+      "default_branch": "main",
+      "gitlinks": 16
     }
   ]
 }
