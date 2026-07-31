@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "hardware_profile_id": "ci-cpu-reference",
+  "os": "ubuntu-24.04",
+  "architecture": "x86_64",
+  "cpu": "GitHub-hosted runner class; exact SKU must be recorded for real runs",
+  "logical_cores": 2,
+  "memory_mb": 7168,
+  "gpu": null,
+  "execution_provider": "fixture",
+  "notes": "Synthetic CI profile for harness conformance only; not performance evidence."
+}
