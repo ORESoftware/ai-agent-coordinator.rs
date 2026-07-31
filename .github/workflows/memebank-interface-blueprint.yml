@@ -30,9 +30,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+      - name: Validate changed workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/memebank-interface-blueprint.yml
+            repository-blueprints/memebank/mb-interfaces/.github/workflows/contract-check.yml
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
+      - name: Validate hierarchical agent instructions
+        run: >-
+          python ../../../../scripts/validate_agents_md.py
+          --repo-root .
+          --start-dir schemas/v1
       - name: Compile validators
         run: python -m py_compile scripts/validate_contracts.py scripts/test_validate_contracts.py
       - name: Run clean-checkout gate
