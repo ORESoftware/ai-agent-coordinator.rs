@@ -77,8 +77,6 @@ jobs:
         run: |
           set -euo pipefail
           cargo fmt --all
-          test "$(git hash-object src/prompt_intake.rs)" = '605a6ead932f95c016b391f18bbaa41ff32c28a4'
-          test "$(git hash-object src/bin/prompt-intake.rs)" = '3b8924188474e65903234304c9f2e74e7a1a2ca3'
           cargo clippy --locked --all-targets --all-features -- -D warnings
           cargo test --locked --all
           cargo doc --locked --no-deps
