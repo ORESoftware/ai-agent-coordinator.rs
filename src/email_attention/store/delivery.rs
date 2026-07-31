@@ -6,7 +6,7 @@ use serde_json::Value as JsonValue;
 use super::{statement, AttentionStore, DeliveryItem, PendingDelivery};
 
 impl AttentionStore {
-    pub(in super::super) async fn create_pending_delivery(
+    pub(in crate::email_attention) async fn create_pending_delivery(
         &self,
         idempotency_key: &str,
         payload_json: &JsonValue,
@@ -112,7 +112,7 @@ impl AttentionStore {
         Ok(())
     }
 
-    pub(in super::super) async fn pending_deliveries(
+    pub(in crate::email_attention) async fn pending_deliveries(
         &self,
         limit: usize,
     ) -> Result<Vec<PendingDelivery>> {
@@ -143,7 +143,7 @@ impl AttentionStore {
             .context("failed to decode pending email-attention deliveries")
     }
 
-    pub(in super::super) async fn mark_delivery_failure(
+    pub(in crate::email_attention) async fn mark_delivery_failure(
         &self,
         idempotency_key: &str,
         error: &str,
@@ -172,7 +172,7 @@ impl AttentionStore {
         Ok(())
     }
 
-    pub(in super::super) async fn mark_delivery_success(
+    pub(in crate::email_attention) async fn mark_delivery_success(
         &self,
         idempotency_key: &str,
         at: DateTime<Utc>,
