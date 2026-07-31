@@ -1,0 +1,186 @@
+{
+  "applications": [
+    {
+      "component_path": "components/argocd-projects",
+      "depends_on": [],
+      "name": "argocd-projects",
+      "namespace": "argocd",
+      "profile": null,
+      "project": "memebank-bootstrap",
+      "required": true,
+      "sync_wave": 0
+    },
+    {
+      "component_path": "components/platform-foundation",
+      "depends_on": [
+        "argocd-projects"
+      ],
+      "name": "platform-foundation",
+      "namespace": "memebank-system",
+      "profile": null,
+      "project": "memebank-platform",
+      "required": true,
+      "sync_wave": 10
+    },
+    {
+      "component_path": "components/external-secrets",
+      "depends_on": [
+        "platform-foundation"
+      ],
+      "name": "secret-plumbing",
+      "namespace": "external-secrets",
+      "profile": null,
+      "project": "memebank-platform",
+      "required": true,
+      "sync_wave": 20
+    },
+    {
+      "component_path": "components/data-plane",
+      "depends_on": [
+        "secret-plumbing"
+      ],
+      "name": "data-plane",
+      "namespace": "memebank-data",
+      "profile": null,
+      "project": "memebank-data",
+      "required": true,
+      "sync_wave": 30
+    },
+    {
+      "component_path": "components/model-artifacts",
+      "depends_on": [
+        "secret-plumbing",
+        "data-plane"
+      ],
+      "name": "model-artifacts",
+      "namespace": "memebank-models",
+      "profile": null,
+      "project": "memebank-data",
+      "required": true,
+      "sync_wave": 40
+    },
+    {
+      "component_path": "components/database-migrations",
+      "depends_on": [
+        "data-plane"
+      ],
+      "name": "database-migrations",
+      "namespace": "memebank",
+      "profile": null,
+      "project": "memebank-apps",
+      "required": true,
+      "sync_wave": 50
+    },
+    {
+      "component_path": "components/api-web",
+      "depends_on": [
+        "database-migrations",
+        "model-artifacts"
+      ],
+      "name": "api-web",
+      "namespace": "memebank",
+      "profile": null,
+      "project": "memebank-apps",
+      "required": true,
+      "sync_wave": 60
+    },
+    {
+      "component_path": "components/ingestion-workers",
+      "depends_on": [
+        "api-web",
+        "data-plane"
+      ],
+      "name": "ingestion-workers",
+      "namespace": "memebank",
+      "profile": null,
+      "project": "memebank-apps",
+      "required": true,
+      "sync_wave": 70
+    },
+    {
+      "component_path": "components/enrichment-local-cpu",
+      "depends_on": [
+        "ingestion-workers",
+        "model-artifacts"
+      ],
+      "name": "enrichment-local-cpu",
+      "namespace": "memebank",
+      "profile": "enrichment-local-cpu",
+      "project": "memebank-workers",
+      "required": false,
+      "sync_wave": 80
+    },
+    {
+      "component_path": "components/enrichment-local-gpu",
+      "depends_on": [
+        "ingestion-workers",
+        "model-artifacts"
+      ],
+      "name": "enrichment-local-gpu",
+      "namespace": "memebank",
+      "profile": "enrichment-local-gpu",
+      "project": "memebank-workers",
+      "required": false,
+      "sync_wave": 81
+    },
+    {
+      "component_path": "components/enrichment-cloud-dispatch",
+      "depends_on": [
+        "ingestion-workers",
+        "secret-plumbing"
+      ],
+      "name": "enrichment-cloud-dispatch",
+      "namespace": "memebank",
+      "profile": "enrichment-cloud-dispatch",
+      "project": "memebank-workers",
+      "required": false,
+      "sync_wave": 82
+    },
+    {
+      "component_path": "components/ingress",
+      "depends_on": [
+        "api-web"
+      ],
+      "name": "ingress",
+      "namespace": "memebank",
+      "profile": null,
+      "project": "memebank-platform",
+      "required": true,
+      "sync_wave": 90
+    },
+    {
+      "component_path": "components/observability",
+      "depends_on": [
+        "api-web",
+        "ingestion-workers"
+      ],
+      "name": "observability",
+      "namespace": "memebank-observability",
+      "profile": null,
+      "project": "memebank-platform",
+      "required": true,
+      "sync_wave": 100
+    },
+    {
+      "component_path": "components/smoke-tests",
+      "depends_on": [
+        "ingress",
+        "observability",
+        "enrichment-local-cpu"
+      ],
+      "name": "smoke-tests",
+      "namespace": "memebank",
+      "profile": null,
+      "project": "memebank-apps",
+      "required": true,
+      "sync_wave": 110
+    }
+  ],
+  "default_branch": "main",
+  "forbidden_repository_names": [
+    "memebank-infra"
+  ],
+  "package": "memebank/mb-infra",
+  "repository_url": "https://github.com/memebank/mb-infra.git",
+  "schema_version": 1
+}
