@@ -62,7 +62,7 @@ jobs:
           assert plan["tracking_issue"] == "DEN-1043"
           assert plan["ready_for_dry_run"] is False
           assert plan["ready_for_live"] is False
-          assert len(plan["blockers"]) == 11
+          assert len(plan["blockers"]) == 12
           assert ".github" in manifest["deferred_repositories"]
           assert all(
               repository["full_name"] != "memebank/.github"
