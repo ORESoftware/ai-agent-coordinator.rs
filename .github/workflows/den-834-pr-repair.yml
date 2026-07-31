@@ -1,0 +1,102 @@
+name: DEN-834 PR repair
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/den-834-pr-repair.yml'
+      - 'src/prompt_intake.rs'
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt, clippy
+      - name: Apply bounded semantic repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/prompt_intake.rs')
+          text = path.read_text()
+          replacements = [
+              (
+                  '''        decisions.push(decide_prompt(
+              export,
+              prompt,
+              source_identity,
+              &catalog_index,
+          ));''',
+                  '''        decisions.push(decide_prompt(
+              prompt,
+              source_identity,
+              &catalog_index,
+          ));''',
+              ),
+              (
+                  '''fn decide_prompt(
+              export: &PromptExport,
+              prompt: &PromptRecord,''',
+                  '''fn decide_prompt(
+              prompt: &PromptRecord,''',
+              ),
+              (
+                  '''            (source_identities.len() > 1).then(|| DuplicateGroup {
+                  content_fingerprint: fingerprint.to_owned(),
+                  source_identities,
+              })''',
+                  '''            (source_identities.len() > 1).then_some(DuplicateGroup {
+                  content_fingerprint: fingerprint.to_owned(),
+                  source_identities,
+              })''',
+              ),
+              (
+                  '''            "about", "after", "again", "also", "been", "before", "being", "branch",
+              "chat", "check", "could", "from", "have", "into", "issue", "linear", "make",''',
+                  '''            "about", "after", "again", "also", "been", "before", "being", "branch",
+              "chat", "check", "could", "day", "days", "from", "have", "hour", "hours",
+              "into", "issue", "linear", "make",''',
+              ),
+          ]
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'expected source fragment not found: {old[:80]}')
+              text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+      - name: Format and validate complete Rust suite
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all
+          cargo doc --locked --no-deps
+          cargo build --locked --release
+      - name: Remove one-shot workflow and publish repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/den-834-pr-repair.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/prompt_intake.rs src/bin/prompt-intake.rs .github/workflows/den-834-pr-repair.yml
+          git diff --cached --check
+          git commit -m 'fix(DEN-834): stabilize refinement grouping and formatting'
+          git push origin HEAD:${{ github.head_ref }}
