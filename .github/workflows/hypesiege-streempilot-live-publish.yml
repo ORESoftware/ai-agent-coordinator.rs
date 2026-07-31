@@ -35,7 +35,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p /mnt/data
+          sudo mkdir -p /mnt/data
+          sudo chown "$(id -u):$(id -g)" /mnt/data
           cat repository-fleets/hypesiege-streempilot/generator.py.gz.b64.part-* \
             | base64 --decode \
             | gzip --decompress > /tmp/generate_hypesiege_streempilot.py
