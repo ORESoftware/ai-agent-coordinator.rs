@@ -38,10 +38,8 @@ impl Settings {
         let request_timeout_ms = read_u64_env(REQUEST_TIMEOUT_MS_ENV, 15_000, 100, 120_000)?;
         let max_response_bytes =
             read_usize_env(MAX_RESPONSE_BYTES_ENV, 512 * 1024, 1024, 8 * 1024 * 1024)?;
-        let max_messages_per_source =
-            read_usize_env(MAX_MESSAGES_PER_SOURCE_ENV, 200, 1, 2_000)?;
-        let max_notifications_per_run =
-            read_usize_env(MAX_NOTIFICATIONS_PER_RUN_ENV, 50, 1, 500)?;
+        let max_messages_per_source = read_usize_env(MAX_MESSAGES_PER_SOURCE_ENV, 200, 1, 2_000)?;
+        let max_notifications_per_run = read_usize_env(MAX_NOTIFICATIONS_PER_RUN_ENV, 50, 1, 500)?;
         let reminder_hours = read_i64_env(REMINDER_INTERVAL_HOURS_ENV, 24, 1, 24 * 30)?;
         let lease_seconds = read_i64_env(LEASE_SECONDS_ENV, 3_600, 60, 6 * 60 * 60)?;
         let pending_retry_limit = read_usize_env(PENDING_RETRY_LIMIT_ENV, 20, 1, 200)?;
@@ -49,7 +47,9 @@ impl Settings {
             .unwrap_or_else(|_| DEFAULT_USER_AGENT.to_owned())
             .trim()
             .to_owned();
-        if user_agent.is_empty() || user_agent.len() > 128 || user_agent.chars().any(char::is_control)
+        if user_agent.is_empty()
+            || user_agent.len() > 128
+            || user_agent.chars().any(char::is_control)
         {
             bail!("{USER_AGENT_ENV} must be 1..=128 visible characters");
         }

@@ -285,7 +285,10 @@ impl AttentionStore {
     }
 
     #[cfg(test)]
-    pub(super) async fn delivery_payload(&self, idempotency_key: &str) -> Result<Option<JsonValue>> {
+    pub(super) async fn delivery_payload(
+        &self,
+        idempotency_key: &str,
+    ) -> Result<Option<JsonValue>> {
         let row = self
             .connection
             .query_one(statement(

@@ -8,7 +8,7 @@ The implementation tracks [DEN-830](https://linear.app/denman/issue/DEN-830/inbo
 
 At each configured local time, the coordinator:
 
-1. obtains a SQLite lease so only one replica owns the scheduled run;
+1. obtains a PostgreSQL lease so only one replica owns the scheduled run;
 2. retries previously persisted notification deliveries using their original idempotency keys;
 3. calls each enabled mailbox adapter with `read_only: true`, its last durable cursor, and a bounded message limit;
 4. classifies connector-provided metadata into `urgent` and `needs_reply_soon`;

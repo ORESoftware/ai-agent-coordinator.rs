@@ -127,7 +127,10 @@ pub(super) fn classify_message(
             0.84,
         )
     } else {
-        ("The message contains a direct action or response cue.", 0.76)
+        (
+            "The message contains a direct action or response cue.",
+            0.76,
+        )
     };
 
     let deadline = message.explicit_deadline.map(|at| DeadlineEvidence {
@@ -241,9 +244,11 @@ pub(super) fn validate_connector_response(
         }
         validate_bounded_field("sender", &message.sender, 1, 512)?;
         validate_bounded_field("subject", &message.subject, 1, 1_024)?;
-        if message.snippet.as_ref().is_some_and(|snippet| {
-            snippet.len() > 4_096 || contains_disallowed_control(snippet)
-        }) {
+        if message
+            .snippet
+            .as_ref()
+            .is_some_and(|snippet| snippet.len() > 4_096 || contains_disallowed_control(snippet))
+        {
             bail!(
                 "connector returned an invalid snippet for source {}",
                 source.id
@@ -326,9 +331,7 @@ fn validate_env_name(value: &str) -> Result<()> {
     if value.is_empty()
         || value.len() > 128
         || !value.bytes().enumerate().all(|(index, byte)| {
-            byte == b'_'
-                || byte.is_ascii_uppercase()
-                || (index > 0 && byte.is_ascii_digit())
+            byte == b'_' || byte.is_ascii_uppercase() || (index > 0 && byte.is_ascii_digit())
         })
     {
         bail!("credential environment names must use uppercase ASCII letters, digits, and underscores and cannot start with a digit");
@@ -466,8 +469,7 @@ fn message_fingerprint(
     let mut hasher = Sha256::new();
     let normalized_sender = normalize_display_text(&message.sender);
     let normalized_subject = normalize_display_text(&message.subject);
-    let normalized_snippet =
-        normalize_display_text(message.snippet.as_deref().unwrap_or_default());
+    let normalized_snippet = normalize_display_text(message.snippet.as_deref().unwrap_or_default());
     for value in [
         source.id.as_str(),
         source.provider.as_str(),
@@ -515,10 +517,7 @@ fn message_fingerprint(
     hex::encode(hasher.finalize())
 }
 
-pub(super) fn delivery_idempotency_key(
-    run_id: &str,
-    candidates: &[CandidateItem],
-) -> String {
+pub(super) fn delivery_idempotency_key(run_id: &str, candidates: &[CandidateItem]) -> String {
     let mut identities = candidates
         .iter()
         .map(|candidate| {

@@ -225,7 +225,8 @@ impl EmailAttentionAgent {
                     let next_cursor = response.next_cursor.clone();
                     let mut attention_items = 0usize;
                     for message in response.messages {
-                        let Some(candidate) = classify_message(source, &message, observed_at) else {
+                        let Some(candidate) = classify_message(source, &message, observed_at)
+                        else {
                             continue;
                         };
                         attention_items += 1;
@@ -525,11 +526,7 @@ impl EmailAttentionAgent {
                 Err(error) => {
                     let public_error = bounded_text(&error.to_string(), 256);
                     self.store()?
-                        .mark_delivery_failure(
-                            &delivery.idempotency_key,
-                            &public_error,
-                            Utc::now(),
-                        )
+                        .mark_delivery_failure(&delivery.idempotency_key, &public_error, Utc::now())
                         .await?;
                     report.failure_count += 1;
                     warn!(

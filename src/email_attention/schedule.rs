@@ -226,13 +226,11 @@ fn new_york_offset_for_local(local: NaiveDateTime) -> i32 {
 fn new_york_offset_for_utc(utc: DateTime<Utc>) -> i32 {
     let (start_local, end_local) = new_york_transitions(utc.year());
     let start_utc = DateTime::<Utc>::from_naive_utc_and_offset(
-        start_local
-            - ChronoDuration::seconds(i64::from(NEW_YORK_STANDARD_OFFSET_SECONDS)),
+        start_local - ChronoDuration::seconds(i64::from(NEW_YORK_STANDARD_OFFSET_SECONDS)),
         Utc,
     );
     let end_utc = DateTime::<Utc>::from_naive_utc_and_offset(
-        end_local
-            - ChronoDuration::seconds(i64::from(NEW_YORK_DAYLIGHT_OFFSET_SECONDS)),
+        end_local - ChronoDuration::seconds(i64::from(NEW_YORK_DAYLIGHT_OFFSET_SECONDS)),
         Utc,
     );
     if utc >= start_utc && utc < end_utc {
@@ -258,9 +256,7 @@ fn nth_weekday_of_month(year: i32, month: u32, weekday: Weekday, nth: u32) -> Na
         - first.weekday().num_days_from_monday() as i64)
         % 7;
     first
-        .checked_add_signed(ChronoDuration::days(
-            days_until + i64::from((nth - 1) * 7),
-        ))
+        .checked_add_signed(ChronoDuration::days(days_until + i64::from((nth - 1) * 7)))
         .expect("weekday occurrence must remain in month")
 }
 
@@ -272,8 +268,8 @@ mod tests {
 
     #[test]
     fn new_york_schedule_tracks_daylight_saving_time() {
-        let schedule = Schedule::parse("America/New_York", "mon,tue,wed,thu,fri", 9, 0)
-            .expect("schedule");
+        let schedule =
+            Schedule::parse("America/New_York", "mon,tue,wed,thu,fri", 9, 0).expect("schedule");
 
         let winter = Utc
             .with_ymd_and_hms(2026, 1, 5, 13, 30, 0)

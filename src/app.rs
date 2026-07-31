@@ -111,10 +111,7 @@ pub fn router(state: AppState) -> Router {
         .route("/v1/jobs/:id/cancel", post(cancel_job))
         .route("/v1/linear/plan/:id", post(plan_linear_delivery))
         .route("/v1/linear/deliver-next", post(deliver_next_linear_job))
-        .route(
-            "/v1/email-attention/status",
-            get(email_attention_status),
-        )
+        .route("/v1/email-attention/status", get(email_attention_status))
         .route(
             "/v1/email-attention/run-test",
             post(run_email_attention_test),

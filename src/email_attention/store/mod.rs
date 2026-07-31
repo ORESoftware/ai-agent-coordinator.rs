@@ -9,8 +9,8 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::{DateTime, Utc};
 use sea_orm::{
-    sea_query::Value, ConnectOptions, ConnectionTrait, Database as SeaDatabase,
-    DatabaseConnection, DbBackend, Statement,
+    sea_query::Value, ConnectOptions, ConnectionTrait, Database as SeaDatabase, DatabaseConnection,
+    DbBackend, Statement,
 };
 use serde_json::Value as JsonValue;
 
