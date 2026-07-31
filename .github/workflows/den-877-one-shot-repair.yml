@@ -6,6 +6,7 @@ on:
       - agent/den-877-fleet-merge-repair
     paths:
       - .github/workflows/den-877-one-shot-repair.yml
+      - repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731
 
 permissions:
   contents: write
