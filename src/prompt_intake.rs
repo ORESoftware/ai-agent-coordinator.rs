@@ -210,12 +210,7 @@ pub fn build_dry_run_report(
         if !seen_sources.insert(source_identity.clone()) {
             return Err(PromptIntakeError::DuplicateSourceIdentity(source_identity));
         }
-        decisions.push(decide_prompt(
-            export,
-            prompt,
-            source_identity,
-            &catalog_index,
-        ));
+        decisions.push(decide_prompt(prompt, source_identity, &catalog_index));
     }
 
     decisions.sort_by(|left, right| {
@@ -257,7 +252,6 @@ pub fn build_dry_run_report(
 }
 
 fn decide_prompt(
-    export: &PromptExport,
     prompt: &PromptRecord,
     source_identity: String,
     catalog: &CatalogIndex,
@@ -290,10 +284,8 @@ fn decide_prompt(
     let linear_search_terms = linear_search_terms(&normalized, &repositories);
     let scope_signature = scope_signature(&normalized, &repositories);
     let mutation_key = sha256_hex(
-        format!(
-            "prompt-intake:v{SCHEMA_VERSION}:{source_identity}:{content_fingerprint}"
-        )
-        .as_bytes(),
+        format!("prompt-intake:v{SCHEMA_VERSION}:{source_identity}:{content_fingerprint}")
+            .as_bytes(),
     );
 
     PromptDecision {
@@ -414,7 +406,13 @@ fn linear_search_terms(normalized: &str, repositories: &[String]) -> Vec<String>
 fn scope_signature(normalized: &str, repositories: &[String]) -> String {
     let mut tokens = scope_tokens(normalized);
     tokens.extend(repositories.iter().map(|item| item.to_lowercase()));
-    sha256_hex(tokens.into_iter().collect::<Vec<_>>().join("\u{1f}").as_bytes())
+    sha256_hex(
+        tokens
+            .into_iter()
+            .collect::<Vec<_>>()
+            .join("\u{1f}")
+            .as_bytes(),
+    )
 }
 
 fn scope_tokens(normalized: &str) -> BTreeSet<String> {
@@ -445,7 +443,7 @@ fn duplicate_groups(decisions: &[PromptDecision]) -> Vec<DuplicateGroup> {
     grouped
         .into_iter()
         .filter_map(|(fingerprint, source_identities)| {
-            (source_identities.len() > 1).then(|| DuplicateGroup {
+            (source_identities.len() > 1).then_some(DuplicateGroup {
                 content_fingerprint: fingerprint.to_owned(),
                 source_identities,
             })
@@ -453,10 +451,7 @@ fn duplicate_groups(decisions: &[PromptDecision]) -> Vec<DuplicateGroup> {
         .collect()
 }
 
-fn refinement_groups(
-    export: &PromptExport,
-    decisions: &[PromptDecision],
-) -> Vec<RefinementGroup> {
+fn refinement_groups(export: &PromptExport, decisions: &[PromptDecision]) -> Vec<RefinementGroup> {
     let mut thread_by_source = BTreeMap::new();
     for prompt in &export.prompts {
         thread_by_source.insert(source_identity(export, prompt), prompt.thread_id.trim());
@@ -472,7 +467,10 @@ fn refinement_groups(
             continue;
         };
         grouped
-            .entry((sha256_hex(thread_id.as_bytes()), decision.scope_signature.clone()))
+            .entry((
+                sha256_hex(thread_id.as_bytes()),
+                decision.scope_signature.clone(),
+            ))
             .or_default()
             .push(decision);
     }
@@ -604,7 +602,10 @@ fn canonical_repository(repository: &str) -> String {
         .trim_end_matches('/')
         .trim_end_matches(".git")
         .trim_matches(|character: char| {
-            matches!(character, '`' | '"' | '\'' | ')' | ']' | '}' | ',' | ';' | ':')
+            matches!(
+                character,
+                '`' | '"' | '\'' | ')' | ']' | '}' | ',' | ';' | ':'
+            )
         })
         .to_owned()
 }
@@ -673,18 +674,15 @@ fn translation_regex() -> &'static Regex {
 fn secret_assignment_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
-        Regex::new(
-            r"(?i)\b(api[_ -]?key|password|private[_ -]?key|secret|token)\b\s*[:=]\s*\S+",
-        )
-        .expect("secret assignment regex must compile")
+        Regex::new(r"(?i)\b(api[_ -]?key|password|private[_ -]?key|secret|token)\b\s*[:=]\s*\S+")
+            .expect("secret assignment regex must compile")
     })
 }
 
 fn bearer_regex() -> &'static Regex {
     static REGEX: OnceLock<Regex> = OnceLock::new();
     REGEX.get_or_init(|| {
-        Regex::new(r"(?i)\bbearer\s+[a-z0-9._~+/=-]{8,}")
-            .expect("bearer regex must compile")
+        Regex::new(r"(?i)\bbearer\s+[a-z0-9._~+/=-]{8,}").expect("bearer regex must compile")
     })
 }
 
@@ -700,11 +698,51 @@ fn stop_words() -> &'static BTreeSet<&'static str> {
     static WORDS: OnceLock<BTreeSet<&'static str>> = OnceLock::new();
     WORDS.get_or_init(|| {
         [
-            "about", "after", "again", "also", "been", "before", "being", "branch",
-            "chat", "check", "could", "from", "have", "into", "issue", "linear", "make",
-            "more", "other", "please", "prompt", "pull", "repo", "repository", "should",
-            "that", "their", "them", "then", "there", "these", "they", "this", "thread",
-            "ticket", "tickets", "update", "using", "want", "with", "work",
+            "about",
+            "after",
+            "again",
+            "also",
+            "been",
+            "before",
+            "being",
+            "branch",
+            "chat",
+            "check",
+            "could",
+            "day",
+            "days",
+            "from",
+            "have",
+            "hour",
+            "hours",
+            "into",
+            "issue",
+            "linear",
+            "make",
+            "more",
+            "other",
+            "please",
+            "prompt",
+            "pull",
+            "repo",
+            "repository",
+            "should",
+            "that",
+            "their",
+            "them",
+            "then",
+            "there",
+            "these",
+            "they",
+            "this",
+            "thread",
+            "ticket",
+            "tickets",
+            "update",
+            "using",
+            "want",
+            "with",
+            "work",
         ]
         .into_iter()
         .collect()
@@ -751,7 +789,10 @@ mod tests {
 
     #[test]
     fn normalizes_whitespace_and_redacts_bounded_summaries() {
-        assert_eq!(normalize_prompt("  Build\n  the   thing  "), "build the thing");
+        assert_eq!(
+            normalize_prompt("  Build\n  the   thing  "),
+            "build the thing"
+        );
         let summary = bounded_summary(
             "Deploy with token=super-secret-value and Bearer abcdefghijklmnop plus ghp_abcdefghijklmnopqrstuvwxyz",
         );

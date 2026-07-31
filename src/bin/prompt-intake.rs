@@ -1,8 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use ai_agent_coordinator::prompt_intake::{
-    build_dry_run_report, ProjectCatalog, PromptExport,
-};
+use ai_agent_coordinator::prompt_intake::{build_dry_run_report, ProjectCatalog, PromptExport};
 use anyhow::{bail, Context};
 use chrono::{DateTime, Utc};
 use clap::{Parser, ValueEnum};
