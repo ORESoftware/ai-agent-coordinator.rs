@@ -1,0 +1,125 @@
+name: Fix DEN-877 sealed fleet payload
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/fix-den-877-fleet-payload.yml'
+      - 'repository-fleets/hypesiege-streempilot/**'
+      - 'repository-fleets/hypesiege-streempilot.json'
+      - 'scripts/publish_hypesiege_streempilot_fleet.py'
+      - 'scripts/reconstruct_hypesiege_streempilot_fleet.py'
+      - 'deploy/k8s/bootstrap/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-den-877-fleet-payload
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      (github.event_name != 'pull_request' || github.head_ref == 'agent/den-877-fleet-merge-repair')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact writable repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-877-fleet-merge-repair
+          fetch-depth: 0
+          persist-credentials: true
+          show-progress: false
+
+      - name: Bind the ledger to the reviewed six-part generator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          import gzip
+          import hashlib
+
+          payload_dir = Path('repository-fleets/hypesiege-streempilot')
+          parts = sorted(payload_dir.glob('generator.py.gz.b64.part-*'))
+          expected_names = [f'generator.py.gz.b64.part-{index:02d}' for index in range(6)]
+          actual_names = [path.name for path in parts]
+          if actual_names != expected_names:
+              raise SystemExit(f'unexpected sealed payload parts: {actual_names}')
+
+          encoded = ''.join(path.read_text().strip() for path in parts)
+          source = gzip.decompress(base64.b64decode(encoded, validate=True))
+          digest = hashlib.sha256(source).hexdigest()
+          reviewed_digest = 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84'
+          if digest != reviewed_digest:
+              raise SystemExit(f'reviewed generator digest changed: {digest}')
+          decoded = source.decode('utf-8')
+          for marker in ('def initialize_repo', 'hypesiege-monorepo', 'streempilot-monorepo'):
+              if marker not in decoded:
+                  raise SystemExit(f'reviewed generator is missing {marker!r}')
+
+          stale_digest = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
+          paths = [
+              Path('scripts/publish_hypesiege_streempilot_fleet.py'),
+              Path('scripts/reconstruct_hypesiege_streempilot_fleet.py'),
+              Path('repository-fleets/hypesiege-streempilot.json'),
+          ]
+          for path in paths:
+              text = path.read_text()
+              if text.count(stale_digest) != 1:
+                  raise SystemExit(f'{path}: expected exactly one stale digest')
+              path.write_text(text.replace(stale_digest, reviewed_digest, 1))
+          PY
+
+      - name: Remove the obsolete all-at-once Kubernetes publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
+          grep -Fq 'GITHUB_REPOSITORY_ADMIN_TOKEN' \
+            deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
+          grep -Fq 'python3 /mnt/data/hypesiege-streempilot-fleet/publish.py --execute' \
+            deploy/k8s/bootstrap/hypesiege-streempilot-bootstrap-job.yaml
+          test "$(find deploy/k8s/bootstrap -maxdepth 1 -type f | wc -l | tr -d ' ')" = '9'
+          rm -rf deploy/k8s/bootstrap
+
+      - name: Prove deterministic reconstruction and fail-closed publication
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+          python3 -m unittest -v scripts/test_publish_hypesiege_streempilot_fleet.py
+          test -z "$(git grep -l '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f' || true)"
+          test -z "$(git grep -l 'hypesiege-streempilot-bootstrap-job' || true)"
+          test -z "$(git grep -l 'hypesiege-streempilot-fleet/publish.py --execute' || true)"
+          git diff --check
+          if git grep -nE '^(<<<<<<< |=======|>>>>>>> )' -- \
+            repository-fleets/hypesiege-streempilot.json \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py; then
+            echo 'git conflict marker detected' >&2
+            exit 1
+          fi
+
+      - name: Remove this repair workflow and commit the semantic correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/fix-den-877-fleet-payload.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          test -z "$(git diff --cached --name-only | grep 'fix-den-877-fleet-payload.yml' || true)"
+          git diff --cached --name-status
+          git commit -m 'fix(DEN-877): bind fleet ledger to reviewed generator'
+          git push origin HEAD:agent/den-877-fleet-merge-repair
