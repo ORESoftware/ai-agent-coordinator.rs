@@ -1,0 +1,12 @@
+[package]
+name = "mb-clients"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Transport-neutral MemeBank Rust client behavior core"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dependencies]

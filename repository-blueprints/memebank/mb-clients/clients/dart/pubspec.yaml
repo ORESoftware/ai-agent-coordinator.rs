@@ -1,0 +1,6 @@
+name: mb_clients
+version: 0.1.0
+publish_to: none
+description: Transport-neutral MemeBank Dart client behavior core.
+environment:
+  sdk: '>=3.5.0 <4.0.0'
