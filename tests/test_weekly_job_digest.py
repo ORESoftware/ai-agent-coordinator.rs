@@ -20,24 +20,28 @@ SPEC.loader.exec_module(weekly)
 
 
 class WeeklyJobDigestTests(unittest.TestCase):
-    def test_dst_winter_and_summer_gate_at_nine_eastern(self) -> None:
+    def test_dst_winter_and_summer_gate_at_0917_eastern(self) -> None:
         winter = weekly.schedule_decision(
-            datetime(2026, 1, 5, 14, 30, tzinfo=timezone.utc)
+            datetime(2026, 1, 5, 14, 17, tzinfo=timezone.utc)
         )
         summer = weekly.schedule_decision(
-            datetime(2026, 7, 27, 13, 30, tzinfo=timezone.utc)
+            datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
         self.assertTrue(winter.due)
         self.assertTrue(summer.due)
-        self.assertEqual(winter.local_time.hour, 9)
-        self.assertEqual(summer.local_time.hour, 9)
+        self.assertEqual((winter.local_time.hour, winter.local_time.minute), (9, 17))
+        self.assertEqual((summer.local_time.hour, summer.local_time.minute), (9, 17))
         self.assertNotEqual(winter.local_time.utcoffset(), summer.local_time.utcoffset())
 
-    def test_non_due_hour_is_noop(self) -> None:
-        decision = weekly.schedule_decision(
-            datetime(2026, 7, 27, 12, 30, tzinfo=timezone.utc)
+    def test_non_due_hour_or_minute_is_noop(self) -> None:
+        wrong_hour = weekly.schedule_decision(
+            datetime(2026, 7, 27, 12, 17, tzinfo=timezone.utc)
         )
-        self.assertFalse(decision.due)
+        wrong_minute = weekly.schedule_decision(
+            datetime(2026, 7, 27, 13, 30, tzinfo=timezone.utc)
+        )
+        self.assertFalse(wrong_hour.due)
+        self.assertFalse(wrong_minute.due)
 
     def test_run_key_is_iso_week_and_force_keeps_same_identity(self) -> None:
         instant = datetime(2026, 7, 30, 12, 0, tzinfo=timezone.utc)
@@ -50,7 +54,7 @@ class WeeklyJobDigestTests(unittest.TestCase):
 
     def test_payload_is_discovery_only_and_routes_submission(self) -> None:
         decision = weekly.schedule_decision(
-            datetime(2026, 7, 27, 13, 5, tzinfo=timezone.utc)
+            datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
         payload = weekly.build_payload(decision.run_key, decision.local_time)
         inner = payload["payload"]
@@ -87,7 +91,7 @@ class WeeklyJobDigestTests(unittest.TestCase):
 
     def test_dry_run_redacts_bearer(self) -> None:
         decision = weekly.schedule_decision(
-            datetime(2026, 7, 27, 13, 5, tzinfo=timezone.utc)
+            datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
         payload = weekly.build_payload(decision.run_key, decision.local_time)
         plan = weekly.redacted_plan(
@@ -106,7 +110,7 @@ class WeeklyJobDigestTests(unittest.TestCase):
                             "--endpoint",
                             "https://coordinator.example.com",
                             "--now",
-                            "2026-07-27T13:05:00Z",
+                            "2026-07-27T13:17:00Z",
                             "--dry-run",
                         ]
                     )
@@ -146,7 +150,7 @@ class WeeklyJobDigestTests(unittest.TestCase):
                 return FakeResponse()
 
         decision = weekly.schedule_decision(
-            datetime(2026, 7, 27, 13, 5, tzinfo=timezone.utc)
+            datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
         payload = weekly.build_payload(decision.run_key, decision.local_time)
         fake = FakeOpener()
@@ -170,7 +174,7 @@ class WeeklyJobDigestTests(unittest.TestCase):
 
     def test_enqueue_rejects_empty_token_before_network(self) -> None:
         decision = weekly.schedule_decision(
-            datetime(2026, 7, 27, 13, 5, tzinfo=timezone.utc)
+            datetime(2026, 7, 27, 13, 17, tzinfo=timezone.utc)
         )
         payload = weekly.build_payload(decision.run_key, decision.local_time)
         with patch.object(weekly, "build_opener") as opener:
@@ -186,7 +190,7 @@ class WeeklyJobDigestTests(unittest.TestCase):
 
     def test_naive_now_is_rejected(self) -> None:
         with self.assertRaises(weekly.JobDigestError):
-            weekly.parse_instant("2026-07-27T09:00:00")
+            weekly.parse_instant("2026-07-27T09:17:00")
 
 
 if __name__ == "__main__":
