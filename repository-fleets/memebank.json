@@ -6,6 +6,7 @@
   "initialization": "readme",
   "live_creation_enabled": false,
   "deferred_repositories": [
+    ".github",
     "homebrew-memebank"
   ],
   "forbidden_repositories": [
@@ -14,72 +15,66 @@
   "repositories": [
     {
       "order": 1,
-      "name": ".github",
-      "visibility": null,
-      "description": "MemeBank organization profile, shared policies, templates, and reusable workflows."
-    },
-    {
-      "order": 2,
       "name": "mb-interfaces",
       "visibility": null,
       "description": "Versioned MemeBank OpenAPI, JSON Schema, event, provider, and compatibility contracts."
     },
     {
-      "order": 3,
+      "order": 2,
       "name": "mb-clients",
       "visibility": null,
       "description": "Generated and hand-written MemeBank SDKs with shared auth, retries, transfers, and conformance tests."
     },
     {
-      "order": 4,
+      "order": 3,
       "name": "mb-cli",
       "visibility": null,
       "description": "Rust MemeBank CLI built on mb-clients and oresoftware/flags-2-env."
     },
     {
-      "order": 5,
+      "order": 4,
       "name": "memebank-api-server.rs",
       "visibility": null,
       "description": "Rust Axum API, SeaORM persistence, ingestion, storage, search, jobs, and OpenAPI for MemeBank."
     },
     {
-      "order": 6,
+      "order": 5,
       "name": "memebank-web-server.rs",
       "visibility": null,
       "description": "Rust server-rendered MemeBank web application using Axum, Maud, HTMX, and shared-auth."
     },
     {
-      "order": 7,
+      "order": 6,
       "name": "memebank-flutter",
       "visibility": null,
       "description": "MemeBank Flutter applications for Android, iOS, macOS, Windows, and Linux."
     },
     {
-      "order": 8,
+      "order": 7,
       "name": "mb-infra",
       "visibility": null,
       "description": "Authoritative MemeBank Kubernetes and Argo CD app-of-apps GitOps control plane."
     },
     {
-      "order": 9,
+      "order": 8,
       "name": "memebank.github.io",
       "visibility": null,
       "description": "Astro marketing, documentation, privacy, support, and download site for MemeBank."
     },
     {
-      "order": 10,
+      "order": 9,
       "name": "memebank-mcp-server.rs",
       "visibility": null,
       "description": "Safe read-first Rust MCP server for MemeBank catalog, search, and diagnostics."
     },
     {
-      "order": 11,
+      "order": 10,
       "name": "memebank-e2e",
       "visibility": null,
       "description": "Cross-platform, provider-conformance, failure-injection, and release qualification for MemeBank."
     },
     {
-      "order": 12,
+      "order": 11,
       "name": "memebank-monorepo",
       "visibility": null,
       "description": "MemeBank cross-repository orchestration, pinned app gitlinks, release manifest, and validation."
