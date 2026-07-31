@@ -1,11 +1,8 @@
 pub mod app;
 pub mod config;
 pub mod db;
-<<<<<<< HEAD
-pub mod entity;
-=======
 pub mod email_attention;
->>>>>>> origin/agent/den-830-email-attention-agent
+pub mod entity;
 pub mod error;
 pub mod gateway;
 pub mod github_admin;

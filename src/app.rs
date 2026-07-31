@@ -395,6 +395,7 @@ async fn email_attention_status(
     let status = state
         .email_attention_agent
         .status()
+        .await
         .map_err(AppError::Internal)?;
     Ok(Json(json!({"email_attention": status})))
 }
