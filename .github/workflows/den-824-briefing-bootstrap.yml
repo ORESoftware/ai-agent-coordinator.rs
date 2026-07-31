@@ -7,6 +7,12 @@ on:
     paths:
       - '.github/den-824-briefing-payload.tar.xz.b64'
       - '.github/workflows/den-824-briefing-bootstrap.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/den-824-briefing-payload.tar.xz.b64'
+      - '.github/workflows/den-824-briefing-bootstrap.yml'
   workflow_dispatch:
 
 permissions:
