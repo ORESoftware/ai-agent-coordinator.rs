@@ -213,4 +213,4 @@ Code merge alone does not prove that external mailbox connectors or the final no
 
 ## SeaORM migration compatibility
 
-The storage boundary is isolated in `src/email_attention/store.rs`. If the coordinator's broader SQLite-to-SeaORM migration lands, preserve the email-attention table semantics, unique keys, transactional pending-delivery association, payload redaction after delivery, cursor preservation, and lease compare-and-swap behavior. Do not resolve that migration by dropping either side of the state model.
+The storage boundary is isolated in `src/email_attention/store/`, which is implemented on SeaORM/PostgreSQL against the canonical `ai_agent_coordinator` schema owned by `ORESoftware/k8s-libs-and-shared-defs`. The migration from the original SQLite store preserved the email-attention table semantics, unique keys, transactional pending-delivery association, payload redaction after delivery, cursor preservation, and lease compare-and-swap behavior. Any future storage change must continue to preserve both sides of that state model.
