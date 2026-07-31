@@ -1,0 +1,127 @@
+name: Repair DEN-877 deterministic fleet ledger
+
+on:
+  push:
+    branches:
+      - agent/den-877-fleet-merge-repair
+    paths:
+      - .github/workflows/den-877-fleet-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-877-fleet-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.actor == 'ORESoftware' &&
+      github.ref == 'refs/heads/agent/den-877-fleet-merge-repair'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-877-fleet-merge-repair
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Rebind the deterministic ledger to the preserved generator
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          old = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
+          new = 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84'
+          paths = [
+              Path('scripts/reconstruct_hypesiege_streempilot_fleet.py'),
+              Path('scripts/publish_hypesiege_streempilot_fleet.py'),
+          ]
+          for path in paths:
+              text = path.read_text(encoding='utf-8')
+              if text.count(old) != 1:
+                  raise SystemExit(f'{path}: expected exactly one old checksum binding')
+              path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          import importlib.util
+          import pathlib
+          import shutil
+
+          root = pathlib.Path.cwd()
+          module_path = root / 'scripts' / 'reconstruct_hypesiege_streempilot_fleet.py'
+          spec = importlib.util.spec_from_file_location('fleet_reconstructor', module_path)
+          if spec is None or spec.loader is None:
+              raise SystemExit('unable to load deterministic fleet reconstructor')
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          target = pathlib.Path('/tmp/den-877-reconstructed-fleet')
+          manifest = module.reconstruct(
+              root / 'repository-fleets' / 'hypesiege-streempilot',
+              target,
+          )
+          expected = {
+              'schema_version': 2,
+              'generator_sha256': 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84',
+              'repository_count': 32,
+              'total_tracked_files': 888,
+              'total_gitlinks': 30,
+              'organizations': {'hypesiege': 15, 'streempilot': 17},
+          }
+          for key, value in expected.items():
+              if manifest.get(key) != value:
+                  raise SystemExit(f'manifest {key} drift: {manifest.get(key)!r} != {value!r}')
+          shutil.copyfile(
+              target / 'MANIFEST.json',
+              root / 'repository-fleets' / 'hypesiege-streempilot.json',
+          )
+          PY
+
+      - name: Validate the complete semantic reconciliation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+          python -m unittest -v scripts/test_publish_hypesiege_streempilot_fleet.py
+          python scripts/publish_hypesiege_streempilot_fleet.py \
+            --repository hypesiege/hypesiege-api-server.rs >/tmp/hypesiege-plan.json
+          python scripts/publish_hypesiege_streempilot_fleet.py \
+            --repository streempilot/streempilot-monorepo >/tmp/streempilot-plan.json
+          git diff --check
+
+      - name: Commit only the deterministic repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            repository-fleets/hypesiege-streempilot.json
+          actual="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            repository-fleets/hypesiege-streempilot.json \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py | sort)"
+          test "$actual" = "$expected"
+          git config user.name 'ORESoftware'
+          git config user.email '11139560+ORESoftware@users.noreply.github.com'
+          git commit -m 'fix: bind fleet ledger to preserved generator payload'
+          git push origin HEAD:agent/den-877-fleet-merge-repair
