@@ -1,4 +1,5 @@
 name: Temporary DEN-877 semantic repair
+# Retriggered after adding the caller-owned checksum-output rewrite.
 
 on:
   pull_request:
