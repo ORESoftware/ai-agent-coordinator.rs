@@ -1,5 +1,10 @@
 use super::*;
 
+use super::classification::{
+    optional_env_name, read_bool_env, read_i64_env, read_secret_env, read_u32_env, read_u64_env,
+    read_usize_env, validate_safe_endpoint, validate_sources,
+};
+
 impl Settings {
     pub(super) fn from_env() -> Result<Self> {
         let enabled = read_bool_env(ENABLED_ENV, false)?;
