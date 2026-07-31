@@ -92,14 +92,29 @@ def git_environment() -> dict[str, str]:
 
 
 def amend_root_commit(repository: pathlib.Path) -> str:
-    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":
-        raise ReconstructionError(f"{repository} must contain exactly one source commit")
-    run(
-        ["git", "commit", "--amend", "--no-edit", "--reset-author"],
+    count_text = run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip()
+    if not count_text.isdigit() or int(count_text) < 1:
+        raise ReconstructionError(f"{repository} has no source history to seal")
+    message = run(["git", "log", "-1", "--format=%B", "HEAD"], cwd=repository)
+    tree = run(["git", "write-tree"], cwd=repository).strip()
+    completed = subprocess.run(
+        ["git", "commit-tree", tree],
         cwd=repository,
         env=git_environment(),
+        check=False,
+        text=True,
+        input=message,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
     )
-    return run(["git", "rev-parse", "HEAD"], cwd=repository).strip()
+    if completed.returncode != 0:
+        detail = (completed.stderr or completed.stdout).strip()[:4096]
+        raise ReconstructionError(f"git commit-tree failed: {detail}")
+    commit = completed.stdout.strip()
+    if not commit:
+        raise ReconstructionError(f"{repository} produced an empty sealed commit id")
+    run(["git", "reset", "--hard", commit], cwd=repository)
+    return commit
 
 
 def write_gitmodules(
