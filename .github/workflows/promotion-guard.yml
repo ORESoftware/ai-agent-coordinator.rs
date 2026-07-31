@@ -50,14 +50,14 @@ jobs:
             spec.dig('strategy', 'type') == 'Recreate' &&
             resources.include?('pvc.yaml')
 
-          next unless sqlite_contract
+          if sqlite_contract
+            oci = File.read('.github/workflows/oci.yml')
+            abort 'SQLite deployment must not have an automatic deployment-pr job' if oci.match?(/^  deployment-pr:/)
+            abort 'SQLite deployment must not let OCI automation create pull requests' if oci.include?('gh pr create')
+            abort 'SQLite deployment must not let OCI automation rewrite the deployment manifest' if oci.include?('git add deploy/k8s/deployment.yaml')
 
-          oci = File.read('.github/workflows/oci.yml')
-          abort 'SQLite deployment must not have an automatic deployment-pr job' if oci.match?(/^  deployment-pr:/)
-          abort 'SQLite deployment must not let OCI automation create pull requests' if oci.include?('gh pr create')
-          abort 'SQLite deployment must not let OCI automation rewrite the deployment manifest' if oci.include?('git add deploy/k8s/deployment.yaml')
-
-          rollout = File.read('docs/postgres-rollout.md')
-          abort 'rollout contract must identify DEN-1073' unless rollout.include?('DEN-1073')
-          abort 'rollout contract must prohibit image-only promotion' unless rollout.downcase.include?('image-only')
+            rollout = File.read('docs/postgres-rollout.md')
+            abort 'rollout contract must identify DEN-1073' unless rollout.include?('DEN-1073')
+            abort 'rollout contract must prohibit image-only promotion' unless rollout.downcase.include?('image-only')
+          end
           RUBY
