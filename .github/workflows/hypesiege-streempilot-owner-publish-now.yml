@@ -1,0 +1,40 @@
+name: Publish complete HypeSiege and StreemPilot fleet with owner authorization
+
+on:
+  push:
+    branches:
+      - agent/hypesiege-streempilot-live-publish-20260731
+    paths:
+      - .github/workflows/hypesiege-streempilot-owner-publish-now.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  statuses: write
+
+concurrency:
+  group: hypesiege-streempilot-owner-publish-${{ github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out sealed fleet publisher
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Authorize ORESoftware and publish all 32 repositories
+        shell: bash
+        env:
+          GH_CONFIG_DIR: ${{ runner.temp }}/hypesiege-streempilot-owner-gh-config
+          PR_URL: https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/35
+          PR_AUTHOR: ORESoftware
+          PR_HEAD_REPO: ORESoftware/ai-agent-coordinator.rs
+          PR_HEAD_REF: agent/hypesiege-streempilot-live-publish-20260731
+          PR_HEAD_SHA: ${{ github.sha }}
+          COMMENT_TOKEN: ${{ github.token }}
+          EXPECTED_LOGIN: ORESoftware
+        run: bash .github/hypesiege-streempilot-device-publish.sh
