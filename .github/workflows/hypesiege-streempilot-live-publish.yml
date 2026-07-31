@@ -42,6 +42,32 @@ jobs:
             | gzip --decompress > /tmp/generate_hypesiege_streempilot.py
           python3 -m py_compile /tmp/generate_hypesiege_streempilot.py
           python3 /tmp/generate_hypesiege_streempilot.py
+
+          # The sealed generator used single escaped newlines inside an outer
+          # triple-quoted source template, which materialized three physical
+          # lines inside one single-quoted Python literal. Repair exactly that
+          # transport defect without changing repository contents or commits.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('/mnt/data/hypesiege-streempilot-fleet/publish.py')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          expected = [
+              "        askpass.write_text('#!/bin/sh",
+              "case \"$1\" in *Username*) echo x-access-token;; *) echo \"$GITHUB_REPOSITORY_ADMIN_TOKEN\";; esac",
+              "')",
+          ]
+          if lines[70:73] != expected:
+              raise SystemExit(f'unexpected publisher transport defect: {lines[70:73]!r}')
+          lines[70:73] = [
+              '        askpass.write_text(',
+              "            '#!/bin/sh\\ncase \"$1\" in *Username*) echo x-access-token;; *) echo \"$GITHUB_REPOSITORY_ADMIN_TOKEN\";; esac\\n'",
+              '        )',
+          ]
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+
+          python3 -m py_compile /mnt/data/hypesiege-streempilot-fleet/publish.py
           python3 /mnt/data/hypesiege-streempilot-fleet/publish.py
           test "$(git -C /mnt/data/hypesiege-streempilot-fleet/hypesiege/hypesiege-monorepo ls-files --stage apps | awk '$1 == 160000 {count++} END {print count+0}')" = 14
           test "$(git -C /mnt/data/hypesiege-streempilot-fleet/streempilot/streempilot-monorepo ls-files --stage apps | awk '$1 == 160000 {count++} END {print count+0}')" = 16
