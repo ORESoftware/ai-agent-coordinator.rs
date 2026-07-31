@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.memebank.dev/v1/enrichment-observation.schema.json",
+  "title": "MemeBank v1 attributed enrichment observation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "observation_id",
+    "asset_id",
+    "variant_id",
+    "kind",
+    "status",
+    "provenance",
+    "payload",
+    "created_at"
+  ],
+  "properties": {
+    "observation_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "asset_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "variant_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    },
+    "kind": {
+      "type": "string",
+      "enum": ["ocr_span", "object", "label", "scene", "caption", "moderation", "embedding"]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["generated", "confirmed", "rejected", "superseded"]
+    },
+    "provenance": {
+      "$ref": "common.schema.json#/$defs/Provenance"
+    },
+    "locale": {
+      "type": "string",
+      "pattern": "^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$",
+      "maxLength": 35
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "bounds": {
+      "$ref": "common.schema.json#/$defs/BoundingPolygon"
+    },
+    "payload": {
+      "oneOf": [
+        {"$ref": "#/$defs/OcrPayload"},
+        {"$ref": "#/$defs/LabelPayload"},
+        {"$ref": "#/$defs/CaptionPayload"},
+        {"$ref": "#/$defs/ModerationPayload"},
+        {"$ref": "#/$defs/EmbeddingPayload"}
+      ]
+    },
+    "created_at": {
+      "$ref": "common.schema.json#/$defs/Timestamp"
+    },
+    "supersedes_observation_id": {
+      "$ref": "common.schema.json#/$defs/Uuid"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"kind": {"const": "ocr_span"}}},
+      "then": {"properties": {"payload": {"$ref": "#/$defs/OcrPayload"}}}
+    },
+    {
+      "if": {"properties": {"kind": {"enum": ["object", "label", "scene"]}}},
+      "then": {"properties": {"payload": {"$ref": "#/$defs/LabelPayload"}}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "caption"}}},
+      "then": {"properties": {"payload": {"$ref": "#/$defs/CaptionPayload"}}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "moderation"}}},
+      "then": {"properties": {"payload": {"$ref": "#/$defs/ModerationPayload"}}}
+    },
+    {
+      "if": {"properties": {"kind": {"const": "embedding"}}},
+      "then": {"properties": {"payload": {"$ref": "#/$defs/EmbeddingPayload"}}}
+    }
+  ],
+  "$defs": {
+    "OcrPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload_kind", "text", "reading_order"],
+      "properties": {
+        "payload_kind": {"const": "ocr"},
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 20000
+        },
+        "reading_order": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "LabelPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload_kind", "raw_label", "normalized_tag"],
+      "properties": {
+        "payload_kind": {"const": "label"},
+        "raw_label": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 500
+        },
+        "normalized_tag": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[._-][a-z0-9]+)*$",
+          "maxLength": 120
+        }
+      }
+    },
+    "CaptionPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload_kind", "text"],
+      "properties": {
+        "payload_kind": {"const": "caption"},
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 8000
+        }
+      }
+    },
+    "ModerationPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload_kind", "category", "severity"],
+      "properties": {
+        "payload_kind": {"const": "moderation"},
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["none", "low", "medium", "high", "unknown"]
+        }
+      }
+    },
+    "EmbeddingPayload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "payload_kind",
+        "space",
+        "model",
+        "model_revision",
+        "dimension",
+        "metric",
+        "vector_reference"
+      ],
+      "properties": {
+        "payload_kind": {"const": "embedding"},
+        "space": {
+          "type": "string",
+          "enum": ["native_visual", "ocr_text", "caption_text", "tag_text"]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        },
+        "model_revision": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "dimension": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65536
+        },
+        "metric": {
+          "type": "string",
+          "enum": ["cosine", "inner_product", "l2"]
+        },
+        "vector_reference": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,300}$"
+        },
+        "source_text_digest": {
+          "$ref": "common.schema.json#/$defs/Digest"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "space": {
+                "enum": ["ocr_text", "caption_text", "tag_text"]
+              }
+            }
+          },
+          "then": {
+            "required": ["source_text_digest"]
+          }
+        }
+      ]
+    }
+  }
+}
