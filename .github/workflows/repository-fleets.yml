@@ -228,11 +228,31 @@ jobs:
                   raise ReconstructionError("generator archive-output contract changed")
               archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")
               source = source.replace(archive_literal, archive_replacement)
+
+              checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"
+              if checksum_literal not in source:
+                  raise ReconstructionError("generator checksum-output contract changed")
+              checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")
+              source = source.replace(checksum_literal, checksum_replacement)
           '''
           if old_relocation in reconstructor:
               reconstructor = reconstructor.replace(old_relocation, new_relocation, 1)
-          elif "generator archive-output contract changed" not in reconstructor:
+          elif "generator checksum-output contract changed" not in reconstructor:
               raise SystemExit("reconstructor output-relocation block drifted")
+
+          old_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+              stale_archive.unlink(missing_ok=True)
+              stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)
+          '''
+          new_cleanup = '''    stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+              stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
+              stale_archive.unlink(missing_ok=True)
+              stale_checksum.unlink(missing_ok=True)
+          '''
+          if old_cleanup in reconstructor:
+              reconstructor = reconstructor.replace(old_cleanup, new_cleanup, 1)
+          elif "stale_checksum = output_root.parent" not in reconstructor:
+              raise SystemExit("reconstructor generated-artifact cleanup block drifted")
           reconstructor_path.write_text(reconstructor, encoding="utf-8")
 
           docs_path = Path("docs/hypesiege-streempilot-repository-publication.md")
