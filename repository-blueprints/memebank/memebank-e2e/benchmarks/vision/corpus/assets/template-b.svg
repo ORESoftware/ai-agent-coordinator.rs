@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360" viewBox="0 0 640 360">
+  <rect width="640" height="360" fill="#1d4ed8"/>
+  <rect x="120" y="90" width="400" height="180" rx="32" fill="#bfdbfe"/>
+  <text x="320" y="72" text-anchor="middle" font-family="Impact, sans-serif" font-size="42" fill="#ffffff" stroke="#000000" stroke-width="3" paint-order="stroke">WHEN THE CACHE HITS</text>
+  <text x="320" y="330" text-anchor="middle" font-family="Impact, sans-serif" font-size="38" fill="#ffffff" stroke="#000000" stroke-width="3" paint-order="stroke">AND THE INDEX AGREES</text>
+</svg>

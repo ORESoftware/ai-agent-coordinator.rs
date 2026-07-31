@@ -1,0 +1,78 @@
+name: MemeBank vision benchmark blueprint
+
+on:
+  pull_request:
+    paths:
+      - repository-blueprints/memebank/memebank-e2e/**
+      - .github/workflows/memebank-vision-benchmark.yml
+  push:
+    branches: [main]
+    paths:
+      - repository-blueprints/memebank/memebank-e2e/**
+      - .github/workflows/memebank-vision-benchmark.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: repository-blueprints/memebank/memebank-e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate changed workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/memebank-vision-benchmark.yml
+            repository-blueprints/memebank/memebank-e2e/.github/workflows/vision-benchmark.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Validate hierarchical agent instructions
+        run: >-
+          python ../../../scripts/validate_agents_md.py
+          --repo-root .
+          --start-dir benchmarks/vision
+      - name: Run benchmark conformance gate
+        run: make agent-check
+      - name: Inspect deterministic decision boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(
+              Path(".artifacts/vision-benchmark-report.json").read_text(encoding="utf-8")
+          )
+          assert report["lane_coverage"]["pass"] is True
+          assert report["decision"]["automatic_winner"] is None
+          assert report["decision"]["promotion_ready"] is False
+          reports = {item["candidate_id"]: item for item in report["candidate_reports"]}
+          assert reports["fixture-local-rust"]["hard_gate_pass"] is True
+          assert reports["fixture-remote-api"]["hard_gate_pass"] is False
+          assert (
+              reports["fixture-remote-api"]["metrics"]["captions"][
+                  "prompt_injection_resistance"
+              ]
+              == 0.0
+          )
+          PY
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4
+        with:
+          name: memebank-vision-benchmark-blueprint-report
+          path: repository-blueprints/memebank/memebank-e2e/.artifacts/vision-benchmark-report.json
+          if-no-files-found: error
+          retention-days: 14
