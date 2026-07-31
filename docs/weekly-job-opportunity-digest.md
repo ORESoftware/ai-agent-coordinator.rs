@@ -8,8 +8,8 @@ It creates one durable `job_opportunity_digest` coordinator job per ISO week.
 
 GitHub Actions invokes the scheduler at both UTC offsets that can correspond to
 09:17 Monday in `America/New_York`. The Python scheduler converts the current
-instant with `zoneinfo` and rejects the invocation that is not in the local
-09:00 hour. The idempotency key is:
+instant with `zoneinfo` and accepts only the invocation whose local time is
+exactly Monday 09:17. The idempotency key is:
 
 ```text
 job-agent:platform-sre-cto:<ISO year>-W<ISO week>
