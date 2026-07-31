@@ -27,6 +27,7 @@ TIME_ZONE_NAME = "America/New_York"
 TIME_ZONE = ZoneInfo(TIME_ZONE_NAME)
 TARGET_WEEKDAY = 0  # Monday
 TARGET_HOUR = 9
+TARGET_MINUTE = 17
 DEFAULT_TOKEN_ENV = "AI_AGENT_COORDINATOR_API_TOKEN"
 DEFAULT_ENDPOINT_ENV = "AI_AGENT_COORDINATOR_URL"
 MAX_RESPONSE_BYTES = 1_048_576
@@ -79,7 +80,9 @@ def schedule_decision(now: datetime, force: bool = False) -> ScheduleDecision:
     iso_year, iso_week, _ = local_time.isocalendar()
     run_key = f"job-agent:platform-sre-cto:{iso_year}-W{iso_week:02d}"
     due = force or (
-        local_time.weekday() == TARGET_WEEKDAY and local_time.hour == TARGET_HOUR
+        local_time.weekday() == TARGET_WEEKDAY
+        and local_time.hour == TARGET_HOUR
+        and local_time.minute == TARGET_MINUTE
     )
     return ScheduleDecision(due=due, local_time=local_time, run_key=run_key)
 
@@ -306,7 +309,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--force",
         action="store_true",
-        help="Bypass the Monday 09:00 America/New_York scheduler gate.",
+        help="Bypass the Monday 09:17 America/New_York scheduler gate.",
     )
     result.add_argument(
         "--dry-run",
@@ -338,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
                         "status": "not_due",
                         "run_key": decision.run_key,
                         "local_time": decision.local_time.isoformat(),
-                        "required_local_time": "Monday 09:00 America/New_York",
+                        "required_local_time": "Monday 09:17 America/New_York",
                     },
                     sort_keys=True,
                 )
