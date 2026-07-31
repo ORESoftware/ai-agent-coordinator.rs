@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import socket
 import sys
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from http.client import HTTPResponse
@@ -30,8 +32,29 @@ TARGET_HOUR = 9
 TARGET_MINUTE = 17
 DEFAULT_TOKEN_ENV = "AI_AGENT_COORDINATOR_API_TOKEN"
 DEFAULT_ENDPOINT_ENV = "AI_AGENT_COORDINATOR_URL"
+DEFAULT_PROFILE_ENV = "AI_AGENT_JOB_PROFILE_JSON"
 MAX_RESPONSE_BYTES = 1_048_576
+MAX_PROFILE_BYTES = 32_768
+MAX_PROFILE_DEPTH = 8
 ENV_NAME_RE = re.compile(r"^[A-Z_][A-Z0-9_]*$")
+FORBIDDEN_PROFILE_KEYS = {
+    "api_key",
+    "api_token",
+    "bank_account",
+    "card_number",
+    "credit_card",
+    "mfa_code",
+    "one_time_password",
+    "otp",
+    "passphrase",
+    "password",
+    "private_key",
+    "routing_number",
+    "secret",
+    "social_security_number",
+    "ssn",
+    "token",
+}
 
 
 class JobDigestError(RuntimeError):
@@ -112,7 +135,67 @@ def validate_endpoint(raw: str) -> str:
     return value.rstrip("/")
 
 
-def build_payload(run_key: str, local_time: datetime) -> dict[str, Any]:
+def _normalized_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", key.lower()).strip("_")
+
+
+def _validate_profile_value(value: Any, path: str, depth: int) -> None:
+    if depth > MAX_PROFILE_DEPTH:
+        raise JobDigestError("candidate profile exceeds the nesting limit")
+    if isinstance(value, dict):
+        if len(value) > 100:
+            raise JobDigestError("candidate profile object exceeds the field limit")
+        for key, nested in value.items():
+            if not isinstance(key, str) or not key or len(key) > 100:
+                raise JobDigestError("candidate profile contains an invalid field name")
+            if _normalized_key(key) in FORBIDDEN_PROFILE_KEYS:
+                raise JobDigestError("candidate profile contains a prohibited sensitive field")
+            _validate_profile_value(nested, f"{path}.{key}", depth + 1)
+        return
+    if isinstance(value, list):
+        if len(value) > 200:
+            raise JobDigestError("candidate profile list exceeds the item limit")
+        for index, nested in enumerate(value):
+            _validate_profile_value(nested, f"{path}[{index}]", depth + 1)
+        return
+    if isinstance(value, str):
+        if len(value) > 4096:
+            raise JobDigestError("candidate profile contains an oversized string")
+        return
+    if isinstance(value, float) and not math.isfinite(value):
+        raise JobDigestError("candidate profile contains a non-finite number")
+    if value is None or isinstance(value, (bool, int, float)):
+        return
+    raise JobDigestError(f"candidate profile contains an unsupported value at {path}")
+
+
+def load_candidate_profile(raw: str) -> dict[str, Any]:
+    if not raw:
+        raise JobDigestError("protected candidate profile is not configured")
+    if len(raw.encode("utf-8")) > MAX_PROFILE_BYTES:
+        raise JobDigestError("candidate profile exceeds the size limit")
+    try:
+        profile = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise JobDigestError("candidate profile is not valid JSON") from exc
+    if not isinstance(profile, dict):
+        raise JobDigestError("candidate profile must be a JSON object")
+    _validate_profile_value(profile, "candidate_profile", 0)
+    target_roles = profile.get("target_roles")
+    if (
+        not isinstance(target_roles, list)
+        or not target_roles
+        or any(not isinstance(role, str) or not role.strip() for role in target_roles)
+    ):
+        raise JobDigestError("candidate profile must contain non-empty target_roles")
+    return profile
+
+
+def build_payload(
+    run_key: str,
+    local_time: datetime,
+    candidate_profile: dict[str, Any],
+) -> dict[str, Any]:
     return {
         "org": "ORESoftware",
         "repo": "ai-agent-coordinator.rs",
@@ -130,38 +213,7 @@ def build_payload(run_key: str, local_time: datetime) -> dict[str, Any]:
                 "browser_application_issue": "DEN-256",
                 "browser_pilot_issue": "DEN-395",
             },
-            "candidate_profile": {
-                "target_roles": [
-                    "Platform Engineer",
-                    "Site Reliability Engineer",
-                    "Cloud Infrastructure Engineer",
-                    "Developer Platform Engineer",
-                    "CTO",
-                ],
-                "skills": [
-                    "SDKs",
-                    "developer tooling",
-                    "observability",
-                    "Node.js",
-                    "TypeScript",
-                    "Next.js",
-                    "Python",
-                    "Rust",
-                    "Go",
-                    "PostgreSQL",
-                    "Docker",
-                    "Kubernetes",
-                    "AWS",
-                    "GCP",
-                ],
-                "work_authorization": {
-                    "country": "United States",
-                    "citizen": True,
-                    "sponsorship_required": False,
-                },
-                "preferred_arrangement": ["United States remote", "full-time"],
-                "compensation_target_usd": 175000,
-            },
+            "candidate_profile": deepcopy(candidate_profile),
             "volume_boundary": {
                 "requested_range": {"minimum": 150, "maximum": 350},
                 "automatic_submission": False,
@@ -219,12 +271,14 @@ def build_payload(run_key: str, local_time: datetime) -> dict[str, Any]:
 
 
 def redacted_plan(endpoint: str, run_key: str, payload: dict[str, Any]) -> dict[str, Any]:
+    safe_payload = deepcopy(payload)
+    safe_payload["payload"]["candidate_profile"] = {"redacted": True}
     return {
         "status": "dry_run",
         "endpoint": f"{endpoint}/v1/jobs",
         "idempotency_key": run_key,
         "authorization": "Bearer [REDACTED]",
-        "request": payload,
+        "request": safe_payload,
     }
 
 
@@ -303,6 +357,11 @@ def parser() -> argparse.ArgumentParser:
         help="Name of the environment variable containing the bearer token.",
     )
     result.add_argument(
+        "--profile-env",
+        default=DEFAULT_PROFILE_ENV,
+        help="Name of the environment variable containing protected profile JSON.",
+    )
+    result.add_argument(
         "--now",
         help="ISO-8601 time override for deterministic validation.",
     )
@@ -314,7 +373,7 @@ def parser() -> argparse.ArgumentParser:
     result.add_argument(
         "--dry-run",
         action="store_true",
-        help="Print the redacted request without making a network call.",
+        help="Print a profile-redacted request without making a network call.",
     )
     result.add_argument(
         "--timeout-seconds",
@@ -332,8 +391,8 @@ def main(argv: list[str] | None = None) -> int:
             raise JobDigestError("--timeout-seconds must be between 1 and 30")
         endpoint = validate_endpoint(args.endpoint)
         token_env = validate_env_name(args.token_env)
+        profile_env = validate_env_name(args.profile_env)
         decision = schedule_decision(parse_instant(args.now), force=args.force)
-        payload = build_payload(decision.run_key, decision.local_time)
         if not decision.due:
             print(
                 json.dumps(
@@ -347,6 +406,12 @@ def main(argv: list[str] | None = None) -> int:
                 )
             )
             return 0
+        candidate_profile = load_candidate_profile(os.environ.get(profile_env, ""))
+        payload = build_payload(
+            decision.run_key,
+            decision.local_time,
+            candidate_profile,
+        )
         if args.dry_run:
             result = redacted_plan(endpoint, decision.run_key, payload)
         else:
