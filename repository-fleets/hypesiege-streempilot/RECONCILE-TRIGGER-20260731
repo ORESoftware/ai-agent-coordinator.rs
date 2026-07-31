@@ -1,0 +1,2 @@
+This temporary marker triggers the existing fail-closed DEN-877 reconciliation job.
+Delete it after the reconciliation commit lands so the final validation runs on the clean tree.
