@@ -96,10 +96,11 @@ jobs:
           rm -f \
             .github/workflows/den-877-final-reconciliation-v2.yml \
             .github/workflows/den-877-multicommit-sealer-hotfix.yml
+          test ! -e .github/workflows/den-877-final-reconciliation-v2.yml
+          test ! -e .github/workflows/den-877-multicommit-sealer-hotfix.yml
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
           git diff --cached --check
-          test -z "$(git diff --cached --name-only | grep 'den-877-.*sealer\|den-877-final-reconciliation-v2' || true)"
           git commit -m 'fix(DEN-877): deterministically seal generated trees'
           git push origin HEAD:agent/den-877-final-reconciliation-v2
