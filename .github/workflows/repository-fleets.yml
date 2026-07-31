@@ -147,7 +147,8 @@ jobs:
             echo 'conflict markers found' >&2
             exit 1
           fi
-          if grep -RInE 'HYPESIEGE_REPOSITORY_ADMIN_TOKEN|STREEMPILOT_REPOSITORY_ADMIN_TOKEN' \
+          credential_pattern='HYPESIEGE_REPOSITORY_ADMIN_''TOKEN|STREEMPILOT_REPOSITORY_ADMIN_''TOKEN'
+          if grep -RInE "$credential_pattern" \
             .github/workflows/repository-fleets.yml \
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/test_publish_hypesiege_streempilot_fleet.py; then
