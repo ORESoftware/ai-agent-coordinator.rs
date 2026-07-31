@@ -2,3 +2,6 @@
 .env
 coordinator.yaml
 .DS_Store
+
+__pycache__/
+*.py[cod]

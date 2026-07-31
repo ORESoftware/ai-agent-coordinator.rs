@@ -1,0 +1,73 @@
+name: Repository fleet manifests
+
+on:
+  pull_request:
+    paths:
+      - repository-fleets/**
+      - scripts/render_repository_fleet.py
+      - scripts/test_render_repository_fleet.py
+      - docs/memebank-repository-bootstrap.md
+      - .github/workflows/repository-fleets.yml
+  push:
+    branches: [main]
+    paths:
+      - repository-fleets/**
+      - scripts/render_repository_fleet.py
+      - scripts/test_render_repository_fleet.py
+      - docs/memebank-repository-bootstrap.md
+      - .github/workflows/repository-fleets.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  memebank:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile repository-fleet tools
+        run: |
+          python -m py_compile \
+            scripts/render_repository_fleet.py \
+            scripts/test_render_repository_fleet.py
+      - name: Run repository-fleet tests
+        run: python -m unittest -v scripts/test_render_repository_fleet.py
+      - name: Prove the checked-in MemeBank fleet remains fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_repository_fleet.py \
+            --manifest repository-fleets/memebank.json \
+            --mode plan > memebank-plan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(
+              Path("repository-fleets/memebank.json").read_text(encoding="utf-8")
+          )
+          plan = json.loads(Path("memebank-plan.json").read_text(encoding="utf-8"))
+          assert plan["organization"] == "memebank"
+          assert plan["tracking_issue"] == "DEN-1043"
+          assert plan["ready_for_dry_run"] is False
+          assert plan["ready_for_live"] is False
+          assert len(plan["blockers"]) == 11
+          assert ".github" in manifest["deferred_repositories"]
+          assert all(
+              repository["full_name"] != "memebank/.github"
+              for repository in plan["repositories"]
+          )
+          assert plan["repositories"][0]["full_name"] == "memebank/mb-interfaces"
+          assert plan["repositories"][-1]["full_name"] == "memebank/memebank-monorepo"
+          PY

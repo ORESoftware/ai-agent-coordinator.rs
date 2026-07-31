@@ -7,12 +7,9 @@ metadata:
     app.kubernetes.io/name: ai-agent-coordinator
     app.kubernetes.io/part-of: oresoftware-agent-platform
 spec:
-  replicas: 2
+  replicas: 1
   strategy:
-    type: RollingUpdate
-    rollingUpdate:
-      maxUnavailable: 0
-      maxSurge: 1
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: ai-agent-coordinator
@@ -34,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: coordinator
-          image: ghcr.io/oresoftware/ai-agent-coordinator:sha-d737ce98fbb6f7c82fae598e8938050685633e05
+          image: ghcr.io/oresoftware/ai-agent-coordinator:sha-41c2d80bbd4412df3ca2d9448401c19fa23985a3
           imagePullPolicy: IfNotPresent
           args:
             - --config
@@ -106,4 +103,11 @@ spec:
             capabilities:
               drop:
                 - ALL
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: ai-agent-coordinator-data
       terminationGracePeriodSeconds: 30

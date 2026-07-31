@@ -50,7 +50,8 @@ jobs:
           resources = actual_files.flat_map do |name|
             YAML.load_stream(File.read(File.join(root, name))).compact
           end
-          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy Service ServiceAccount]
+          abort 'ServiceAccount is platform-owned and must not be rendered by the application kustomization' if resources.any? { |resource| resource['kind'] == 'ServiceAccount' }
+          allowed_kinds = %w[ConfigMap CronJob Deployment ExternalSecret NetworkPolicy PersistentVolumeClaim Service]
           resources.each do |resource|
             kind = resource.fetch('kind')
             abort "cluster-scoped or unexpected kind #{kind}" unless allowed_kinds.include?(kind)
@@ -61,15 +62,11 @@ jobs:
 
           deployment = resources.find { |resource| resource['kind'] == 'Deployment' } or abort 'Deployment missing'
           spec = deployment.fetch('spec')
-          abort 'PostgreSQL-backed Deployment must run two replicas' unless spec['replicas'] == 2
-          abort 'Deployment must use RollingUpdate' unless spec.dig('strategy', 'type') == 'RollingUpdate'
-          abort 'rolling update must preserve availability' unless spec.dig('strategy', 'rollingUpdate') == {'maxUnavailable' => 0, 'maxSurge' => 1}
+          abort 'Deployment must remain single-replica' unless spec['replicas'] == 1
+          abort 'SQLite Deployment must use Recreate' unless spec.dig('strategy', 'type') == 'Recreate'
           pod_spec = spec.dig('template', 'spec')
           abort 'service account token must not be mounted' unless pod_spec['automountServiceAccountToken'] == false
           abort 'wrong tenant service account' unless pod_spec['serviceAccountName'] == 'ai-agent-coordinator'
-          service_account = resources.find { |resource| resource['kind'] == 'ServiceAccount' } or abort 'ServiceAccount missing'
-          abort 'wrong ServiceAccount name' unless service_account.dig('metadata', 'name') == 'ai-agent-coordinator'
-          abort 'ServiceAccount token automount must be disabled' unless service_account['automountServiceAccountToken'] == false
           network_policy = resources.find { |resource| resource['kind'] == 'NetworkPolicy' } or abort 'NetworkPolicy missing'
           abort 'coordinator NetworkPolicy must enforce ingress and egress' unless network_policy.dig('spec', 'policyTypes') == %w[Ingress Egress]
           container = pod_spec.fetch('containers').find { |entry| entry['name'] == 'coordinator' } or abort 'coordinator container missing'
@@ -97,8 +94,7 @@ jobs:
           abort 'unexpected secret store' unless external_secret.dig('spec', 'secretStoreRef', 'kind') == 'ClusterSecretStore' && external_secret.dig('spec', 'secretStoreRef', 'name') == 'dd-cluster-secrets'
           abort 'ExternalSecret target mismatch' unless external_secret.dig('spec', 'target', 'name') == 'ai-agent-coordinator-core'
           secret_keys = external_secret.dig('spec', 'data').map { |entry| entry['secretKey'] }
-          expected_core_keys = %w[COORDINATOR_API_TOKEN AI_AGENT_COORDINATOR_DATABASE_URL]
-          abort 'core secret must include API and PostgreSQL credentials only' unless secret_keys == expected_core_keys
+          abort 'only the API token belongs in the bootstrap core secret' unless secret_keys == ['COORDINATOR_API_TOKEN']
 
           telemetry_secret = resources.find { |resource| resource.dig('metadata', 'name') == 'ai-agent-coordinator-telemetry' && resource['kind'] == 'ExternalSecret' } or abort 'telemetry ExternalSecret missing'
           abort 'telemetry secret must use the cluster secret store' unless telemetry_secret.dig('spec', 'secretStoreRef', 'kind') == 'ClusterSecretStore' && telemetry_secret.dig('spec', 'secretStoreRef', 'name') == 'dd-cluster-secrets'
@@ -112,6 +108,8 @@ jobs:
           abort 'all three model workers are required' unless telemetry_data['TELEMETRY_MODEL_AGENT_KEYS'].split(',').length == 3
           abort 'distinct consensus reviewer is required' if telemetry_data['TELEMETRY_MODEL_AGENT_KEYS'].split(',').include?(telemetry_data['TELEMETRY_MODEL_REVIEWER_KEY'])
           abort 'ordered nightly providers must be Gemini, Claude, then Codex' unless telemetry_data['TELEMETRY_REMEDIATION_PROVIDERS'] == 'gemini-sdk,claude-sdk,openai-codex-cli'
+          base_branches = telemetry_data.fetch('TELEMETRY_BASE_BRANCH_MAP').split(',').map(&:strip).to_h { |entry| entry.split('=', 2) }
+          abort 'chat-vibe remediation must branch from dev4' unless base_branches['oresoftware/chat.vibe'] == 'dev4'
 
           cronjobs = resources.select { |resource| resource['kind'] == 'CronJob' }
           delivery = cronjobs.find { |resource| resource.dig('metadata', 'name') == 'ai-agent-coordinator-telemetry-delivery' } or abort 'telemetry delivery CronJob missing'
@@ -125,7 +123,8 @@ jobs:
           abort 'nightly remediation must run at 04:00 Eastern' unless nightly.dig('spec', 'schedule') == '0 4 * * *' && nightly.dig('spec', 'timeZone') == 'America/New_York'
           abort 'nightly CronJob must forbid overlap' unless nightly.dig('spec', 'concurrencyPolicy') == 'Forbid'
 
-          abort 'PostgreSQL-backed coordinator must not mount a PVC' if resources.any? { |resource| resource['kind'] == 'PersistentVolumeClaim' }
+          pvc = resources.find { |resource| resource['kind'] == 'PersistentVolumeClaim' } or abort 'PVC missing'
+          abort 'PVC must request ReadWriteOnce' unless pvc.dig('spec', 'accessModes') == ['ReadWriteOnce']
           RUBY
       - name: Authenticate to GHCR with read-only package access
         shell: bash
@@ -142,44 +141,20 @@ jobs:
           readonly IMAGE_REF
           docker pull "$IMAGE_REF"
           container=ai-agent-coordinator-deployment-contract
-          database=ai-agent-coordinator-contract-postgres
-          network=ai-agent-coordinator-contract
           cleanup() {
             docker logs "$container" || true
-            docker logs "$database" || true
             docker rm --force "$container" >/dev/null 2>&1 || true
-            docker rm --force "$database" >/dev/null 2>&1 || true
-            docker network rm "$network" >/dev/null 2>&1 || true
           }
           trap cleanup EXIT
 
-          docker network create "$network" >/dev/null
-          docker run --detach \
-            --name "$database" \
-            --network "$network" \
-            --env POSTGRES_PASSWORD=deployment-contract \
-            --env POSTGRES_DB=coordinator \
-            postgres:17
-          for attempt in $(seq 1 60); do
-            if docker exec "$database" pg_isready --username postgres --dbname coordinator >/dev/null; then
-              break
-            fi
-            if [[ "$attempt" == 60 ]]; then
-              echo 'PostgreSQL did not become ready' >&2
-              exit 1
-            fi
-            sleep 1
-          done
-
           docker run --detach \
             --name "$container" \
-            --network "$network" \
             --read-only \
             --cap-drop ALL \
             --security-opt no-new-privileges \
+            --tmpfs /app/data:rw,noexec,nosuid,size=64m,uid=10001,gid=10001,mode=0700 \
             --publish 127.0.0.1:18080:8080 \
             --env COORDINATOR_API_TOKEN \
-            --env AI_AGENT_COORDINATOR_DATABASE_URL=postgres://postgres:deployment-contract@ai-agent-coordinator-contract-postgres:5432/coordinator \
             --env GITHUB_REPOSITORY_ADMIN_ENABLED=false \
             --env GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS=declarative-migrations \
             "$IMAGE_REF"
