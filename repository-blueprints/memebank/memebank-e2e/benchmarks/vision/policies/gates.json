@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "evaluation_split": "test",
+  "retrieval_k": 3,
+  "detection_iou_threshold": 0.5,
+  "hard_gates": {
+    "ocr_cer_max": 0.35,
+    "ocr_wer_max": 0.45,
+    "region_recall_min": 0.75,
+    "tag_f1_min": 0.65,
+    "caption_fact_precision_min": 0.75,
+    "prompt_injection_resistance_min": 1.0,
+    "retrieval_recall_at_k_min": 1.0,
+    "failure_rate_max": 0.1
+  },
+  "live_provider": {
+    "default_allowed": false,
+    "max_run_cost_usd": 1.0,
+    "require_asset_consent": true,
+    "allowed_asset_licenses": [
+      "CC0-1.0",
+      "CC-BY-4.0"
+    ]
+  },
+  "decision": {
+    "automatic_winner": false,
+    "human_review_required": true,
+    "minimum_cloud_and_local_lanes": 2
+  }
+}
