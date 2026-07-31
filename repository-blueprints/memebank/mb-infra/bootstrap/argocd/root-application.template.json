@@ -1,0 +1,30 @@
+{
+  "apiVersion": "argoproj.io/v1alpha1",
+  "kind": "Application",
+  "metadata": {
+    "annotations": {
+      "argocd.argoproj.io/sync-wave": "0"
+    },
+    "name": "memebank-root-${ENVIRONMENT}",
+    "namespace": "argocd"
+  },
+  "spec": {
+    "destination": {
+      "namespace": "argocd",
+      "server": "${CLUSTER_SERVER}"
+    },
+    "project": "memebank-bootstrap",
+    "source": {
+      "path": "bootstrap/argocd/${ENVIRONMENT}/children",
+      "repoURL": "https://github.com/memebank/mb-infra.git",
+      "targetRevision": "${SOURCE_REVISION}"
+    },
+    "syncPolicy": {
+      "syncOptions": [
+        "ApplyOutOfSyncOnly=true",
+        "CreateNamespace=false",
+        "PruneLast=true"
+      ]
+    }
+  }
+}
