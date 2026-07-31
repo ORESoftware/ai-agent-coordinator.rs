@@ -92,24 +92,46 @@ def git_environment() -> dict[str, str]:
 
 
 def amend_root_commit(repository: pathlib.Path) -> str:
-    """Seal the reviewed index tree as one deterministic parentless commit."""
+    """Seal the complete reviewed index tree as one deterministic root commit."""
+    branch = run(["git", "branch", "--show-current"], cwd=repository).strip()
+    if branch != "main":
+        raise ReconstructionError(f"{repository} must be on main before sealing")
+
     source_count = int(
         run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip()
     )
     if source_count < 1:
         raise ReconstructionError(f"{repository} has no source commit to seal")
+    if run(["git", "diff", "--name-only"], cwd=repository):
+        raise ReconstructionError(f"{repository} contains unstaged changes")
+    if run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=repository,
+    ):
+        raise ReconstructionError(f"{repository} contains untracked files")
+    run(["git", "diff", "--cached", "--check"], cwd=repository)
+
     message = run(["git", "log", "-1", "--format=%B"], cwd=repository).strip()
     if not message:
         message = f"Initialize {repository.name}"
     tree = run(["git", "write-tree"], cwd=repository).strip()
+    if len(tree) != 40 or any(character not in "0123456789abcdef" for character in tree):
+        raise ReconstructionError(f"{repository} produced an invalid tree identity")
     commit = run(
         ["git", "commit-tree", tree, "-m", message],
         cwd=repository,
         env=git_environment(),
     ).strip()
-    run(["git", "reset", "--hard", commit], cwd=repository)
+    if len(commit) != 40 or any(
+        character not in "0123456789abcdef" for character in commit
+    ):
+        raise ReconstructionError(f"{repository} produced an invalid commit identity")
+
+    run(["git", "update-ref", "refs/heads/main", commit], cwd=repository)
     if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":
         raise ReconstructionError(f"{repository} did not collapse to one root commit")
+    if run(["git", "status", "--porcelain"], cwd=repository):
+        raise ReconstructionError(f"{repository} became dirty while sealing")
     return commit
 
 
@@ -201,9 +223,8 @@ def reconstruct(payload_dir: pathlib.Path, output_root: pathlib.Path) -> dict[st
         run(["python3", str(generator)])
 
     stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
-    stale_archive.unlink(missing_ok=True)
-    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)
     stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
+    stale_archive.unlink(missing_ok=True)
     stale_checksum.unlink(missing_ok=True)
     (output_root / "publish.py").unlink(missing_ok=True)
 
