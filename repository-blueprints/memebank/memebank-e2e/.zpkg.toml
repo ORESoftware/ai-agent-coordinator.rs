@@ -1,0 +1,38 @@
+[package]
+org = "memebank"
+name = "memebank-e2e"
+version = "0.1.0"
+description = "Cross-platform, provider-conformance, failure-injection, and release qualification for MemeBank"
+license = "Apache-2.0"
+keywords = ["e2e", "ocr", "vision", "benchmark", "conformance"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/memebank/memebank-e2e"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "make agent-check"
+exclude = [
+  ".artifacts/**",
+  "**/__pycache__/**",
+]
+
+[build]
+command = "make agent-check"
+outputs = [
+  "benchmarks/vision/corpus",
+  "benchmarks/vision/candidates",
+  "benchmarks/vision/results",
+  "benchmarks/vision/hardware",
+  "benchmarks/vision/policies",
+  "benchmarks/vision/scripts",
+]
+
+[install]
+adapter = "none"
+
+[scripts]
+test = "make agent-check"
+benchmark = "make report"
