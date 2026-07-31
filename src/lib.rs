@@ -1,6 +1,7 @@
 pub mod app;
 pub mod config;
 pub mod db;
+pub mod email_attention;
 pub mod error;
 pub mod gateway;
 pub mod github_admin;
