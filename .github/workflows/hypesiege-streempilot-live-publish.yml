@@ -18,7 +18,7 @@ permissions:
   statuses: write
 
 concurrency:
-  group: hypesiege-streempilot-live-publish
+  group: hypesiege-streempilot-live-publish-${{ github.event.pull_request.head.sha }}
   cancel-in-progress: true
 
 jobs:
