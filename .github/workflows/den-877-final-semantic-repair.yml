@@ -1,0 +1,295 @@
+name: DEN-877 final semantic fleet repair
+
+on:
+  push:
+    branches:
+      - agent/den-877-fleet-merge-repair
+    paths:
+      - .github/workflows/den-877-final-semantic-repair.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-877-final-semantic-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-877-fleet-merge-repair
+          fetch-depth: 0
+          persist-credentials: true
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Reconcile generator identity, Git history, and publication boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import gzip
+          import hashlib
+          import json
+          import shutil
+          from pathlib import Path
+
+          root = Path.cwd()
+          payload_dir = root / 'repository-fleets/hypesiege-streempilot'
+          parts = [payload_dir / f'generator.py.gz.b64.part-{index:02d}' for index in range(6)]
+          if not all(path.is_file() for path in parts):
+              raise SystemExit('reviewed six-part generator payload is incomplete')
+          encoded = ''.join(path.read_text(encoding='utf-8').strip() for path in parts)
+          source = gzip.decompress(base64.b64decode(encoded, validate=True))
+          reviewed_digest = hashlib.sha256(source).hexdigest()
+          expected_digest = 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84'
+          if reviewed_digest != expected_digest:
+              raise SystemExit(
+                  f'reviewed generator identity changed: {reviewed_digest} != {expected_digest}'
+              )
+
+          old_digest = '50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f'
+          checksum_paths = [
+              root / 'scripts/reconstruct_hypesiege_streempilot_fleet.py',
+              root / 'scripts/publish_hypesiege_streempilot_fleet.py',
+              root / 'repository-fleets/hypesiege-streempilot.json',
+              root / 'docs/hypesiege-streempilot-repository-publication.md',
+          ]
+          for path in checksum_paths:
+              text = path.read_text(encoding='utf-8')
+              if old_digest in text:
+                  text = text.replace(old_digest, reviewed_digest)
+              elif reviewed_digest not in text:
+                  raise SystemExit(f'generator identity is absent from {path}')
+              path.write_text(text, encoding='utf-8')
+
+          reconstructor_path = root / 'scripts/reconstruct_hypesiege_streempilot_fleet.py'
+          reconstructor = reconstructor_path.read_text(encoding='utf-8')
+
+          root_anchor = '    source = source.replace(expected_literal, replacement)\n'
+          output_contract = '''\n    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"\n    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")\n    if source.count(archive_literal) != 1:\n        raise ReconstructionError("generator archive-output contract changed")\n    source = source.replace(archive_literal, archive_replacement)\n\n    checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"\n    checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")\n    if source.count(checksum_literal) != 1:\n        raise ReconstructionError("generator checksum-output contract changed")\n    source = source.replace(checksum_literal, checksum_replacement)\n'''
+          if output_contract not in reconstructor:
+              if reconstructor.count(root_anchor) != 1:
+                  raise SystemExit('reconstructor output-root insertion point drifted')
+              reconstructor = reconstructor.replace(root_anchor, root_anchor + output_contract, 1)
+
+          old_history = '''def amend_root_commit(repository: pathlib.Path) -> str:\n    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":\n        raise ReconstructionError(f"{repository} must contain exactly one source commit")\n    run(\n        ["git", "commit", "--amend", "--no-edit", "--reset-author"],\n        cwd=repository,\n        env=git_environment(),\n    )\n    return run(["git", "rev-parse", "HEAD"], cwd=repository).strip()\n'''
+          new_history = '''def seal_root_commit(repository: pathlib.Path) -> str:\n    branch = run(["git", "branch", "--show-current"], cwd=repository).strip()\n    if branch != "main":\n        raise ReconstructionError(f"{repository} must be on main before sealing")\n    if run(["git", "diff", "--name-only"], cwd=repository):\n        raise ReconstructionError(f"{repository} contains unstaged changes")\n    if run(\n        ["git", "ls-files", "--others", "--exclude-standard"],\n        cwd=repository,\n    ):\n        raise ReconstructionError(f"{repository} contains untracked files")\n    run(["git", "diff", "--cached", "--check"], cwd=repository)\n\n    tree = run(["git", "write-tree"], cwd=repository).strip()\n    if len(tree) != 40 or any(character not in "0123456789abcdef" for character in tree):\n        raise ReconstructionError(f"{repository} produced an invalid tree identity")\n    message = run(["git", "log", "-1", "--format=%B"], cwd=repository).strip()\n    if not message:\n        message = f"feat: publish {repository.name}"\n    commit = run(\n        ["git", "commit-tree", tree, "-m", message],\n        cwd=repository,\n        env=git_environment(),\n    ).strip()\n    if len(commit) != 40 or any(character not in "0123456789abcdef" for character in commit):\n        raise ReconstructionError(f"{repository} produced an invalid commit identity")\n    run(["git", "update-ref", "refs/heads/main", commit], cwd=repository)\n\n    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":\n        raise ReconstructionError(f"{repository} was not sealed as a parentless commit")\n    if run(["git", "status", "--porcelain"], cwd=repository):\n        raise ReconstructionError(f"{repository} became dirty while sealing")\n    return commit\n'''
+          if old_history in reconstructor:
+              reconstructor = reconstructor.replace(old_history, new_history, 1)
+          elif new_history not in reconstructor:
+              raise SystemExit('reconstructor history-sealing function drifted')
+          reconstructor = reconstructor.replace('amend_root_commit(', 'seal_root_commit(')
+
+          old_cleanup = '''    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)\n'''
+          new_cleanup = '''    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"\n    stale_checksum.unlink(missing_ok=True)\n'''
+          if old_cleanup in reconstructor:
+              reconstructor = reconstructor.replace(old_cleanup, new_cleanup, 1)
+          elif new_cleanup not in reconstructor:
+              raise SystemExit('reconstructor checksum cleanup contract drifted')
+          reconstructor_path.write_text(reconstructor, encoding='utf-8')
+
+          docs_path = root / 'docs/hypesiege-streempilot-repository-publication.md'
+          docs = docs_path.read_text(encoding='utf-8')
+          marker = '## Reconstruct and validate locally\n'
+          paragraph = (
+              'The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled '
+              'generator were removed during reconciliation. That job accepted a broad '
+              'repository-administration credential and attempted the entire fleet in one '
+              'execution, contradicting the canonical one-repository confirmation, preflight, '
+              'and remote-head verification boundary. Generated repositories are sealed from '
+              'their complete staged trees as deterministic parentless commits, so preexisting '
+              'source-history depth cannot silently alter publication identity.\n\n'
+          )
+          if paragraph not in docs:
+              if marker not in docs:
+                  raise SystemExit('publication documentation insertion point is missing')
+              docs = docs.replace(marker, paragraph + marker, 1)
+          docs_path.write_text(docs, encoding='utf-8')
+
+          bootstrap = root / 'deploy/k8s/bootstrap'
+          expected_bootstrap = {
+              'hypesiege-streempilot-bootstrap-job.yaml',
+              'kustomization.yaml',
+              *{f'generate.py.gz.b64.part-{index:02d}' for index in range(7)},
+          }
+          if bootstrap.exists():
+              actual_bootstrap = {
+                  path.relative_to(bootstrap).as_posix()
+                  for path in bootstrap.rglob('*')
+                  if path.is_file()
+              }
+              if actual_bootstrap != expected_bootstrap:
+                  raise SystemExit(
+                      'refusing to remove bootstrap overlay with unrelated content: '
+                      f'{sorted(actual_bootstrap ^ expected_bootstrap)}'
+                  )
+              shutil.rmtree(bootstrap)
+
+          fleet_workflow = root / '.github/workflows/repository-fleets.yml'
+          workflow = fleet_workflow.read_text(encoding='utf-8')
+          start_marker = '# BEGIN DEN877 FLEET SEAL RECONCILIATION\n'
+          end_marker = '# END DEN877 FLEET SEAL RECONCILIATION\n'
+          if start_marker in workflow or end_marker in workflow:
+              if start_marker not in workflow or end_marker not in workflow:
+                  raise SystemExit('temporary reconciliation markers are incomplete')
+              start = workflow.index(start_marker)
+              end = workflow.index(end_marker, start) + len(end_marker)
+              workflow = workflow[:start].rstrip() + '\n' + workflow[end:].lstrip()
+          fleet_workflow.write_text(workflow, encoding='utf-8')
+
+          previous_manifest = json.loads(
+              (root / 'repository-fleets/hypesiege-streempilot.json').read_text(
+                  encoding='utf-8'
+              )
+          )
+          (root / '.git/den-877-previous-manifest.json').write_text(
+              json.dumps(previous_manifest),
+              encoding='utf-8',
+          )
+          PY
+
+      - name: Reconstruct and reconcile the deterministic ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_root="$RUNNER_TEMP/hypesiege-streempilot-fleet"
+          manifest_out="$RUNNER_TEMP/hypesiege-streempilot-manifest.json"
+          python scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            --output-root "$output_root" \
+            --manifest-out "$manifest_out"
+
+          MANIFEST_OUT="$manifest_out" python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path.cwd()
+          previous = json.loads(
+              (root / '.git/den-877-previous-manifest.json').read_text(encoding='utf-8')
+          )
+          generated = json.loads(Path(os.environ['MANIFEST_OUT']).read_text(encoding='utf-8'))
+
+          invariant_keys = (
+              'schema_version',
+              'default_branch',
+              'repository_count',
+              'total_tracked_files',
+              'total_gitlinks',
+              'organizations',
+          )
+          for key in invariant_keys:
+              if previous[key] != generated[key]:
+                  raise SystemExit(
+                      f'fleet invariant changed for {key}: '
+                      f'{previous[key]!r} != {generated[key]!r}'
+                  )
+          if generated['generator_sha256'] != 'a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84':
+              raise SystemExit('generated ledger does not retain the reviewed generator identity')
+
+          previous_names = [item['full_name'] for item in previous['repositories']]
+          generated_names = [item['full_name'] for item in generated['repositories']]
+          if previous_names != generated_names:
+              raise SystemExit('repository identity or order changed during reconstruction')
+
+          previous_by_name = {item['full_name']: item for item in previous['repositories']}
+          generated_by_name = {item['full_name']: item for item in generated['repositories']}
+          stable_fields = (
+              'org', 'name', 'kind', 'files', 'remote', 'description',
+              'visibility', 'default_branch', 'gitlinks',
+          )
+          for full_name in previous_names:
+              before = previous_by_name[full_name]
+              after = generated_by_name[full_name]
+              for field in stable_fields:
+                  if before[field] != after[field]:
+                      raise SystemExit(
+                          f'{full_name}: non-commit contract changed for {field}'
+                      )
+
+          manifest_path = root / 'repository-fleets/hypesiege-streempilot.json'
+          manifest_path.write_text(json.dumps(generated, indent=2) + '\n', encoding='utf-8')
+
+          reference_paths = [
+              root / 'scripts/test_publish_hypesiege_streempilot_fleet.py',
+              root / '.github/workflows/repository-fleets.yml',
+              root / 'docs/hypesiege-streempilot-repository-publication.md',
+          ]
+          for full_name in previous_names:
+              old_commit = previous_by_name[full_name]['commit']
+              new_commit = generated_by_name[full_name]['commit']
+              if old_commit == new_commit:
+                  continue
+              for path in reference_paths:
+                  text = path.read_text(encoding='utf-8')
+                  if old_commit in text:
+                      path.write_text(text.replace(old_commit, new_commit), encoding='utf-8')
+          PY
+
+      - name: Remove temporary repair machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          temporary_paths = [
+              Path('.github/workflows/den-877-final-semantic-repair.yml'),
+              Path('.github/workflows/den-877-fleet-repair.yml'),
+              Path('.github/workflows/den-877-one-shot-repair.yml'),
+              Path('.github/workflows/temporary-den-877-semantic-repair.yml'),
+              Path('.github/workflows/fix-den-877-fleet-payload.yml'),
+              Path('repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731'),
+          ]
+          for path in temporary_paths:
+              path.unlink(missing_ok=True)
+          PY
+
+      - name: Validate the final semantic merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py
+          python -m unittest -v scripts/test_publish_hypesiege_streempilot_fleet.py
+          python scripts/publish_hypesiege_streempilot_fleet.py \
+            --repository hypesiege/hypesiege-api-server.rs > /tmp/hypesiege-plan.json
+          python scripts/publish_hypesiege_streempilot_fleet.py \
+            --repository streempilot/streempilot-monorepo > /tmp/streempilot-plan.json
+          test ! -e deploy/k8s/bootstrap
+          test ! -e .github/workflows/den-877-final-semantic-repair.yml
+          test ! -e .github/workflows/den-877-fleet-repair.yml
+          test ! -e .github/workflows/den-877-one-shot-repair.yml
+          test ! -e .github/workflows/temporary-den-877-semantic-repair.yml
+          test ! -e .github/workflows/fix-den-877-fleet-payload.yml
+          test ! -e repository-fleets/hypesiege-streempilot/RECONCILE-TRIGGER-20260731
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- .; then
+            echo 'conflict markers remain' >&2
+            exit 1
+          fi
+          git diff --check
+
+      - name: Commit the reconciled result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          git config user.name 'ORESoftware'
+          git config user.email '11139560+ORESoftware@users.noreply.github.com'
+          git commit -m 'fix(DEN-877): complete semantic fleet reconciliation'
+          git push origin HEAD:agent/den-877-fleet-merge-repair
