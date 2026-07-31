@@ -56,25 +56,31 @@ jobs:
           -s tests
           -p 'test_weekly_job_digest.py'
           -v
-      - name: Verify deterministic redacted plan
+      - name: Verify deterministic profile-redacted plan
+        env:
+          AI_AGENT_JOB_PROFILE_JSON: >-
+            {"target_roles":["Synthetic Platform Engineer"],"skills":["Synthetic distributed systems"],"work_authorization":{"review_required":true},"preferred_arrangement":["Synthetic remote"],"compensation":{"review_required":true},"test_marker":"private-ci-profile"}
         run: >-
           python3 tools/enqueue_weekly_job_digest.py
           --endpoint https://coordinator.example.invalid
           --now 2026-07-27T13:17:00Z
           --dry-run
           > /tmp/weekly-job-plan.json
-      - name: Assert discovery-only plan
+      - name: Assert discovery-only redacted plan
         run: |
           python3 - <<'PY'
           import json
           from pathlib import Path
 
-          plan = json.loads(Path("/tmp/weekly-job-plan.json").read_text())
+          raw = Path("/tmp/weekly-job-plan.json").read_text()
+          plan = json.loads(raw)
           assert plan["status"] == "dry_run"
           assert plan["authorization"] == "Bearer [REDACTED]"
+          assert "private-ci-profile" not in raw
           request = plan["request"]
           assert request["task_type"] == "job_opportunity_digest"
           payload = request["payload"]
+          assert payload["candidate_profile"] == {"redacted": True}
           assert payload["linear"]["canonical_issue"] == "DEN-826"
           assert payload["linear"]["browser_application_issue"] == "DEN-256"
           assert "submit_application" in payload["forbidden_actions"]
@@ -98,6 +104,7 @@ jobs:
     env:
       AI_AGENT_COORDINATOR_URL: ${{ vars.AI_AGENT_COORDINATOR_URL }}
       AI_AGENT_COORDINATOR_API_TOKEN: ${{ secrets.AI_AGENT_COORDINATOR_API_TOKEN }}
+      AI_AGENT_JOB_PROFILE_JSON: ${{ secrets.AI_AGENT_JOB_PROFILE_JSON }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -108,6 +115,7 @@ jobs:
           set -euo pipefail
           test -n "${AI_AGENT_COORDINATOR_URL}"
           test -n "${AI_AGENT_COORDINATOR_API_TOKEN}"
+          test -n "${AI_AGENT_JOB_PROFILE_JSON}"
       - name: Enqueue one discovery-only job
         shell: bash
         env:
