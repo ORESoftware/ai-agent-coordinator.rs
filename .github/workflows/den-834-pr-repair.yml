@@ -47,47 +47,27 @@ jobs:
           text = path.read_text(encoding='utf-8')
           replacements = [
               (
-                  '''        decisions.push(decide_prompt(
-                      export,
-                      prompt,
-                      source_identity,
-                      &catalog_index,
-                  ));''',
-                  '''        decisions.push(decide_prompt(
-                      prompt,
-                      source_identity,
-                      &catalog_index,
-                  ));''',
+                  "            export,\n            prompt,\n            source_identity,\n",
+                  "            prompt,\n            source_identity,\n",
               ),
               (
-                  '''fn decide_prompt(
-              export: &PromptExport,
-              prompt: &PromptRecord,''',
-                  '''fn decide_prompt(
-              prompt: &PromptRecord,''',
+                  "fn decide_prompt(\n    export: &PromptExport,\n    prompt: &PromptRecord,",
+                  "fn decide_prompt(\n    prompt: &PromptRecord,",
               ),
               (
-                  '''            (source_identities.len() > 1).then(|| DuplicateGroup {
-                          content_fingerprint: fingerprint.to_owned(),
-                          source_identities,
-                      })''',
-                  '''            (source_identities.len() > 1).then_some(DuplicateGroup {
-                          content_fingerprint: fingerprint.to_owned(),
-                          source_identities,
-                      })''',
+                  ".then(|| DuplicateGroup {",
+                  ".then_some(DuplicateGroup {",
               ),
               (
-                  '''            "about", "after", "again", "also", "been", "before", "being", "branch",
-                      "chat", "check", "could", "from", "have", "into", "issue", "linear", "make",''',
-                  '''            "about", "after", "again", "also", "been", "before", "being", "branch",
-                      "chat", "check", "could", "day", "days", "from", "have", "hour", "hours",
-                      "into", "issue", "linear", "make",''',
+                  '"chat", "check", "could", "from", "have", "into", "issue", "linear", "make",',
+                  '"chat", "check", "could", "day", "days", "from", "have", "hour", "hours",\n            "into", "issue", "linear", "make",',
               ),
           ]
           for old, new in replacements:
-              if text.count(old) != 1:
+              count = text.count(old)
+              if count != 1:
                   raise SystemExit(
-                      f'expected exactly one source fragment, found {text.count(old)}: {old[:80]!r}'
+                      f'expected exactly one source fragment, found {count}: {old[:80]!r}'
                   )
               text = text.replace(old, new, 1)
           path.write_text(text, encoding='utf-8')
