@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "package_version": "0.1.0",
+  "openapi_version": "1.0.0",
+  "openapi_operations": {
+    "POST /v1/imports": "createImport",
+    "GET /v1/assets/{asset_id}": "getAsset",
+    "POST /v1/search": "searchAssets",
+    "POST /v1/clipboard/manifests": "createClipboardManifest",
+    "GET /v1/sync/events": "listSyncEvents"
+  },
+  "contracts": [
+    {
+      "ref": "schemas/v1/catalog.schema.json#/$defs/Asset",
+      "required": ["asset_id", "library_id", "revision", "original", "variants", "created_at", "updated_at"],
+      "properties": {
+        "asset_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "library_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "revision": {"type": "integer"},
+        "original": {"$ref": "#/$defs/BlobRef"},
+        "variants": {"type": "array"},
+        "created_at": {"$ref": "common.schema.json#/$defs/Timestamp"},
+        "updated_at": {"$ref": "common.schema.json#/$defs/Timestamp"}
+      }
+    },
+    {
+      "ref": "schemas/v1/catalog.schema.json#/$defs/ImportIntent",
+      "required": ["idempotency_key", "library_id", "source", "requested_by_device_id", "created_at"],
+      "properties": {
+        "idempotency_key": {"type": "string"},
+        "library_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "source": {"$ref": "#/$defs/ImportSource"},
+        "requested_by_device_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "created_at": {"$ref": "common.schema.json#/$defs/Timestamp"}
+      }
+    },
+    {
+      "ref": "schemas/v1/catalog.schema.json#/$defs/IngestionJob",
+      "required": ["job_id", "stage", "attempt", "lease_epoch", "progress", "created_at", "updated_at"],
+      "properties": {
+        "job_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "stage": {"type": "string"},
+        "attempt": {"type": "integer"},
+        "lease_epoch": {"type": "integer"},
+        "progress": {"type": "number"}
+      }
+    },
+    {
+      "ref": "schemas/v1/search.schema.json#/$defs/SearchRequest",
+      "required": ["library_id", "query", "modes", "limit"],
+      "properties": {
+        "library_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "query": {"type": "string"},
+        "modes": {"type": "array"},
+        "limit": {"type": "integer"}
+      }
+    },
+    {
+      "ref": "schemas/v1/search.schema.json#/$defs/SearchResponse",
+      "required": ["request_id", "hits", "page"],
+      "properties": {
+        "request_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "hits": {"type": "array"},
+        "page": {"$ref": "common.schema.json#/$defs/PageCursor"}
+      }
+    },
+    {
+      "ref": "schemas/v1/meme-clip-manifest.schema.json",
+      "required": ["schema_version", "manifest_id", "asset_id", "exact_digest", "media_type", "dimensions", "variant", "source_application", "created_at"],
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "manifest_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "asset_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "exact_digest": {"$ref": "common.schema.json#/$defs/Digest"},
+        "media_type": {"type": "string"},
+        "dimensions": {"$ref": "common.schema.json#/$defs/Dimensions"}
+      }
+    },
+    {
+      "ref": "schemas/v1/enrichment-observation.schema.json",
+      "required": ["observation_id", "asset_id", "variant_id", "kind", "status", "provenance", "payload", "created_at"],
+      "properties": {
+        "observation_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "asset_id": {"$ref": "common.schema.json#/$defs/Uuid"},
+        "kind": {"type": "string"},
+        "provenance": {"$ref": "common.schema.json#/$defs/Provenance"},
+        "payload": {"oneOf": true}
+      }
+    },
+    {
+      "ref": "schemas/v1/storage-provider.schema.json",
+      "required": ["schema_version", "provider_kind", "ownership", "addressing", "operations", "upload_modes", "conditional_writes", "consistency", "versioning", "change_tracking"],
+      "properties": {
+        "schema_version": {"const": "1.0"},
+        "provider_kind": {"type": "string"},
+        "ownership": {"type": "string"},
+        "addressing": {"type": "string"},
+        "operations": {"type": "object"}
+      }
+    },
+    {
+      "ref": "schemas/v1/sync.schema.json#/$defs/SyncPage",
+      "required": ["from_cursor", "through_cursor", "events", "has_more", "reset_required"],
+      "properties": {
+        "from_cursor": {"$ref": "#/$defs/SyncCursor"},
+        "through_cursor": {"$ref": "#/$defs/SyncCursor"},
+        "events": {"type": "array"},
+        "has_more": {"type": "boolean"},
+        "reset_required": {"type": "boolean"}
+      }
+    }
+  ]
+}
