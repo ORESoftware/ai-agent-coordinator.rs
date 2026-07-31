@@ -22,7 +22,15 @@ Therefore the rollout has two reviewed phases:
 - The checked-in `deploy/k8s` base remains the last verified SQLite deployment until phase two.
 - The Sonus Auris and Daedalus Fab cross-organization Linear pilot overlay remains intact and fail-closed.
 
-The ordinary pull-request `GITHUB_TOKEN` cannot read the private sibling shared-definitions repository. For deterministic pull-request testing, `tests/fixtures/ai_agent_coordinator.schema.sql` is an exact byte-for-byte mirror of the canonical schema at shared-definitions commit `86ff698a77c9458b6d6ab27bbb3c6d2e80d381bc`, Git blob `1158f5586538492d7f1415f165457a34a117691c`. CI verifies that blob identity before applying the fixture. The fixture is test input only; it does not become migration authority and must be updated in the same reviewed change whenever the canonical schema revision advances.
+The ordinary pull-request `GITHUB_TOKEN` cannot read the private sibling shared-definitions repository. For deterministic pull-request testing, `tests/fixtures/ai_agent_coordinator.schema.sql` is an exact byte-for-byte mirror of the canonical schema at shared-definitions commit `86ff698a77c9458b6d6ab27bbb3c6d2e80d381bc`, Git blob `1158f5586538492d7f1415f165457a34a117691c`. CI verifies the fixture's SHA-256 before applying it. The fixture is test input only; it does not become migration authority and must be updated in the same reviewed change whenever the canonical schema revision advances.
+
+## Promotion automation guardrail
+
+The main-branch OCI workflow may build, smoke-test, and publish an immutable PostgreSQL runtime candidate. While the checked-in Kubernetes base still describes SQLite, that workflow must **not** open or merge an image-only deployment pull request.
+
+The image tag alone is not a deployable change. The promotion PR owned by DEN-1073 must combine the exact image digest with the reviewed schema operation, protected database credential reference, SQLite retention/backfill decision, two-replica RollingUpdate manifest, PVC removal, least-privilege database egress, deployment-contract tests, and rollback evidence.
+
+Any legacy automation run that opens an image-only PR must be closed or converted into the full DEN-1073 cutover only after every prerequisite is evidenced. Never merge it merely because the image build passed.
 
 ## Phase-two prerequisites
 
