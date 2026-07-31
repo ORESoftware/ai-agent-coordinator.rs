@@ -1,0 +1,246 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "MemeBank API",
+    "version": "1.0.0",
+    "description": "Authenticated v1 contract for import, catalog retrieval, hybrid search, clipboard handoff, and synchronization."
+  },
+  "x-contract-version": "1.0",
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/v1/imports": {
+      "post": {
+        "operationId": "createImport",
+        "summary": "Accept an idempotent image import intent",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9._:-]{16,200}$"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../../schemas/v1/catalog.schema.json#/$defs/ImportIntent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Import accepted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/v1/catalog.schema.json#/$defs/IngestionJob"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v1/assets/{asset_id}": {
+      "get": {
+        "operationId": "getAsset",
+        "summary": "Read an asset visible to the authenticated principal",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "../../schemas/v1/common.schema.json#/$defs/Uuid"
+            }
+          },
+          {
+            "name": "If-None-Match",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 256
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current asset representation",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/v1/catalog.schema.json#/$defs/Asset"
+                }
+              }
+            }
+          },
+          "304": {
+            "description": "Not modified"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v1/search": {
+      "post": {
+        "operationId": "searchAssets",
+        "summary": "Run explainable lexical, semantic, similar-image, or duplicate search",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "../../schemas/v1/search.schema.json#/$defs/SearchRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Ranked and attributed results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/v1/search.schema.json#/$defs/SearchResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v1/clipboard/manifests": {
+      "post": {
+        "operationId": "createClipboardManifest",
+        "summary": "Create or validate a versioned native clipboard/share handoff",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/vnd.memebank.meme-clip+json": {
+              "schema": {
+                "$ref": "../../schemas/v1/meme-clip-manifest.schema.json"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Manifest accepted",
+            "content": {
+              "application/vnd.memebank.meme-clip+json": {
+                "schema": {
+                  "$ref": "../../schemas/v1/meme-clip-manifest.schema.json"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/v1/sync/events": {
+      "get": {
+        "operationId": "listSyncEvents",
+        "summary": "Read durable change events using a monotonic synchronization cursor",
+        "parameters": [
+          {
+            "name": "epoch",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "sequence",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1000,
+              "default": 250
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Change page; clients advance with through_cursor even on the final page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "../../schemas/v1/sync.schema.json#/$defs/SyncPage"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Typed error envelope",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "../../schemas/v1/common.schema.json#/$defs/ErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  }
+}

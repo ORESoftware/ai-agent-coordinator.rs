@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "fixtures": [
+    {
+      "file": "asset.valid.json",
+      "schema": "../../schemas/v1/catalog.schema.json#/$defs/Asset"
+    },
+    {
+      "file": "import-intent.valid.json",
+      "schema": "../../schemas/v1/catalog.schema.json#/$defs/ImportIntent"
+    },
+    {
+      "file": "search-request.valid.json",
+      "schema": "../../schemas/v1/search.schema.json#/$defs/SearchRequest"
+    },
+    {
+      "file": "meme-clip-manifest.valid.json",
+      "schema": "../../schemas/v1/meme-clip-manifest.schema.json"
+    },
+    {
+      "file": "enrichment-observation.valid.json",
+      "schema": "../../schemas/v1/enrichment-observation.schema.json"
+    },
+    {
+      "file": "storage-provider.valid.json",
+      "schema": "../../schemas/v1/storage-provider.schema.json"
+    },
+    {
+      "file": "sync-page.valid.json",
+      "schema": "../../schemas/v1/sync.schema.json#/$defs/SyncPage"
+    }
+  ]
+}

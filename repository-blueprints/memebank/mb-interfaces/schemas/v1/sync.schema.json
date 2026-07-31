@@ -1,0 +1,216 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.memebank.dev/v1/sync.schema.json",
+  "title": "MemeBank v1 synchronization contracts",
+  "oneOf": [
+    {"$ref": "#/$defs/SyncPage"},
+    {"$ref": "#/$defs/OfflineMutation"},
+    {"$ref": "#/$defs/Conflict"}
+  ],
+  "$defs": {
+    "SyncCursor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["epoch", "sequence"],
+      "properties": {
+        "epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "checkpoint": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{1,512}$"
+        }
+      }
+    },
+    "ChangeEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "library_id",
+        "entity_kind",
+        "entity_id",
+        "operation",
+        "revision",
+        "occurred_at"
+      ],
+      "properties": {
+        "event_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "library_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "entity_kind": {
+          "type": "string",
+          "enum": ["asset", "tag", "observation", "storage_location", "library_membership"]
+        },
+        "entity_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "operation": {
+          "type": "string",
+          "enum": ["upsert", "tombstone", "restore"]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "payload_digest": {
+          "$ref": "common.schema.json#/$defs/Digest"
+        },
+        "occurred_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "SyncPage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from_cursor", "through_cursor", "events", "has_more", "reset_required"],
+      "properties": {
+        "from_cursor": {
+          "$ref": "#/$defs/SyncCursor"
+        },
+        "through_cursor": {
+          "$ref": "#/$defs/SyncCursor"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ChangeEvent"
+          }
+        },
+        "has_more": {
+          "type": "boolean",
+          "description": "Page completeness only. Clients advance using through_cursor even when has_more is false."
+        },
+        "reset_required": {
+          "type": "boolean"
+        },
+        "reset_reason": {
+          "type": "string",
+          "enum": ["compacted", "schema_incompatible", "cursor_unknown", "authorization_changed"]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reset_required": {"const": true}
+            }
+          },
+          "then": {
+            "required": ["reset_reason"]
+          }
+        }
+      ]
+    },
+    "OfflineMutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "operation_id",
+        "idempotency_key",
+        "device_id",
+        "library_id",
+        "entity_kind",
+        "entity_id",
+        "base_revision",
+        "mutation_kind",
+        "payload",
+        "created_at"
+      ],
+      "properties": {
+        "operation_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "idempotency_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{16,200}$"
+        },
+        "device_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "library_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "entity_kind": {
+          "type": "string",
+          "enum": ["asset", "tag", "observation"]
+        },
+        "entity_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "base_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "mutation_kind": {
+          "type": "string",
+          "enum": ["create", "update", "tombstone", "restore"]
+        },
+        "payload": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "Conflict": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "conflict_id",
+        "operation_id",
+        "entity_kind",
+        "entity_id",
+        "client_base_revision",
+        "server_revision",
+        "resolution"
+      ],
+      "properties": {
+        "conflict_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "operation_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "entity_kind": {
+          "type": "string",
+          "enum": ["asset", "tag", "observation"]
+        },
+        "entity_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "client_base_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "server_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "resolution": {
+          "type": "string",
+          "enum": ["server_wins", "client_wins", "field_merge", "manual"]
+        },
+        "conflicting_fields": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^/[A-Za-z0-9_~/-]+$"
+          }
+        }
+      }
+    }
+  }
+}

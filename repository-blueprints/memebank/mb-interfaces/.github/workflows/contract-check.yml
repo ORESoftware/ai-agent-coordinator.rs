@@ -1,0 +1,38 @@
+name: Contract check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile validators
+        run: python -m py_compile scripts/validate_contracts.py scripts/test_validate_contracts.py
+      - name: Validate contracts and compatibility floor
+        run: make agent-check
+      - name: Emit deterministic contract report
+        run: make report REPORT=.artifacts/contract-report.json
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4
+        with:
+          name: mb-interfaces-contract-report
+          path: .artifacts/contract-report.json
+          if-no-files-found: error
+          retention-days: 14

@@ -1,0 +1,72 @@
+name: MemeBank interface blueprint
+
+on:
+  pull_request:
+    paths:
+      - repository-blueprints/memebank/mb-interfaces/**
+      - .github/workflows/memebank-interface-blueprint.yml
+  push:
+    branches: [main]
+    paths:
+      - repository-blueprints/memebank/mb-interfaces/**
+      - .github/workflows/memebank-interface-blueprint.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: repository-blueprints/memebank/mb-interfaces
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate changed workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/memebank-interface-blueprint.yml
+            repository-blueprints/memebank/mb-interfaces/.github/workflows/contract-check.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Validate hierarchical agent instructions
+        run: >-
+          python ../../../scripts/validate_agents_md.py
+          --repo-root .
+          --start-dir schemas/v1
+      - name: Compile validators
+        run: python -m py_compile scripts/validate_contracts.py scripts/test_validate_contracts.py
+      - name: Run clean-checkout gate
+        run: make agent-check
+      - name: Emit and inspect report
+        shell: bash
+        run: |
+          set -euo pipefail
+          make report REPORT=.artifacts/contract-report.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('.artifacts/contract-report.json').read_text(encoding='utf-8'))
+          assert report['package'] == 'memebank/mb-interfaces'
+          assert report['package_version'] == '0.1.0'
+          assert report['validated_fixture_count'] == 7
+          assert report['resolved_ref_count'] > 20
+          assert len(report['operations']) == 5
+          PY
+      - uses: actions/upload-artifact@50769540e7f4bd5e21e526ee35c689e35e0d6874 # v4
+        with:
+          name: memebank-mb-interfaces-blueprint-report
+          path: repository-blueprints/memebank/mb-interfaces/.artifacts/contract-report.json
+          if-no-files-found: error
+          retention-days: 14

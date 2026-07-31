@@ -1,0 +1,19 @@
+{
+  "library_id": "22222222-2222-4222-8222-222222222222",
+  "query": "distributed systems reaction",
+  "modes": ["lexical", "semantic"],
+  "filters": {
+    "confirmed_tags_all": ["distributed-systems"],
+    "media_types": ["image/png", "image/webp"]
+  },
+  "embedding_selectors": [
+    {
+      "space": "native_visual",
+      "model": "siglip-base-patch16-224",
+      "model_revision": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "dimension": 768,
+      "metric": "cosine"
+    }
+  ],
+  "limit": 25
+}

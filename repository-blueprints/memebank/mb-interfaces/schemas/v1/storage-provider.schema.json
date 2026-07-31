@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.memebank.dev/v1/storage-provider.schema.json",
+  "title": "MemeBank v1 storage-provider capability descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "provider_kind",
+    "ownership",
+    "addressing",
+    "operations",
+    "upload_modes",
+    "conditional_writes",
+    "consistency",
+    "versioning",
+    "change_tracking"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "provider_kind": {
+      "type": "string",
+      "enum": ["aws_s3", "cloudflare_r2", "google_drive", "onedrive", "apple_document_provider", "filesystem"]
+    },
+    "ownership": {
+      "type": "string",
+      "enum": ["service_managed", "user_owned", "device_local"]
+    },
+    "addressing": {
+      "type": "string",
+      "enum": ["object_key", "provider_file_id", "document_handle", "filesystem_path"]
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["put", "read", "stat", "delete", "list"],
+      "properties": {
+        "put": {"type": "boolean"},
+        "read": {"type": "boolean"},
+        "stat": {"type": "boolean"},
+        "delete": {"type": "boolean"},
+        "list": {"type": "boolean"},
+        "server_side_copy": {"type": "boolean"},
+        "restore_version": {"type": "boolean"}
+      }
+    },
+    "upload_modes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["single_request", "multipart", "resumable_session", "provider_document_copy"]
+      }
+    },
+    "conditional_writes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["if_match_etag", "if_none_match", "opaque_revision_guard", "create_only"]
+      }
+    },
+    "consistency": {
+      "type": "string",
+      "enum": ["strong", "read_after_write", "eventual", "provider_defined"]
+    },
+    "versioning": {
+      "type": "string",
+      "enum": ["none", "native_version_id", "opaque_revision", "provider_trash_only"]
+    },
+    "change_tracking": {
+      "type": "string",
+      "enum": ["none", "list_cursor", "delta_cursor", "provider_notifications", "filesystem_scan"]
+    },
+    "presigned_access": {
+      "type": "boolean"
+    },
+    "lifecycle_management": {
+      "type": "boolean"
+    },
+    "integrity_metadata": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["sha256", "md5", "etag", "crc32c", "provider_hash", "client_verified_only"]
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_object_bytes": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "max_part_bytes": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "min_part_bytes": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        },
+        "max_parts": {
+          "type": ["integer", "null"],
+          "minimum": 1
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 500
+      }
+    }
+  }
+}

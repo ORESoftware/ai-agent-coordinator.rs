@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.memebank.dev/v1/catalog.schema.json",
+  "title": "MemeBank v1 catalog and ingestion contracts",
+  "oneOf": [
+    {"$ref": "#/$defs/Asset"},
+    {"$ref": "#/$defs/ImportIntent"},
+    {"$ref": "#/$defs/IngestionJob"}
+  ],
+  "$defs": {
+    "BlobRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "media_type"],
+      "properties": {
+        "digest": {
+          "$ref": "common.schema.json#/$defs/Digest"
+        },
+        "media_type": {
+          "type": "string",
+          "pattern": "^image/[a-z0-9.+-]+$"
+        },
+        "dimensions": {
+          "$ref": "common.schema.json#/$defs/Dimensions"
+        }
+      }
+    },
+    "Variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["variant_id", "kind", "blob", "recipe"],
+      "properties": {
+        "variant_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": ["original", "normalized", "thumbnail", "preview", "animated_frame"]
+        },
+        "blob": {
+          "$ref": "#/$defs/BlobRef"
+        },
+        "recipe": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 160
+        }
+      }
+    },
+    "Asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_id",
+        "library_id",
+        "revision",
+        "original",
+        "variants",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "asset_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "library_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "original": {
+          "$ref": "#/$defs/BlobRef"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Variant"
+          }
+        },
+        "title": {
+          "type": ["string", "null"],
+          "maxLength": 240
+        },
+        "note": {
+          "type": ["string", "null"],
+          "maxLength": 4000
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "updated_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "ImportSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind"],
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["upload", "url", "provider", "share", "clipboard"]
+        },
+        "upload_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "source_url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 4096,
+          "description": "Transient acquisition URL; the server must not copy it into durable asset manifests."
+        },
+        "provider_connection_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "provider_file_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "client_reference": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"kind": {"const": "upload"}}},
+          "then": {"required": ["upload_id"]}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "url"}}},
+          "then": {"required": ["source_url"]}
+        },
+        {
+          "if": {"properties": {"kind": {"const": "provider"}}},
+          "then": {"required": ["provider_connection_id", "provider_file_id"]}
+        }
+      ]
+    },
+    "ImportIntent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idempotency_key",
+        "library_id",
+        "source",
+        "requested_by_device_id",
+        "created_at"
+      ],
+      "properties": {
+        "idempotency_key": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._:-]{16,200}$"
+        },
+        "library_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "source": {
+          "$ref": "#/$defs/ImportSource"
+        },
+        "requested_by_device_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    },
+    "IngestionJob": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "job_id",
+        "stage",
+        "attempt",
+        "lease_epoch",
+        "progress",
+        "created_at",
+        "updated_at"
+      ],
+      "properties": {
+        "job_id": {
+          "$ref": "common.schema.json#/$defs/Uuid"
+        },
+        "asset_id": {
+          "oneOf": [
+            {"$ref": "common.schema.json#/$defs/Uuid"},
+            {"type": "null"}
+          ]
+        },
+        "stage": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "acquiring",
+            "stored_original",
+            "decoded",
+            "deduplicated",
+            "derived",
+            "text_extracted",
+            "visually_enriched",
+            "embedded",
+            "indexed",
+            "ready",
+            "failed",
+            "canceled"
+          ]
+        },
+        "attempt": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "lease_epoch": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "progress": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "last_error": {
+          "oneOf": [
+            {"$ref": "common.schema.json#/$defs/ErrorEnvelope"},
+            {"type": "null"}
+          ]
+        },
+        "created_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        },
+        "updated_at": {
+          "$ref": "common.schema.json#/$defs/Timestamp"
+        }
+      }
+    }
+  }
+}
