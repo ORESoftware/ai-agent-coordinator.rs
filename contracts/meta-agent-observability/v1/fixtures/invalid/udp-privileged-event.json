@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "event_id": "af52e467-2dc9-42df-9f88-bbdcc5910498",
+  "idempotency_key": "approval:run-demo:udp-forbidden",
+  "occurred_at": "2026-08-01T20:05:00Z",
+  "source": {"agent_id": "operator-ui", "provider": "human", "model": "none", "metadata": {}},
+  "correlation": {"correlation_id": "2d81fd9d-2174-4b5e-aec5-778f06bf3375", "run_id": "run-demo"},
+  "kind": "human_approved",
+  "payload_classification": "internal",
+  "redaction_state": "sanitized",
+  "evidence_references": [],
+  "delivery": {"transport": "udp", "delivery_id": "udp-approval-1", "attempt": 1, "ack_requested": false},
+  "payload": {"decision": "approved"}
+}
