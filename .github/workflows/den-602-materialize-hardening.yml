@@ -87,7 +87,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo fmt --all -- --check
+          cargo fmt --all
+          formatted_paths="$(git diff --name-only)"
+          test "$formatted_paths" = 'src/github_admin.rs'
+          git diff --check
           cargo clippy --locked --all-targets --all-features -- -D warnings
           cargo test --locked github_admin -- --nocapture
           python3 -m py_compile tests/browser/test_github_repository_admin.py
@@ -106,7 +109,6 @@ jobs:
             .github/workflows/ci.yml \
             .github/workflows/github-repository-admin-browser.yml \
             .github/workflows/den-602-materialize-hardening.yml
-          git diff --check
           if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- .; then
             echo 'conflict markers remain' >&2
             exit 1
@@ -120,10 +122,10 @@ jobs:
           rm .github/workflows/den-602-materialize-hardening.yml
           git add -A
           git diff --cached --check
-          expected_tree='91eb2355c61c4500dd2d99d8f9923872491dbbfe'
+          expected_tree='8f947f8d6fbb0776193f21d0af8bde4529f82932'
           actual_tree="$(git write-tree)"
           test "$actual_tree" = "$expected_tree"
           test ! -e .github/staging
           test ! -e .github/workflows/den-602-materialize-hardening.yml
-          git commit -m 'chore(DEN-602): remove temporary hardening materializer'
+          git commit -m 'chore(DEN-602): format and remove temporary materializer'
           git push origin HEAD:agent/den-602-github-admin-browser-hardening
