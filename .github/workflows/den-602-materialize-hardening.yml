@@ -73,6 +73,8 @@ jobs:
           printf '%s  %s\n' \
             '8b649d9c1e0cffe9162d47d70313544d376e19842c39d191a7f1ae7dd842127f' \
             "$patch" | sha256sum --check --strict -
+          git config user.name 'ORESoftware'
+          git config user.email '11139560+ORESoftware@users.noreply.github.com'
           git am --3way "$patch"
 
       - name: Install the pinned Rust validation toolchain
@@ -123,7 +125,5 @@ jobs:
           test "$actual_tree" = "$expected_tree"
           test ! -e .github/staging
           test ! -e .github/workflows/den-602-materialize-hardening.yml
-          git config user.name 'ORESoftware'
-          git config user.email '11139560+ORESoftware@users.noreply.github.com'
           git commit -m 'chore(DEN-602): remove temporary hardening materializer'
           git push origin HEAD:agent/den-602-github-admin-browser-hardening
