@@ -7,6 +7,12 @@ on:
     paths:
       - '.github/workflows/den-602-materialize-hardening.yml'
       - '.github/staging/den602.patch.gz.b64.part-*'
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+    paths:
+      - '.github/workflows/den-602-materialize-hardening.yml'
+      - '.github/staging/den602.patch.gz.b64.part-*'
 
 permissions:
   contents: write
@@ -17,7 +23,11 @@ concurrency:
 
 jobs:
   materialize:
-    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      (github.event_name == 'push' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.head_ref == 'agent/den-602-github-admin-browser-hardening'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
