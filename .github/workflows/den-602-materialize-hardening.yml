@@ -81,29 +81,31 @@ jobs:
 
           path = Path('src/github_admin.rs')
           text = path.read_text(encoding='utf-8')
-          old = '''    RepositoryCreationResult {
-        dry_run: false,
-        created,
-        existing,
-        full_name: repository.full_name,
-        visibility: request.visibility,
-        initialization: request.initialization,
-        description: request.description,
-        api_url,
-        html_url: canonical_repository_html_url(api_base_url, &repository.full_name),
-'''
-          new = '''    let html_url = canonical_repository_html_url(api_base_url, &repository.full_name);
-    RepositoryCreationResult {
-        dry_run: false,
-        created,
-        existing,
-        full_name: repository.full_name,
-        visibility: request.visibility,
-        initialization: request.initialization,
-        description: request.description,
-        api_url,
-        html_url,
-'''
+          old = (
+              "    RepositoryCreationResult {\n"
+              "        dry_run: false,\n"
+              "        created,\n"
+              "        existing,\n"
+              "        full_name: repository.full_name,\n"
+              "        visibility: request.visibility,\n"
+              "        initialization: request.initialization,\n"
+              "        description: request.description,\n"
+              "        api_url,\n"
+              "        html_url: canonical_repository_html_url(api_base_url, &repository.full_name),\n"
+          )
+          new = (
+              "    let html_url = canonical_repository_html_url(api_base_url, &repository.full_name);\n"
+              "    RepositoryCreationResult {\n"
+              "        dry_run: false,\n"
+              "        created,\n"
+              "        existing,\n"
+              "        full_name: repository.full_name,\n"
+              "        visibility: request.visibility,\n"
+              "        initialization: request.initialization,\n"
+              "        description: request.description,\n"
+              "        api_url,\n"
+              "        html_url,\n"
+          )
           if text.count(old) != 1:
               raise SystemExit('repository result ownership repair anchor drifted')
           path.write_text(text.replace(old, new, 1), encoding='utf-8')
