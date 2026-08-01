@@ -79,9 +79,9 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('src/github_admin.rs')
-          text = path.read_text(encoding='utf-8')
-          old = (
+          source_path = Path('src/github_admin.rs')
+          source = source_path.read_text(encoding='utf-8')
+          old_source = (
               "    RepositoryCreationResult {\n"
               "        dry_run: false,\n"
               "        created,\n"
@@ -93,7 +93,7 @@ jobs:
               "        api_url,\n"
               "        html_url: canonical_repository_html_url(api_base_url, &repository.full_name),\n"
           )
-          new = (
+          new_source = (
               "    let html_url = canonical_repository_html_url(api_base_url, &repository.full_name);\n"
               "    RepositoryCreationResult {\n"
               "        dry_run: false,\n"
@@ -106,9 +106,40 @@ jobs:
               "        api_url,\n"
               "        html_url,\n"
           )
-          if text.count(old) != 1:
+          if source.count(old_source) != 1:
               raise SystemExit('repository result ownership repair anchor drifted')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          source_path.write_text(source.replace(old_source, new_source, 1), encoding='utf-8')
+
+          workflow_path = Path('.github/workflows/github-repository-admin-browser.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          old_job_env = (
+              "    env:\n"
+              "      AI_AGENT_COORDINATOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/coordinator\n"
+              "      PLAYWRIGHT_ARTIFACT_DIR: ${{ runner.temp }}/github-repository-admin-browser\n"
+              "      COORDINATOR_BIN: ${{ github.workspace }}/target/debug/ai-agent-coordinator\n"
+          )
+          new_job_env = (
+              "    env:\n"
+              "      AI_AGENT_COORDINATOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/coordinator\n"
+              "      COORDINATOR_BIN: ${{ github.workspace }}/target/debug/ai-agent-coordinator\n"
+          )
+          old_init = (
+              "          umask 077\n"
+              "          mkdir -p \"$PLAYWRIGHT_ARTIFACT_DIR\"\n"
+              "          chmod 700 \"$PLAYWRIGHT_ARTIFACT_DIR\"\n"
+          )
+          new_init = (
+              "          umask 077\n"
+              "          artifact_dir=\"$RUNNER_TEMP/github-repository-admin-browser\"\n"
+              "          mkdir -p \"$artifact_dir\"\n"
+              "          chmod 700 \"$artifact_dir\"\n"
+              "          echo \"PLAYWRIGHT_ARTIFACT_DIR=$artifact_dir\" >> \"$GITHUB_ENV\"\n"
+          )
+          if workflow.count(old_job_env) != 1 or workflow.count(old_init) != 1:
+              raise SystemExit('browser artifact-directory repair anchor drifted')
+          workflow = workflow.replace(old_job_env, new_job_env, 1)
+          workflow = workflow.replace(old_init, new_init, 1)
+          workflow_path.write_text(workflow, encoding='utf-8')
           PY
 
       - name: Install the pinned Rust validation toolchain
@@ -123,7 +154,8 @@ jobs:
           set -euo pipefail
           cargo fmt --all
           formatted_paths="$(git diff --name-only)"
-          test "$formatted_paths" = 'src/github_admin.rs'
+          expected_formatted=$'.github/workflows/github-repository-admin-browser.yml\nsrc/github_admin.rs'
+          test "$formatted_paths" = "$expected_formatted"
           git diff --check
           cargo clippy --locked --all-targets --all-features -- -D warnings
           cargo test --locked github_admin -- --nocapture
@@ -163,10 +195,10 @@ jobs:
           rm .github/workflows/den-602-materialize-hardening.yml
           git add -A
           git diff --cached --check
-          expected_tree='55c666c70502abee25573116793391d1616dbef8'
+          expected_tree='56c2ca97aa9d907043e817257c4d3bf75bae905c'
           actual_tree="$(git write-tree)"
           test "$actual_tree" = "$expected_tree"
           test ! -e .github/staging
           test ! -e .github/workflows/den-602-materialize-hardening.yml
-          git commit -m 'chore(DEN-602): repair ownership, format, and remove materializer'
+          git commit -m 'chore(DEN-602): harden, format, and remove temporary materializer'
           git push origin HEAD:agent/den-602-github-admin-browser-hardening
