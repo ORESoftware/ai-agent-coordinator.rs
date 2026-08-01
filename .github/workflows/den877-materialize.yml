@@ -1,0 +1,97 @@
+name: Materialize DEN-877 audited publisher patch
+
+on:
+  push:
+    branches:
+      - agent/den-877-publisher-hardening-browser-audit
+    paths:
+      - .den877-materialize/**
+      - .github/workflows/den877-materialize.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den877-materialize-publisher-hardening
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-877-publisher-hardening-browser-audit
+          fetch-depth: 0
+          persist-credentials: true
+          show-progress: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Decode, verify, and test the audited source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f .den877-materialize/publisher.py.gz
+          test -f .den877-materialize/hardening-tests.py.gz
+          test -f .den877-materialize/render-tests.py.gz
+          test -f .den877-materialize/doc.md.gz
+
+          gzip -dc .den877-materialize/publisher.py.gz > scripts/publish_hypesiege_streempilot_fleet.py
+          gzip -dc .den877-materialize/hardening-tests.py.gz > scripts/test_publish_hypesiege_streempilot_fleet_hardening.py
+          gzip -dc .den877-materialize/render-tests.py.gz > scripts/test_render_hypesiege_streempilot_audit_report.py
+          gzip -dc .den877-materialize/doc.md.gz > docs/den-877-publisher-hardening-and-browser-audit.md
+
+          cat > /tmp/den877.sha256 <<'SHA256'
+          71cd051a713dfc45fb6c61acb4b537b2fd6764c11e5820fda0cfde5176640622  scripts/publish_hypesiege_streempilot_fleet.py
+          02021d8a9eb54ee1dc266e46ea5de5f1f88dffa8b597663802796d8079c00b14  scripts/test_publish_hypesiege_streempilot_fleet_hardening.py
+          67e2c274e285d8cddc6780e79ea5343fc9cc3392f09192caf252e11471ddb964  scripts/test_render_hypesiege_streempilot_audit_report.py
+          cf083761b6a1a1e9a8a59f521b9f70039fe6c6282eee6fdd0bc2e152a978183c  docs/den-877-publisher-hardening-and-browser-audit.md
+          SHA256
+          sha256sum --check --strict /tmp/den877.sha256
+
+          python -m py_compile \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/render_hypesiege_streempilot_audit_report.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py \
+            browser-tests/test_hypesiege_streempilot_audit_report.py
+          python -m unittest -v \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py
+          python scripts/render_hypesiege_streempilot_audit_report.py \
+            --manifest repository-fleets/hypesiege-streempilot.json \
+            --output /tmp/den877-audit.html \
+            --metadata-out /tmp/den877-audit.json
+          test -s /tmp/den877-audit.html
+          test -s /tmp/den877-audit.json
+
+          rm -rf .den877-materialize
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/render_hypesiege_streempilot_audit_report.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py \
+            browser-tests docs/den-877-publisher-hardening-and-browser-audit.md; then
+            echo 'conflict markers remain' >&2
+            exit 1
+          fi
+          git diff --check
+      - name: Commit the validated non-workflow source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A -- \
+            .den877-materialize \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py \
+            docs/den-877-publisher-hardening-and-browser-audit.md
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git config user.name 'ORESoftware'
+          git config user.email '11139560+ORESoftware@users.noreply.github.com'
+          git commit -m 'harden(DEN-877): validate publisher and evidence boundary'
+          git push origin HEAD:agent/den-877-publisher-hardening-browser-audit
