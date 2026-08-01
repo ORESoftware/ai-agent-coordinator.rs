@@ -132,9 +132,16 @@ jobs:
           import pathlib
           import tomllib
 
-          for path in (pathlib.Path('.cli-flags.toml'), pathlib.Path('tests/browser/pyproject.toml')):
+          for path in (
+              pathlib.Path('.cli-flags.toml'),
+              pathlib.Path('Cargo.toml'),
+              pathlib.Path('rustfmt.toml'),
+          ):
               with path.open('rb') as handle:
                   tomllib.load(handle)
+          requirements = pathlib.Path('tests/browser/requirements.txt')
+          if not requirements.is_file() or not requirements.read_text(encoding='utf-8').strip():
+              raise SystemExit('browser requirements contract is missing or empty')
           PY
           docker run --rm \
             --volume "$GITHUB_WORKSPACE:/repo" \
