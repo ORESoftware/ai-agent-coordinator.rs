@@ -1,5 +1,7 @@
 name: Materialize DEN-877 audited publisher patch
 
+# Triggered only for the audited branch payload.
+
 on:
   push:
     branches:
