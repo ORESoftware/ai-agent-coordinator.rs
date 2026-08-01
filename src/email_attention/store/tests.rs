@@ -5,8 +5,10 @@ use uuid::Uuid;
 use super::{AttentionStore, DeliveryItem, SeenItem};
 
 async fn test_store() -> Option<AttentionStore> {
-    let Ok(url) = std::env::var("TEST_DATABASE_URL") else {
-        eprintln!("skipping PostgreSQL integration test: TEST_DATABASE_URL is not set");
+    let Ok(url) = std::env::var("EMAIL_ATTENTION_TEST_DATABASE_URL") else {
+        eprintln!(
+            "skipping email-attention PostgreSQL test: EMAIL_ATTENTION_TEST_DATABASE_URL is not set"
+        );
         return None;
     };
     Some(
