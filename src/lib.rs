@@ -14,5 +14,6 @@ pub mod linear_delivery {
 pub mod prompt_intake;
 pub mod providers;
 pub mod security;
+pub mod slack_run;
 pub mod telemetry;
 pub mod webhooks;
