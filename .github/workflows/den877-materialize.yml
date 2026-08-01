@@ -49,12 +49,12 @@ jobs:
           test -f .den877-materialize/publisher.py.gz
           test -f .den877-materialize/hardening-tests.py.gz
           test -f .den877-materialize/render-tests.py.gz
-          test -f .den877-materialize/doc.md.gz
+          test -f .den877-materialize/doc.md
 
           gzip -dc .den877-materialize/publisher.py.gz > scripts/publish_hypesiege_streempilot_fleet.py
           gzip -dc .den877-materialize/hardening-tests.py.gz > scripts/test_publish_hypesiege_streempilot_fleet_hardening.py
           gzip -dc .den877-materialize/render-tests.py.gz > scripts/test_render_hypesiege_streempilot_audit_report.py
-          gzip -dc .den877-materialize/doc.md.gz > docs/den-877-publisher-hardening-and-browser-audit.md
+          cat .den877-materialize/doc.md > docs/den-877-publisher-hardening-and-browser-audit.md
 
           cat > /tmp/den877.sha256 <<'SHA256'
           71cd051a713dfc45fb6c61acb4b537b2fd6764c11e5820fda0cfde5176640622  scripts/publish_hypesiege_streempilot_fleet.py
