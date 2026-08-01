@@ -112,16 +112,9 @@ jobs:
 
           workflow_path = Path('.github/workflows/github-repository-admin-browser.yml')
           workflow = workflow_path.read_text(encoding='utf-8')
-          old_job_env = (
-              "    env:\n"
-              "      AI_AGENT_COORDINATOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/coordinator\n"
-              "      PLAYWRIGHT_ARTIFACT_DIR: ${{ runner.temp }}/github-repository-admin-browser\n"
-              "      COORDINATOR_BIN: ${{ github.workspace }}/target/debug/ai-agent-coordinator\n"
-          )
-          new_job_env = (
-              "    env:\n"
-              "      AI_AGENT_COORDINATOR_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/coordinator\n"
-              "      COORDINATOR_BIN: ${{ github.workspace }}/target/debug/ai-agent-coordinator\n"
+          old_artifact_env = (
+              "      PLAYWRIGHT_ARTIFACT_DIR: $"
+              + "{{ runner.temp }}/github-repository-admin-browser\n"
           )
           old_init = (
               "          umask 077\n"
@@ -135,9 +128,9 @@ jobs:
               "          chmod 700 \"$artifact_dir\"\n"
               "          echo \"PLAYWRIGHT_ARTIFACT_DIR=$artifact_dir\" >> \"$GITHUB_ENV\"\n"
           )
-          if workflow.count(old_job_env) != 1 or workflow.count(old_init) != 1:
+          if workflow.count(old_artifact_env) != 1 or workflow.count(old_init) != 1:
               raise SystemExit('browser artifact-directory repair anchor drifted')
-          workflow = workflow.replace(old_job_env, new_job_env, 1)
+          workflow = workflow.replace(old_artifact_env, '', 1)
           workflow = workflow.replace(old_init, new_init, 1)
           workflow_path.write_text(workflow, encoding='utf-8')
           PY
