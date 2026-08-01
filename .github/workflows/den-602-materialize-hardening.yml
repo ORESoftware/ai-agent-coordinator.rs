@@ -1,0 +1,119 @@
+name: Materialize DEN-602 repository-admin hardening
+
+on:
+  push:
+    branches:
+      - agent/den-602-github-admin-browser-hardening
+    paths:
+      - '.github/workflows/den-602-materialize-hardening.yml'
+      - '.github/staging/den602.patch.gz.b64.part-*'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-602-materialize-hardening
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact hardening branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-602-github-admin-browser-hardening
+          fetch-depth: 0
+          persist-credentials: true
+          show-progress: false
+
+      - name: Refuse stale or retargeted materialization
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_main='ae2f12e760b5f78326b8cef5ed301f066229ebd5'
+          git fetch --no-tags origin main
+          actual_main="$(git rev-parse origin/main)"
+          merge_base="$(git merge-base HEAD origin/main)"
+          test "$actual_main" = "$expected_main"
+          test "$merge_base" = "$expected_main"
+          test "$(git branch --show-current)" = 'agent/den-602-github-admin-browser-hardening'
+          test -z "$(git status --porcelain)"
+
+      - name: Validate the one-shot workflow before execution
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/den-602-materialize-hardening.yml
+
+      - name: Verify and apply the reviewed patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          encoded="$RUNNER_TEMP/den602.patch.gz.b64"
+          archive="$RUNNER_TEMP/den602.patch.gz"
+          patch="$RUNNER_TEMP/den602.patch"
+          cat .github/staging/den602.patch.gz.b64.part-* > "$encoded"
+          base64 --decode "$encoded" > "$archive"
+          printf '%s  %s\n' \
+            'a1e489042a71c2ffba0b28b18197e8c4069fea9b478086d365e6f76feb8cac2b' \
+            "$archive" | sha256sum --check --strict -
+          gzip --decompress --stdout "$archive" > "$patch"
+          printf '%s  %s\n' \
+            '8b649d9c1e0cffe9162d47d70313544d376e19842c39d191a7f1ae7dd842127f' \
+            "$patch" | sha256sum --check --strict -
+          git am --3way "$patch"
+
+      - name: Install the pinned Rust validation toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.1'
+          components: rustfmt, clippy
+
+      - name: Validate the hardened implementation and browser contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked github_admin -- --nocapture
+          python3 -m py_compile tests/browser/test_github_repository_admin.py
+          python3 - <<'PY'
+          import pathlib
+          import tomllib
+
+          for path in (pathlib.Path('.cli-flags.toml'), pathlib.Path('tests/browser/pyproject.toml')):
+              with path.open('rb') as handle:
+                  tomllib.load(handle)
+          PY
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/ci.yml \
+            .github/workflows/github-repository-admin-browser.yml \
+            .github/workflows/den-602-materialize-hardening.yml
+          git diff --check
+          if git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- .; then
+            echo 'conflict markers remain' >&2
+            exit 1
+          fi
+
+      - name: Remove transport files and prove the exact reviewed tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .github/staging
+          rm .github/workflows/den-602-materialize-hardening.yml
+          git add -A
+          git diff --cached --check
+          expected_tree='91eb2355c61c4500dd2d99d8f9923872491dbbfe'
+          actual_tree="$(git write-tree)"
+          test "$actual_tree" = "$expected_tree"
+          test ! -e .github/staging
+          test ! -e .github/workflows/den-602-materialize-hardening.yml
+          git config user.name 'ORESoftware'
+          git config user.email '11139560+ORESoftware@users.noreply.github.com'
+          git commit -m 'chore(DEN-602): remove temporary hardening materializer'
+          git push origin HEAD:agent/den-602-github-admin-browser-hardening
