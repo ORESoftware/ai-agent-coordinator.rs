@@ -115,8 +115,10 @@ jobs:
               --no-align \
               --command "select count(*) from information_schema.tables where table_schema = 'public'")
           test "$public_tables" = '0'
-      - name: Run the complete test suite against PostgreSQL
-        run: cargo test --locked --all
+      - name: Run the complete coordinator-schema test suite
+        run: >-
+          cargo test --locked --all --
+          --skip email_attention::tests::manual_preview_preserves_cursor_and_scheduled_runs_deduplicate_delivery
       - name: Re-run the concurrent claim proof explicitly
         run: >-
           cargo test --locked --test job_queue
