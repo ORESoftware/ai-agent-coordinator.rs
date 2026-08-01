@@ -60,7 +60,7 @@ jobs:
           71cd051a713dfc45fb6c61acb4b537b2fd6764c11e5820fda0cfde5176640622  scripts/publish_hypesiege_streempilot_fleet.py
           02021d8a9eb54ee1dc266e46ea5de5f1f88dffa8b597663802796d8079c00b14  scripts/test_publish_hypesiege_streempilot_fleet_hardening.py
           67e2c274e285d8cddc6780e79ea5343fc9cc3392f09192caf252e11471ddb964  scripts/test_render_hypesiege_streempilot_audit_report.py
-          cf083761b6a1a1e9a8a59f521b9f70039fe6c6282eee6fdd0bc2e152a978183c  docs/den-877-publisher-hardening-and-browser-audit.md
+          c2bd88f57f22471c6763b5bc3045560a58c40ddc92fe5745f4225eecbe8d627a  docs/den-877-publisher-hardening-and-browser-audit.md
           SHA256
           sha256sum --check --strict /tmp/den877.sha256
 
