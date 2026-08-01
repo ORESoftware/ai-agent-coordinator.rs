@@ -170,10 +170,7 @@ impl Routing {
         validate_repository(&self.repository)?;
         validate_identifier("routing.linear_team_id", &self.linear_team_id)?;
         validate_identifier("routing.linear_project_id", &self.linear_project_id)?;
-        validate_identifier(
-            "routing.linear_run_project_id",
-            &self.linear_run_project_id,
-        )?;
+        validate_identifier("routing.linear_run_project_id", &self.linear_run_project_id)?;
         if self
             .linear_issue
             .as_deref()
@@ -195,7 +192,9 @@ pub enum WritePolicy {
 
 fn validate_broadcast_targets(targets: &[String]) -> Result<(), String> {
     let actual = targets.iter().map(String::as_str).collect::<BTreeSet<_>>();
-    let expected = EXPECTED_BROADCAST_TARGETS.into_iter().collect::<BTreeSet<_>>();
+    let expected = EXPECTED_BROADCAST_TARGETS
+        .into_iter()
+        .collect::<BTreeSet<_>>();
     if targets.len() != actual.len() || actual != expected {
         return Err("slack_agent_run broadcast_targets must be the canonical set".to_owned());
     }
@@ -215,9 +214,12 @@ fn validate_identifier(field: &str, value: &str) -> Result<(), String> {
 }
 
 fn valid_run_id(value: &str) -> bool {
-    value
-        .strip_prefix("ores-")
-        .is_some_and(|suffix| suffix.len() == 24 && suffix.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()))
+    value.strip_prefix("ores-").is_some_and(|suffix| {
+        suffix.len() == 24
+            && suffix
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+    })
 }
 
 fn validate_repository(value: &str) -> Result<(), String> {
@@ -258,14 +260,10 @@ fn valid_issue_identifier(value: &str) -> bool {
 fn valid_slack_timestamp(value: &str) -> bool {
     let mut parts = value.split('.');
     let seconds = parts.next().is_some_and(|part| {
-        !part.is_empty()
-            && part.len() <= 20
-            && part.bytes().all(|byte| byte.is_ascii_digit())
+        !part.is_empty() && part.len() <= 20 && part.bytes().all(|byte| byte.is_ascii_digit())
     });
     let fraction = parts.next().is_some_and(|part| {
-        !part.is_empty()
-            && part.len() <= 12
-            && part.bytes().all(|byte| byte.is_ascii_digit())
+        !part.is_empty() && part.len() <= 12 && part.bytes().all(|byte| byte.is_ascii_digit())
     });
     seconds && fraction && parts.next().is_none()
 }
