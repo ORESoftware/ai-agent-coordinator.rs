@@ -91,6 +91,9 @@ impl CreateJobRequest {
         if self.budget_usd.is_some_and(|budget| budget <= 0.0) {
             return Err("budget_usd must be greater than zero".to_owned());
         }
+        if self.task_type == crate::slack_run::TASK_TYPE {
+            crate::slack_run::SlackAgentRunPayload::from_value(&self.payload)?;
+        }
         Ok(())
     }
 }
