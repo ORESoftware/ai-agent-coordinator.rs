@@ -9,6 +9,12 @@ on:
     paths:
       - .den877-materialize/**
       - .github/workflows/den877-materialize.yml
+  pull_request:
+    types: [opened, reopened, synchronize]
+    branches: [main]
+    paths:
+      - .den877-materialize/**
+      - .github/workflows/den877-materialize.yml
 
 permissions:
   contents: write
@@ -19,7 +25,11 @@ concurrency:
 
 jobs:
   materialize:
-    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      (github.event_name == 'push' ||
+       (github.event.pull_request.head.repo.full_name == github.repository &&
+        github.head_ref == 'agent/den-877-publisher-hardening-browser-audit'))
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
