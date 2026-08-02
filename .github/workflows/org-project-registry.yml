@@ -9,6 +9,8 @@ on:
       - docs/org-project-context.md
       - scripts/render_org_project_context.py
       - scripts/validate_org_project_registry.py
+      - scripts/verify_org_project_context.py
+      - tests/e2e/browser/**
       - tests/test_org_project_registry.py
   pull_request:
     paths:
@@ -17,6 +19,8 @@ on:
       - docs/org-project-context.md
       - scripts/render_org_project_context.py
       - scripts/validate_org_project_registry.py
+      - scripts/verify_org_project_context.py
+      - tests/e2e/browser/**
       - tests/test_org_project_registry.py
   workflow_dispatch:
 
@@ -29,18 +33,28 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/org-project-registry.yml
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
 
       - name: Compile dependency-free registry tools
         run: >-
           python3 -m py_compile
           scripts/validate_org_project_registry.py
           scripts/render_org_project_context.py
+          scripts/verify_org_project_context.py
           tests/test_org_project_registry.py
 
       - name: Run fail-closed registry tests
@@ -49,14 +63,83 @@ jobs:
       - name: Validate canonical registry
         run: python3 scripts/validate_org_project_registry.py
 
-      - name: Render and parse pilot organization mirrors
+      - name: Render, parse, and verify pilot organization mirrors
         run: |
-          context_tmp="$(mktemp -d)"
+          set -euo pipefail
+          context_tmp=".artifacts/org-context"
+          mkdir -p "$context_tmp"
           for owner in fiducia-cloud sonus-auris shared-auth; do
             python3 scripts/render_org_project_context.py \
               --owner "${owner}" \
+              --registry-ref "$GITHUB_SHA" \
               --output-dir "${context_tmp}/${owner}"
             python3 -m json.tool \
               "${context_tmp}/${owner}/project-context.yaml" \
               >/dev/null
+            python3 -m json.tool \
+              "${context_tmp}/${owner}/org-context-manifest.json" \
+              >/dev/null
+            python3 scripts/verify_org_project_context.py \
+              --registry config/org-project-registry.yaml \
+              --bundle-dir "${context_tmp}/${owner}" \
+              --owner "${owner}" \
+              --registry-ref "$GITHUB_SHA"
           done
+
+      - name: Validate generated pilot workflows
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .artifacts/org-context/fiducia-cloud/.github/workflows/org-context-integrity.yml
+            .artifacts/org-context/sonus-auris/.github/workflows/org-context-integrity.yml
+            .artifacts/org-context/shared-auth/.github/workflows/org-context-integrity.yml
+
+      - name: Upload public pilot evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: org-project-context-pilot
+          path: .artifacts/org-context
+          retention-days: 3
+          if-no-files-found: error
+
+  browser-e2e:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.1"
+          cache: npm
+          cache-dependency-path: tests/e2e/browser/package-lock.json
+
+      - name: Install locked browser test dependencies
+        working-directory: tests/e2e/browser
+        run: npm ci --ignore-scripts
+
+      - name: Install Chromium for Playwright
+        working-directory: tests/e2e/browser
+        run: npm exec -- playwright install --with-deps chromium
+
+      - name: Exercise generated organization context in Chromium
+        working-directory: tests/e2e/browser
+        env:
+          ORG_CONTEXT_REGISTRY_REF: ${{ github.sha }}
+        run: npm test
+
+      - name: Upload failing browser evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: org-context-playwright-report
+          path: tests/e2e/browser/playwright-report
+          retention-days: 3
+          if-no-files-found: ignore
