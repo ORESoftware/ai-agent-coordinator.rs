@@ -1,0 +1,62 @@
+name: Organization project registry
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/org-project-registry.yml
+      - config/org-project-registry.yaml
+      - docs/org-project-context.md
+      - scripts/render_org_project_context.py
+      - scripts/validate_org_project_registry.py
+      - tests/test_org_project_registry.py
+  pull_request:
+    paths:
+      - .github/workflows/org-project-registry.yml
+      - config/org-project-registry.yaml
+      - docs/org-project-context.md
+      - scripts/render_org_project_context.py
+      - scripts/validate_org_project_registry.py
+      - tests/test_org_project_registry.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compile dependency-free registry tools
+        run: >-
+          python3 -m py_compile
+          scripts/validate_org_project_registry.py
+          scripts/render_org_project_context.py
+          tests/test_org_project_registry.py
+
+      - name: Run fail-closed registry tests
+        run: python3 -m unittest -v tests/test_org_project_registry.py
+
+      - name: Validate canonical registry
+        run: python3 scripts/validate_org_project_registry.py
+
+      - name: Render and parse pilot organization mirrors
+        run: |
+          context_tmp="$(mktemp -d)"
+          for owner in fiducia-cloud sonus-auris shared-auth; do
+            python3 scripts/render_org_project_context.py \
+              --owner "${owner}" \
+              --output-dir "${context_tmp}/${owner}"
+            python3 -m json.tool \
+              "${context_tmp}/${owner}/project-context.yaml" \
+              >/dev/null
+          done
