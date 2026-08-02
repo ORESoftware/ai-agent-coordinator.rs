@@ -49,6 +49,25 @@ Precedence is therefore deliberate:
 
 This complements, rather than replaces, DEN-114, DEN-282, and DEN-292.
 
+## Mandatory semantic Git conflict policy
+
+Every generated `project-context.yaml`, organization profile, custom agent, and Linear **AI Agent Context** mirror carries this directive verbatim:
+
+> resolve any and all git conflicts semantically, will full context, even looking back 3-10 commits in git log history for more context - never hastily pick sides in a conflict but merge things conceptually, using max context and complete conceptual awareness for a given github organization's repos and external org repos too
+
+The executable interpretation is deliberately fail-closed:
+
+1. inspect the merge base and 3–10 relevant commits from both sides when available;
+2. use path-scoped history for every conflicted file and read linked pull requests, Linear issues, architecture decisions, migrations, schemas, tests, and documentation;
+3. inspect relevant repositories in the same GitHub organization and relevant repositories in external GitHub organizations whenever APIs, SDKs, schemas, deployment contracts, or shared libraries cross repository boundaries;
+4. never blindly or wholesale select `ours`, `theirs`, current, or incoming, and never discard one side without conceptual analysis;
+5. produce a conceptual merge that preserves compatible intent, invariants, APIs, schemas, migrations, tests, documentation, security controls, and operational safeguards;
+6. record non-obvious decisions, scan the entire worktree for conflict markers, and run every affected validation contract.
+
+“Max context” means all relevant context the acting principal is authorized to read. It does not authorize exposing credentials, private data, customer information, or hidden reasoning. When required context is inaccessible or contradictory, the agent must identify the blocker rather than invent intent or make a hasty side-selection.
+
+The machine-readable representation lives under `git_conflict_resolution` in `project-context.yaml`. The deterministic renderer and tests lock the verbatim directive, the 3–10 commit bounds, both-side and merge-base inspection, same-organization context, external-organization context, and forbidden side-selection shortcuts.
+
 ## Linear mirror
 
 Each pilot Linear project receives one document titled **AI Agent Context**. The document contains:
@@ -57,6 +76,7 @@ Each pilot Linear project receives one document titled **AI Agent Context**. The
 * links to the organization `.github` repository and `project-context.yaml`;
 * the central registry path, reviewed revision, and canonical SHA-256;
 * routing/default-repository status;
+* the mandatory semantic Git conflict policy;
 * the marker `org-project-context:v1` for idempotent updates;
 * a warning that the document is generated and must not become an independent authority.
 
@@ -103,7 +123,7 @@ Before wider rollout:
 * verify the organization profile renders the intended link set;
 * verify the custom agent appears where the organization's Copilot plan supports it;
 * verify public defaults do not expose private reporting or repository-local controls;
-* compare the GitHub and Linear mirror marker, registry revision, and canonical digest;
+* compare the GitHub and Linear mirror marker, registry revision, canonical digest, and semantic-conflict policy;
 * keep seven currently installed but unmapped organizations fail-closed until their canonical Linear project is reviewed.
 
 The four empty recent organizations `channelsiege`, `OmniBlitz`, `streamkore`, and `hypeblitz` remain governed by DEN-1339. Do not create a project mapping or context that invents their product identity.
