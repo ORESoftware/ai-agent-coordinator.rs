@@ -110,6 +110,54 @@ class OrgProjectRegistryTest(unittest.TestCase):
             "shared-auth/shared-auth-mcp-server.rs",
         )
 
+    def test_renderer_embeds_verbatim_semantic_conflict_directive(self) -> None:
+        bundle = renderer.render_bundle(self.registry, "sonus-auris")
+        directive = renderer.SEMANTIC_CONFLICT_DIRECTIVE
+        self.assertIn(directive, bundle["agents/org-context.agent.md"])
+        self.assertIn(directive, bundle["profile/README.md"])
+        context = json.loads(bundle["project-context.yaml"])
+        self.assertEqual(
+            context["git_conflict_resolution"]["directive_verbatim"],
+            directive,
+        )
+
+    def test_semantic_conflict_policy_requires_history_and_cross_org_context(self) -> None:
+        context = json.loads(
+            renderer.render_bundle(self.registry, "shared-auth")[
+                "project-context.yaml"
+            ]
+        )
+        policy = context["git_conflict_resolution"]
+        self.assertEqual(policy["mode"], "semantic_conceptual_merge")
+        self.assertEqual(
+            policy["history_lookback_commits"],
+            {
+                "minimum": 3,
+                "maximum": 10,
+                "when_available": True,
+                "inspect_both_sides": True,
+                "inspect_merge_base": True,
+                "path_scoped_history": True,
+            },
+        )
+        self.assertIn(
+            "same_github_organization_repositories",
+            policy["context_scope"],
+        )
+        self.assertIn(
+            "relevant_external_github_organization_repositories",
+            policy["context_scope"],
+        )
+        self.assertEqual(
+            {
+                "wholesale_ours",
+                "wholesale_theirs",
+                "wholesale_current",
+                "wholesale_incoming",
+            }.issubset(policy["forbidden_shortcuts"]),
+            True,
+        )
+
     def test_unknown_owner_is_rejected(self) -> None:
         with self.assertRaisesRegex(registry_module.RegistryError, "0 matches"):
             registry_module.resolve_owner(self.registry, "not-a-mapped-owner")
