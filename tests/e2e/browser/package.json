@@ -1,0 +1,16 @@
+{
+  "name": "org-project-context-browser-e2e",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.1"
+  },
+  "scripts": {
+    "test": "playwright test --config=playwright.config.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.62.1",
+    "marked": "18.0.7"
+  }
+}

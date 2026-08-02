@@ -9,6 +9,7 @@ and CI to validate it with the Python standard library only.
 from __future__ import annotations
 
 import argparse
+from datetime import date
 import hashlib
 import json
 from pathlib import Path
@@ -18,6 +19,8 @@ from typing import Any, Iterable, Mapping, Sequence
 from urllib.parse import urlparse
 
 MAX_REGISTRY_BYTES = 1024 * 1024
+MAX_JSON_DEPTH = 32
+MAX_JSON_NODES = 100_000
 UUID_RE = re.compile(
     r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
 )
@@ -25,8 +28,26 @@ SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 ISSUE_RE = re.compile(r"^DEN-[1-9][0-9]*$")
 CHANNEL_RE = re.compile(r"^[CDG][A-Z0-9]+$")
 LOGIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$")
+REPOSITORY_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,100}$")
 FORBIDDEN_KEY_PARTS = ("token", "secret", "password", "credential")
-FORBIDDEN_VALUE_MARKERS = ("ghp_", "github_pat_", "bearer ", "linear_api_key")
+FORBIDDEN_VALUE_MARKERS = (
+    "ghp_",
+    "gho_",
+    "ghu_",
+    "ghs_",
+    "ghr_",
+    "github_pat_",
+    "bearer ",
+    "linear_api_key",
+    "lin_api_",
+    "xoxb-",
+    "xoxp-",
+    "xoxa-",
+    "xoxr-",
+    "xoxs-",
+    "aws_secret_access_key",
+    "-----begin private key-----",
+)
 
 
 class RegistryError(ValueError):
@@ -36,10 +57,37 @@ class RegistryError(ValueError):
 def _object_without_duplicates(pairs: Iterable[tuple[str, Any]]) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, value in pairs:
+        if any(
+            ord(character) < 32
+            or ord(character) == 127
+            or 0xD800 <= ord(character) <= 0xDFFF
+            for character in key
+        ):
+            raise RegistryError("JSON object keys contain forbidden characters")
         if key in result:
             raise RegistryError(f"duplicate JSON key: {key}")
         result[key] = value
     return result
+
+
+def _reject_json_constant(value: str) -> None:
+    raise RegistryError(f"non-finite JSON number is forbidden: {value}")
+
+
+def _assert_bounded_json(value: Any) -> None:
+    stack: list[tuple[Any, int]] = [(value, 0)]
+    nodes = 0
+    while stack:
+        current, depth = stack.pop()
+        nodes += 1
+        if nodes > MAX_JSON_NODES:
+            raise RegistryError("registry contains too many JSON values")
+        if depth > MAX_JSON_DEPTH:
+            raise RegistryError("registry nesting is too deep")
+        if isinstance(current, dict):
+            stack.extend((child, depth + 1) for child in current.values())
+        elif isinstance(current, list):
+            stack.extend((child, depth + 1) for child in current)
 
 
 def load_registry(path: Path) -> dict[str, Any]:
@@ -47,14 +95,25 @@ def load_registry(path: Path) -> dict[str, Any]:
     if not raw or len(raw) > MAX_REGISTRY_BYTES:
         raise RegistryError("registry size is outside the allowed range")
     try:
-        value = json.loads(raw, object_pairs_hook=_object_without_duplicates)
+        text = raw.decode("utf-8")
     except UnicodeDecodeError as exc:
         raise RegistryError("registry must be UTF-8") from exc
+    if text.startswith("\ufeff"):
+        raise RegistryError("registry must not contain a UTF-8 byte-order mark")
+    try:
+        value = json.loads(
+            text,
+            object_pairs_hook=_object_without_duplicates,
+            parse_constant=_reject_json_constant,
+        )
     except json.JSONDecodeError as exc:
         raise RegistryError(
             f"registry is not strict JSON-compatible YAML at line {exc.lineno}, "
             f"column {exc.colno}"
         ) from exc
+    except RecursionError as exc:
+        raise RegistryError("registry nesting is too deep") from exc
+    _assert_bounded_json(value)
     if not isinstance(value, dict):
         raise RegistryError("registry root must be an object")
     return value
@@ -82,6 +141,13 @@ def _list(value: Any, label: str) -> list[Any]:
 def _text(value: Any, label: str) -> str:
     if not isinstance(value, str) or not value.strip() or value != value.strip():
         raise RegistryError(f"{label} must be a non-empty trimmed string")
+    if any(
+        ord(character) < 32
+        or ord(character) == 127
+        or 0xD800 <= ord(character) <= 0xDFFF
+        for character in value
+    ):
+        raise RegistryError(f"{label} contains forbidden characters")
     return value
 
 
@@ -113,8 +179,20 @@ def _uuid(value: Any, label: str) -> str:
 
 def _https_url(value: Any, host: str, label: str) -> str:
     text = _text(value, label)
-    parsed = urlparse(text)
-    if parsed.scheme != "https" or parsed.hostname != host or not parsed.path:
+    try:
+        parsed = urlparse(text)
+        hostname = parsed.hostname
+    except ValueError as exc:
+        raise RegistryError(f"{label} is not a well-formed URL") from exc
+    if (
+        parsed.scheme != "https"
+        or hostname != host
+        or parsed.netloc != host
+        or not parsed.path
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
         raise RegistryError(f"{label} must be an https://{host}/... URL")
     return text
 
@@ -124,7 +202,11 @@ def _repository(value: Any, label: str) -> tuple[str, str]:
     if text.count("/") != 1:
         raise RegistryError(f"{label} must use owner/repository form")
     owner, name = text.split("/", 1)
-    if not LOGIN_RE.fullmatch(owner) or not name or name in {".", ".."}:
+    if (
+        not LOGIN_RE.fullmatch(owner)
+        or not REPOSITORY_NAME_RE.fullmatch(name)
+        or name in {".", ".."}
+    ):
         raise RegistryError(f"{label} is not a valid repository identity")
     return owner, name
 
@@ -145,7 +227,9 @@ def _assert_public_safe(value: Any, path: str = "root") -> None:
             raise RegistryError(f"credential-like value is forbidden at {path}")
 
 
-def _validate_linear_project(value: Any, label: str) -> tuple[str, str, str]:
+def _validate_linear_project(
+    value: Any, label: str, workspace_slug: str
+) -> tuple[str, str, str]:
     project = _object(value, label)
     _exact_keys(project, {"project_id", "project_name", "project_url"}, label)
     project_id = _uuid(project["project_id"], f"{label}.project_id")
@@ -153,6 +237,12 @@ def _validate_linear_project(value: Any, label: str) -> tuple[str, str, str]:
     project_url = _https_url(
         project["project_url"], "linear.app", f"{label}.project_url"
     )
+    parsed = urlparse(project_url)
+    project_path = rf"/{re.escape(workspace_slug)}/project/[A-Za-z0-9._~-]+"
+    if not re.fullmatch(project_path, parsed.path):
+        raise RegistryError(
+            f"{label}.project_url must identify a project in workspace {workspace_slug}"
+        )
     return project_id, project_name, project_url
 
 
@@ -177,7 +267,11 @@ def validate_registry(registry: Mapping[str, Any]) -> dict[str, int]:
     _expected(root["schema_version"], 1, "schema_version")
     _expected(root["registry_id"], "github-linear-org-projects", "registry_id")
     observed_at = _text(root["observed_at"], "observed_at")
-    if not re.fullmatch(r"20[0-9]{2}-[01][0-9]-[0-3][0-9]", observed_at):
+    try:
+        parsed_observed_at = date.fromisoformat(observed_at)
+    except ValueError as exc:
+        raise RegistryError("observed_at must use a real YYYY-MM-DD date") from exc
+    if parsed_observed_at.isoformat() != observed_at or not observed_at.startswith("20"):
         raise RegistryError("observed_at must use YYYY-MM-DD")
 
     authority = _object(root["authority"], "authority")
@@ -295,7 +389,9 @@ def validate_registry(registry: Mapping[str, Any]) -> dict[str, int]:
     installation_ids: set[int] = set()
     aliases: dict[str, str] = {}
     owner_project_ids: set[str] = set()
+    project_urls: set[str] = set()
     runtime_repositories: set[str] = set()
+    runtime_route_count = 0
 
     for index, raw_mapping in enumerate(mappings):
         label = f"mappings[{index}]"
@@ -342,13 +438,20 @@ def validate_registry(registry: Mapping[str, Any]) -> dict[str, int]:
         installation_ids.add(installation_id)
         _expected(app["observed_at"], observed_at, f"{label}.github_app.observed_at")
 
-        project_id, _, _ = _validate_linear_project(mapping["linear"], f"{label}.linear")
+        project_id, _, project_url = _validate_linear_project(
+            mapping["linear"], f"{label}.linear", linear["workspace_slug"]
+        )
         if project_id in owner_project_ids:
             raise RegistryError(f"duplicate owner-level Linear project ID: {project_id}")
         owner_project_ids.add(project_id)
+        normalized_project_url = project_url.casefold()
+        if normalized_project_url in project_urls:
+            raise RegistryError(f"duplicate Linear project URL: {project_url}")
+        project_urls.add(normalized_project_url)
 
         route = mapping["runtime_route"]
         if route is not None:
+            runtime_route_count += 1
             route = _object(route, f"{label}.runtime_route")
             _exact_keys(
                 route,
@@ -386,10 +489,16 @@ def validate_registry(registry: Mapping[str, Any]) -> dict[str, int]:
         if normalized_repository in override_repositories:
             raise RegistryError(f"duplicate repository override: {override['repository']}")
         override_repositories.add(normalized_repository)
-        project_id, _, _ = _validate_linear_project(override["linear"], f"{label}.linear")
+        project_id, _, project_url = _validate_linear_project(
+            override["linear"], f"{label}.linear", linear["workspace_slug"]
+        )
         if project_id in owner_project_ids or project_id in override_project_ids:
             raise RegistryError(f"duplicate Linear project identity: {project_id}")
         override_project_ids.add(project_id)
+        normalized_project_url = project_url.casefold()
+        if normalized_project_url in project_urls:
+            raise RegistryError(f"duplicate Linear project URL: {project_url}")
+        project_urls.add(normalized_project_url)
 
     unmapped = _list(root["unmapped_installed_organizations"], "unmapped_installed_organizations")
     unmapped_logins: set[str] = set()
@@ -430,7 +539,7 @@ def validate_registry(registry: Mapping[str, Any]) -> dict[str, int]:
     return {
         "mappings": len(mappings),
         "repository_overrides": len(overrides),
-        "runtime_routes": len(runtime_repositories),
+        "runtime_routes": runtime_route_count,
         "unmapped": len(unmapped),
     }
 
@@ -456,6 +565,12 @@ def resolve_project(
 ) -> dict[str, Any]:
     mapping = resolve_owner(registry, owner)
     if repository is not None:
+        repository_owner, _ = _repository(repository, "repository")
+        expected_owner = mapping["github"]["login"]
+        if repository_owner.casefold() != expected_owner.casefold():
+            raise RegistryError(
+                "repository owner does not match the resolved GitHub owner"
+            )
         normalized = repository.casefold()
         override_matches = [
             override
@@ -467,6 +582,30 @@ def resolve_project(
         if override_matches:
             return override_matches[0]["linear"]
     return mapping["linear"]
+
+
+def resolve_runtime_repository(
+    registry: Mapping[str, Any], owner: str | int, repository: str | None = None
+) -> str:
+    """Resolve only a reviewed runtime repository, never an arbitrary org repo."""
+
+    mapping = resolve_owner(registry, owner)
+    route = mapping["runtime_route"]
+    if route is None:
+        raise RegistryError("owner has no reviewed runtime route")
+    candidate = route["default_repository"] if repository is None else repository
+    repository_owner, _ = _repository(candidate, "repository")
+    expected_owner = mapping["github"]["login"]
+    if repository_owner.casefold() != expected_owner.casefold():
+        raise RegistryError("runtime repository escapes the resolved GitHub owner")
+    matches = [
+        allowed
+        for allowed in route["repository_allowlist"]
+        if allowed.casefold() == candidate.casefold()
+    ]
+    if len(matches) != 1:
+        raise RegistryError("runtime repository is not in the reviewed allowlist")
+    return matches[0]
 
 
 def main(argv: Sequence[str] | None = None) -> int:
