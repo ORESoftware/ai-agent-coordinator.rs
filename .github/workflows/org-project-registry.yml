@@ -35,10 +35,13 @@ jobs:
   validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      ORG_CONTEXT_REGISTRY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - name: Validate workflow syntax
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
@@ -71,7 +74,7 @@ jobs:
           for owner in fiducia-cloud sonus-auris shared-auth; do
             python3 scripts/render_org_project_context.py \
               --owner "${owner}" \
-              --registry-ref "$GITHUB_SHA" \
+              --registry-ref "$ORG_CONTEXT_REGISTRY_REF" \
               --output-dir "${context_tmp}/${owner}"
             python3 -m json.tool \
               "${context_tmp}/${owner}/project-context.yaml" \
@@ -83,7 +86,7 @@ jobs:
               --registry config/org-project-registry.yaml \
               --bundle-dir "${context_tmp}/${owner}" \
               --owner "${owner}" \
-              --registry-ref "$GITHUB_SHA"
+              --registry-ref "$ORG_CONTEXT_REGISTRY_REF"
           done
 
       - name: Validate generated pilot workflows
@@ -99,6 +102,7 @@ jobs:
         with:
           name: org-project-context-pilot
           path: .artifacts/org-context
+          include-hidden-files: true
           retention-days: 3
           if-no-files-found: error
 
@@ -106,10 +110,13 @@ jobs:
     needs: validate
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    env:
+      ORG_CONTEXT_REGISTRY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
@@ -131,8 +138,6 @@ jobs:
 
       - name: Exercise generated organization context in Chromium
         working-directory: tests/e2e/browser
-        env:
-          ORG_CONTEXT_REGISTRY_REF: ${{ github.sha }}
         run: npm test
 
       - name: Upload failing browser evidence
