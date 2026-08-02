@@ -20,6 +20,59 @@ from validate_org_project_registry import (
 
 MAX_RENDERED_FILE_BYTES = 128 * 1024
 
+SEMANTIC_CONFLICT_DIRECTIVE = (
+    "resolve any and all git conflicts semantically, will full context, even "
+    "looking back 3-10 commits in git log history for more context - never "
+    "hastily pick sides in a conflict but merge things conceptually, using max "
+    "context and complete conceptual awareness for a given github organization's "
+    "repos and external org repos too"
+)
+
+
+def _semantic_conflict_policy() -> dict[str, Any]:
+    return {
+        "mode": "semantic_conceptual_merge",
+        "directive_verbatim": SEMANTIC_CONFLICT_DIRECTIVE,
+        "history_lookback_commits": {
+            "minimum": 3,
+            "maximum": 10,
+            "when_available": True,
+            "inspect_both_sides": True,
+            "inspect_merge_base": True,
+            "path_scoped_history": True,
+        },
+        "context_scope": [
+            "conflicted_repository",
+            "same_github_organization_repositories",
+            "relevant_external_github_organization_repositories",
+            "linear_project_context",
+            "pull_requests_issues_architecture_decisions_tests_and_docs",
+        ],
+        "forbidden_shortcuts": [
+            "wholesale_ours",
+            "wholesale_theirs",
+            "wholesale_current",
+            "wholesale_incoming",
+            "discarding_one_side_without_conceptual_analysis",
+        ],
+        "required_outcome": (
+            "preserve compatible intent, invariants, APIs, schemas, migrations, "
+            "tests, documentation, security controls, and operational safeguards "
+            "from every relevant side"
+        ),
+    }
+
+
+def _semantic_conflict_markdown() -> str:
+    return f"""## Semantic Git conflict resolution
+
+> {SEMANTIC_CONFLICT_DIRECTIVE}
+
+Before resolving a conflict, inspect the merge base and 3–10 relevant commits from both sides when available, including path-scoped history for every conflicted file. Read repository-local instructions, linked Linear issues, pull requests, architecture decisions, tests, migrations, schemas, and documentation. When a contract crosses repository boundaries, inspect relevant repositories in the same GitHub organization and relevant repositories in external GitHub organizations too.
+
+Never resolve by blindly or wholesale selecting `ours`, `theirs`, current, or incoming. Produce a conceptual merge that preserves compatible intent, invariants, APIs, schemas, migrations, tests, documentation, security controls, and operational safeguards from all relevant sides. Document non-obvious decisions, scan the whole worktree for conflict markers, and run every affected validation contract. “Max context” means all relevant authorized context; it never authorizes exposing credentials, private data, or hidden reasoning.
+"""
+
 
 def _project_context(
     registry: Mapping[str, Any], mapping: Mapping[str, Any], registry_ref: str
@@ -55,6 +108,7 @@ def _project_context(
             "repository_selection": registry["resolution"]["repository_selection"],
         },
         "runtime_route": mapping["runtime_route"],
+        "git_conflict_resolution": _semantic_conflict_policy(),
         "mirrors": {
             "github_profile": "profile/README.md",
             "github_custom_agent": "agents/org-context.agent.md",
@@ -64,6 +118,7 @@ def _project_context(
         "precedence": {
             "identity_and_routing": "central_registry",
             "implementation_instructions": "repository_local",
+            "semantic_conflict_policy": "organization_context",
         },
         "public_context_only": True,
     }
@@ -97,6 +152,7 @@ This organization is mapped to the Linear project [{linear['project_name']}]({li
 
 Repository-local `AGENTS.md`, `agents.md`, and tool instructions remain authoritative for build, test, and implementation details. The central registry remains authoritative for GitHub/Linear identity and routing. Unmapped or ambiguous work must be rejected rather than guessed.
 
+{_semantic_conflict_markdown()}
 This public repository contains identifiers, links, and public operating guidance only. Do not place credentials, private customer data, or private operational details here.
 """
 
@@ -110,6 +166,7 @@ This special public `.github` repository is the discoverable organization anchor
 - `profile/README.md` is the visible organization profile.
 - `project-context.yaml` is the generated GitHub owner ↔ Linear project mapping.
 - `agents/org-context.agent.md` is the organization-level GitHub Copilot custom-agent profile.
+- The generated profile and custom agent carry the mandatory semantic Git conflict-resolution policy.
 
 The source of truth is the reviewed central registry named in `project-context.yaml`. Generated files should not be edited independently. Keep this repository public-safe.
 """
@@ -140,6 +197,7 @@ Map organization-level work to Linear project `{linear['project_name']}` (immuta
 
 Read repository-local `AGENTS.md`, lowercase `agents.md`, `.github/copilot-instructions.md`, and narrower path instructions before proposing implementation changes. Repository-local instructions control implementation details; the central registry controls GitHub/Linear identity and routing.
 
+{_semantic_conflict_markdown()}
 Fail closed when the owner, repository, or Linear project is missing or ambiguous. Never route by a mutable display name alone. Never expose credentials, private issue content, customer data, or hidden reasoning in public context.
 
 Canonical registry: {generated['url']}
