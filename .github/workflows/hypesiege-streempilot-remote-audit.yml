@@ -83,15 +83,17 @@ jobs:
       - name: Reject conflict markers and credential wiring
         run: |
           set -euo pipefail
-          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
-            .github/workflows/hypesiege-streempilot-remote-audit.yml \
-            repository-fleets/hypesiege-streempilot.remote-audit-2026-08-03.json \
-            reports/hypesiege-streempilot-live-inventory-2026-08-03.md \
-            scripts/audit_hypesiege_streempilot_remote.py \
+          files=(
+            .github/workflows/hypesiege-streempilot-remote-audit.yml
+            repository-fleets/hypesiege-streempilot.remote-audit-2026-08-03.json
+            reports/hypesiege-streempilot-live-inventory-2026-08-03.md
+            scripts/audit_hypesiege_streempilot_remote.py
             scripts/test_audit_hypesiege_streempilot_remote.py
-          ! git grep -nE 'ghp_[A-Za-z0-9]{20,}|GITHUB_REPOSITORY_ADMIN_TOKEN|Authorization: Bearer' -- \
-            .github/workflows/hypesiege-streempilot-remote-audit.yml \
-            repository-fleets/hypesiege-streempilot.remote-audit-2026-08-03.json \
-            reports/hypesiege-streempilot-live-inventory-2026-08-03.md \
-            scripts/audit_hypesiege_streempilot_remote.py \
-            scripts/test_audit_hypesiege_streempilot_remote.py
+          )
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- "${files[@]}"
+
+          pat_prefix='ghp_'
+          admin_token_name='GITHUB_''REPOSITORY_ADMIN_TOKEN'
+          bearer_header='Authorization:'' Bearer'
+          forbidden="${pat_prefix}[A-Za-z0-9]{20,}|${admin_token_name}|${bearer_header}"
+          ! git grep -nE "$forbidden" -- "${files[@]}"
