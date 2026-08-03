@@ -1,0 +1,95 @@
+name: HypeSiege and StreemPilot remote fleet audit
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/hypesiege-streempilot-remote-audit.yml'
+      - 'repository-fleets/hypesiege-streempilot.json'
+      - 'repository-fleets/hypesiege-streempilot.remote-audit-*.json'
+      - 'reports/hypesiege-streempilot-live-inventory-*.md'
+      - 'scripts/audit_hypesiege_streempilot_remote.py'
+      - 'scripts/test_audit_hypesiege_streempilot_remote.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/hypesiege-streempilot-remote-audit.yml'
+      - 'repository-fleets/hypesiege-streempilot.json'
+      - 'repository-fleets/hypesiege-streempilot.remote-audit-*.json'
+      - 'reports/hypesiege-streempilot-live-inventory-*.md'
+      - 'scripts/audit_hypesiege_streempilot_remote.py'
+      - 'scripts/test_audit_hypesiege_streempilot_remote.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hypesiege-streempilot-remote-audit-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Compile audit sources
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/audit_hypesiege_streempilot_remote.py \
+            scripts/test_audit_hypesiege_streempilot_remote.py
+
+      - name: Run complete, partial, alias, and adversarial tests
+        run: python3 -m unittest -v scripts/test_audit_hypesiege_streempilot_remote.py
+
+      - name: Reproduce the dated connected-installation audit
+        run: |
+          set -euo pipefail
+          python3 scripts/audit_hypesiege_streempilot_remote.py \
+            --manifest repository-fleets/hypesiege-streempilot.json \
+            --snapshot repository-fleets/hypesiege-streempilot.remote-audit-2026-08-03.json \
+            --output "$RUNNER_TEMP/fleet-audit.json"
+          python3 - "$RUNNER_TEMP/fleet-audit.json" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          audit = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+          assert audit['complete'] is False
+          hypesiege = audit['organizations']['hypesiege']
+          streempilot = audit['organizations']['streempilot']
+          assert (hypesiege['actual_count'], hypesiege['canonical_present_count']) == (11, 10)
+          assert len(hypesiege['missing_canonical']) == 5
+          assert hypesiege['monorepo_gitlinks'] == 10
+          assert hypesiege['expected_monorepo_gitlinks'] == 14
+          assert (streempilot['actual_count'], streempilot['canonical_present_count']) == (11, 10)
+          assert len(streempilot['missing_canonical']) == 7
+          assert streempilot['monorepo_gitlinks'] == 10
+          assert streempilot['expected_monorepo_gitlinks'] == 16
+          PY
+
+      - name: Reject conflict markers and credential wiring
+        run: |
+          set -euo pipefail
+          ! git grep -nE '^(<<<<<<<|=======|>>>>>>>)' -- \
+            .github/workflows/hypesiege-streempilot-remote-audit.yml \
+            repository-fleets/hypesiege-streempilot.remote-audit-2026-08-03.json \
+            reports/hypesiege-streempilot-live-inventory-2026-08-03.md \
+            scripts/audit_hypesiege_streempilot_remote.py \
+            scripts/test_audit_hypesiege_streempilot_remote.py
+          ! git grep -nE 'ghp_[A-Za-z0-9]{20,}|GITHUB_REPOSITORY_ADMIN_TOKEN|Authorization: Bearer' -- \
+            .github/workflows/hypesiege-streempilot-remote-audit.yml \
+            repository-fleets/hypesiege-streempilot.remote-audit-2026-08-03.json \
+            reports/hypesiege-streempilot-live-inventory-2026-08-03.md \
+            scripts/audit_hypesiege_streempilot_remote.py \
+            scripts/test_audit_hypesiege_streempilot_remote.py
