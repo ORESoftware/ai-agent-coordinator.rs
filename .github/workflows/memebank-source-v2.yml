@@ -36,6 +36,13 @@ jobs:
         with:
           persist-credentials: false
 
+      - name: Audit stored carrier chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          wc -c repository-fleets/memebank-source-v2/*.txt
+          sha256sum repository-fleets/memebank-source-v2/*.txt
+
       - name: Validate Python syntax
         run: python3 -m py_compile repository-fleets/validate_memebank_source_v2.py
 
