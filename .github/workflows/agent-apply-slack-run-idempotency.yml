@@ -1,0 +1,254 @@
+name: apply DEN-1231 Slack idempotency admission patch
+
+on:
+  push:
+    branches:
+      - agent/DEN-1231-slack-run-idempotency-key
+    paths:
+      - '.github/workflows/agent-apply-slack-run-idempotency.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout the feature branch
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: agent/DEN-1231-slack-run-idempotency-key
+          fetch-depth: 0
+          persist-credentials: true
+          show-progress: false
+
+      - name: Apply the bounded source patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              file = Path(path)
+              text = file.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{path}: expected one patch anchor, found {count}')
+              file.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          replace_once(
+              'src/app.rs',
+              '''    request.validate().map_err(AppError::BadRequest)?;
+              let idempotency_key = headers
+                  .get("idempotency-key")
+                  .and_then(|value| value.to_str().ok());
+              let job = state
+          ''',
+              '''    request.validate().map_err(AppError::BadRequest)?;
+              let idempotency_key = headers
+                  .get("idempotency-key")
+                  .and_then(|value| value.to_str().ok());
+              request
+                  .validate_idempotency_key(idempotency_key)
+                  .map_err(AppError::BadRequest)?;
+              let job = state
+          ''',
+          )
+
+          replace_once(
+              'src/db.rs',
+              '''        request.validate().map_err(anyhow::Error::msg)?;
+
+                  if let Some(key) = idempotency_key {
+          ''',
+              '''        request.validate().map_err(anyhow::Error::msg)?;
+                  request
+                      .validate_idempotency_key(idempotency_key)
+                      .map_err(anyhow::Error::msg)?;
+
+                  if let Some(key) = idempotency_key {
+          ''',
+          )
+
+          replace_once(
+              'src/jobs.rs',
+              '''        if self.task_type == crate::slack_run::TASK_TYPE {
+                      crate::slack_run::SlackAgentRunPayload::from_value(&self.payload)?;
+                  }
+                  Ok(())
+              }
+          }
+          ''',
+              '''        if self.task_type == crate::slack_run::TASK_TYPE {
+                      crate::slack_run::SlackAgentRunPayload::from_value(&self.payload)?;
+                  }
+                  Ok(())
+              }
+
+              pub fn validate_idempotency_key(&self, idempotency_key: Option<&str>) -> Result<(), String> {
+                  if self.task_type != crate::slack_run::TASK_TYPE {
+                      return Ok(());
+                  }
+
+                  let payload = crate::slack_run::SlackAgentRunPayload::from_value(&self.payload)?;
+                  let supplied = idempotency_key
+                      .ok_or_else(|| "slack_agent_run requires Idempotency-Key".to_owned())?;
+                  if supplied != payload.run_id.as_str() {
+                      return Err(
+                          "slack_agent_run Idempotency-Key must equal payload.run_id".to_owned(),
+                      );
+                  }
+                  Ok(())
+              }
+          }
+          ''',
+          )
+
+          jobs = Path('src/jobs.rs')
+          jobs_text = jobs.read_text(encoding='utf-8')
+          marker = '#[cfg(test)]\nmod idempotency_key_tests'
+          if marker in jobs_text:
+              raise SystemExit('src/jobs.rs: idempotency tests already exist')
+          jobs_text += r'''
+
+          #[cfg(test)]
+          mod idempotency_key_tests {
+              use serde_json::json;
+
+              use super::*;
+
+              const RUN_ID: &str = "ores-00112233445566778899aabb";
+
+              fn slack_job() -> CreateJobRequest {
+                  CreateJobRequest {
+                      org: "ORESoftware".to_owned(),
+                      repo: "ai-agent-coordinator.rs".to_owned(),
+                      task_type: crate::slack_run::TASK_TYPE.to_owned(),
+                      payload: json!({
+                          "schema_version": 1,
+                          "run_id": RUN_ID,
+                          "bridge_workflow_id": "workflow-123",
+                          "provider": "chatgpt",
+                          "action": "implement",
+                          "prompt": "Implement DEN-1231 with tests.",
+                          "origin": {
+                              "workspace_id": "T012345",
+                              "channel_id": "C012345",
+                              "requester_user_id": "U012345"
+                          },
+                          "context": {
+                              "trust": "untrusted_channel_context",
+                              "selection": "latest_non_bot_channel_messages",
+                              "messages": []
+                          },
+                          "routing": {
+                              "repository": "ORESoftware/ai-agent-coordinator.rs",
+                              "linear_team_id": "team-uuid",
+                              "linear_project_id": "project-uuid",
+                              "linear_run_project_id": "run-project-uuid",
+                              "linear_issue": "DEN-1231",
+                              "write_policy": "draft_pull_request"
+                          },
+                          "broadcast_targets": [
+                              "slack_run_thread",
+                              "ai_agent_coordinator_job",
+                              "ai_agent_bridge_workflow",
+                              "linear_run_queue",
+                              "github_branch_pr_checks"
+                          ]
+                      }),
+                      priority: 25,
+                      max_attempts: 3,
+                      available_at: None,
+                      budget_usd: Some(2.0),
+                  }
+              }
+
+              #[test]
+              fn slack_run_requires_the_exact_run_id_header() {
+                  let request = slack_job();
+                  request.validate().unwrap();
+                  request.validate_idempotency_key(Some(RUN_ID)).unwrap();
+
+                  assert_eq!(
+                      request.validate_idempotency_key(None).unwrap_err(),
+                      "slack_agent_run requires Idempotency-Key"
+                  );
+                  assert_eq!(
+                      request
+                          .validate_idempotency_key(Some("ores-aaaaaaaaaaaaaaaaaaaaaaaa"))
+                          .unwrap_err(),
+                      "slack_agent_run Idempotency-Key must equal payload.run_id"
+                  );
+                  assert!(request.validate_idempotency_key(Some(" ores-00112233445566778899aabb")).is_err());
+              }
+
+              #[test]
+              fn non_slack_jobs_keep_optional_idempotency_keys() {
+                  let request = CreateJobRequest {
+                      org: "ORESoftware".to_owned(),
+                      repo: "ai-agent-coordinator.rs".to_owned(),
+                      task_type: "code_change".to_owned(),
+                      payload: json!({"goal": "test"}),
+                      priority: 0,
+                      max_attempts: 3,
+                      available_at: None,
+                      budget_usd: None,
+                  };
+
+                  request.validate().unwrap();
+                  request.validate_idempotency_key(None).unwrap();
+                  request.validate_idempotency_key(Some("linear:DEN-1231")).unwrap();
+              }
+          }
+          '''
+          jobs.write_text(jobs_text, encoding='utf-8')
+
+          docs = Path('docs/slack-agent-run.md')
+          docs_text = docs.read_text(encoding='utf-8')
+          heading = '## Idempotency-key admission'
+          if heading in docs_text:
+              raise SystemExit('docs/slack-agent-run.md: idempotency section already exists')
+          docs_text += r'''
+
+          ## Idempotency-key admission
+
+          Every `slack_agent_run` request to `POST /v1/jobs` must carry an
+          `Idempotency-Key` header whose value exactly equals the validated
+          `payload.run_id`. Missing, malformed, whitespace-padded, or mismatched
+          values fail with `400 Bad Request` before the database lookup/insert.
+
+          `Database::create_job` repeats the same validation so internal callers
+          cannot bypass the HTTP admission boundary. Other task types keep their
+          existing optional-idempotency behavior.
+
+          The shared declarative PostgreSQL schema adds the final defense-in-depth
+          check: a persisted Slack run must use `ores-<24 lowercase hex>` as both
+          `jobs.idempotency_key` and `payload.run_id`, with schema version `1`.
+          The unique idempotency constraint then makes retries and concurrent
+          deliveries reuse one durable job rather than creating duplicates.
+          '''
+          docs.write_text(docs_text, encoding='utf-8')
+          PY
+
+      - name: Format and run focused tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          cargo fmt --all -- --check
+          cargo test --locked idempotency_key_tests
+
+      - name: Commit the bounded patch and remove this one-time workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'ORESoftware'
+          git config user.email '11139560+ORESoftware@users.noreply.github.com'
+          git rm .github/workflows/agent-apply-slack-run-idempotency.yml
+          git add src/app.rs src/db.rs src/jobs.rs docs/slack-agent-run.md
+          git diff --cached --check
+          git commit -m 'DEN-1231 require exact Slack run idempotency header'
+          git push origin HEAD:agent/DEN-1231-slack-run-idempotency-key
