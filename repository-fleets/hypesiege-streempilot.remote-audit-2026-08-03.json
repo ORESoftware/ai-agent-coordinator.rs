@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-08-03T13:30:00-04:00",
+  "source": "connected GitHub App installation inventory",
+  "repositories": [
+    {"full_name":"hypesiege/hypesiege-interfaces","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-api-server.rs","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-web-server.rs","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-flutter-app","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-cli","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-clients","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-sync","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-e2e","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-mcp-server.rs","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-infra","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"hypesiege/hypesiege-monorepo","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-interfaces","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-api-server.rs","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-web-server.rs","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-flutter-app","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-cli","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-clients","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-sync","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-e2e","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-mcp-server.rs","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-infra","default_branch":"main","visibility":"private","admin":true},
+    {"full_name":"StreemPilot/streempilot-monorepo","default_branch":"main","visibility":"private","admin":true}
+  ],
+  "monorepo_gitlinks": {
+    "hypesiege": 10,
+    "streempilot": 10
+  }
+}
