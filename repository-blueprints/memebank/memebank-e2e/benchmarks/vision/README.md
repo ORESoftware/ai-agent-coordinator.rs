@@ -2,6 +2,19 @@
 
 This harness evaluates **recorded observations** from OCR, object/tagging, captioning, and retrieval candidates. It deliberately does not contain provider SDKs, network calls, model downloads, credentials, or production recommendations.
 
+## Candidate planning inventory
+
+The enforceable research backlog is `candidates/candidate-inventory.json`. It records the required TypeScript, Go, Rust, and cloud candidates, exact or unresolved identities, benchmark capabilities, deployment targets, evidence links, disposition state, and production-dependency status.
+
+Validate it from the coordinator repository root:
+
+```bash
+python3 -m unittest -v scripts/test_validate_memebank_vision_candidates.py
+python3 scripts/validate_memebank_vision_candidates.py
+```
+
+The inventory is intentionally separate from `candidates/candidates.json`. The former defines what DEN-1011 must investigate; the latter describes only candidates that have an actual synthetic, replayed, shadow, or live result set consumable by this evaluator. Moving a candidate from the inventory into recorded benchmark results requires pinned provenance and does not itself authorize production use.
+
 ## What the checked-in fixtures prove
 
 The generated SVG corpus covers:
@@ -18,7 +31,8 @@ These five fixtures are not a production-quality corpus. DEN-1011 remains open u
 ## Inputs
 
 - `corpus/manifest.json`: split, cohort, asset digest, license, live-provider consent, OCR truth, regions, tags, caption facts, adversarial marker, and retrieval relevance.
-- `candidates/candidates.json`: runtime lane, privacy route, capabilities, verification status, immutable artifact/API provenance, processor version, license, checksum, and owner.
+- `candidates/candidate-inventory.json`: required candidate identities, capabilities, deployment targets, evidence, and disposition controls.
+- `candidates/candidates.json`: runtime lane, privacy route, capabilities, verification status, immutable artifact/API provenance, processor version, license, checksum, and owner for candidates with recorded results.
 - `results/recorded-results.json`: run metadata and one observation per evaluation item.
 - `hardware/*.json`: explicit execution environment.
 - `policies/gates.json`: immutable evaluation split, IoU threshold, Recall@K, safety/quality gates, and live-provider budget/consent policy.

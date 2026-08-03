@@ -1,0 +1,1231 @@
+{
+  "schema_version": 1,
+  "catalog_id": "memebank-vision-candidates",
+  "generated_on": "2026-08-03",
+  "tracking_issues": [
+    "DEN-1011",
+    "DEN-1018"
+  ],
+  "policy": {
+    "required_tracks": [
+      "typescript",
+      "go",
+      "rust",
+      "cloud"
+    ],
+    "allowed_dispositions": [
+      "benchmark",
+      "pilot",
+      "adopt",
+      "defer",
+      "reject"
+    ],
+    "exact_identity_required_for": [
+      "pilot",
+      "adopt"
+    ],
+    "production_dependency_requires_disposition": "adopt",
+    "forbidden_capabilities": [
+      "face-recognition",
+      "biometric-identification"
+    ],
+    "model_names_are_configuration_for": [
+      "openai-image-input",
+      "gemini-image-understanding",
+      "anthropic-claude-vision"
+    ]
+  },
+  "candidates": [
+    {
+      "candidate_id": "tensorflow-js-core",
+      "display_name": "TensorFlow.js",
+      "track": "typescript",
+      "kind": "framework",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "npm",
+        "name": "@tensorflow/tfjs",
+        "upstream": "https://github.com/tensorflow/tfjs",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "object-detection",
+        "captioning",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "browser",
+        "node",
+        "react-native",
+        "wasm",
+        "webgl",
+        "webgpu"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/tensorflow/tfjs"
+      ],
+      "notes": [
+        "Benchmark the core runtime separately from individual pretrained model packages."
+      ]
+    },
+    {
+      "candidate_id": "tensorflow-js-mobilenet",
+      "display_name": "TensorFlow.js MobileNet",
+      "track": "typescript",
+      "kind": "model-package",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "npm",
+        "name": "@tensorflow-models/mobilenet",
+        "upstream": "https://github.com/tensorflow/tfjs-models",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "scene-labeling"
+      ],
+      "deployment_targets": [
+        "browser",
+        "node"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/tensorflow/tfjs-models"
+      ],
+      "notes": [
+        "Use as a general image-classification baseline, not a MemeBank-specific taxonomy."
+      ]
+    },
+    {
+      "candidate_id": "tensorflow-js-coco-ssd",
+      "display_name": "TensorFlow.js COCO-SSD",
+      "track": "typescript",
+      "kind": "model-package",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "npm",
+        "name": "@tensorflow-models/coco-ssd",
+        "upstream": "https://github.com/tensorflow/tfjs-models",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "object-detection",
+        "regions"
+      ],
+      "deployment_targets": [
+        "browser",
+        "node"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/tensorflow/tfjs-models"
+      ],
+      "notes": [
+        "Treat labels and boxes as a baseline; normalize coordinates through mb-interfaces."
+      ]
+    },
+    {
+      "candidate_id": "tesseract-js",
+      "display_name": "Tesseract.js",
+      "track": "typescript",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "npm",
+        "name": "tesseract.js",
+        "upstream": "https://github.com/naptha/tesseract.js",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation"
+      ],
+      "deployment_targets": [
+        "browser",
+        "node",
+        "wasm",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/naptha/tesseract.js"
+      ],
+      "notes": [
+        "Benchmark language-data size, CSP compatibility, workers, and repeated-image scheduling."
+      ]
+    },
+    {
+      "candidate_id": "paddleocr-js",
+      "display_name": "PaddleOCR.js",
+      "track": "typescript",
+      "kind": "upstream-sdk",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "upstream-sdk",
+        "name": "PaddleOCR.js",
+        "upstream": "https://github.com/PaddlePaddle/PaddleOCR",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation"
+      ],
+      "deployment_targets": [
+        "browser",
+        "wasm",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/PaddlePaddle/PaddleOCR"
+      ],
+      "notes": [
+        "Pin the exact browser SDK release, PP-OCR model files, dictionaries, and checksums."
+      ]
+    },
+    {
+      "candidate_id": "typescript-paddleocr-onnx-wrapper",
+      "display_name": "PaddleOCR-derived TypeScript ONNX wrapper",
+      "track": "typescript",
+      "kind": "selection-required",
+      "identity": {
+        "status": "selection-required",
+        "ecosystem": "npm-or-source",
+        "name": null,
+        "upstream": "https://github.com/PaddlePaddle/PaddleOCR",
+        "version_policy": "select-then-pin"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation"
+      ],
+      "deployment_targets": [
+        "node",
+        "browser",
+        "wasm",
+        "local-only"
+      ],
+      "model_or_api_binding": "selection-required",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/PaddlePaddle/PaddleOCR",
+        "https://onnxruntime.ai/docs/get-started/with-javascript/"
+      ],
+      "notes": [
+        "Do not adopt a generic wrapper label; select one maintained package or source implementation and record its exact identity."
+      ]
+    },
+    {
+      "candidate_id": "onnxruntime-web",
+      "display_name": "ONNX Runtime Web",
+      "track": "typescript",
+      "kind": "local-runtime",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "npm",
+        "name": "onnxruntime-web",
+        "upstream": "https://github.com/microsoft/onnxruntime",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "image-classification",
+        "object-detection",
+        "captioning",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "browser",
+        "wasm",
+        "webgpu",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://onnxruntime.ai/docs/get-started/with-javascript/web.html"
+      ],
+      "notes": [
+        "Treat WebGPU and WebNN support as benchmarked execution-provider details, not unconditional platform guarantees."
+      ]
+    },
+    {
+      "candidate_id": "onnxruntime-node",
+      "display_name": "ONNX Runtime Node.js",
+      "track": "typescript",
+      "kind": "local-runtime",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "npm",
+        "name": "onnxruntime-node",
+        "upstream": "https://github.com/microsoft/onnxruntime",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "image-classification",
+        "object-detection",
+        "captioning",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "node",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "gpu"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://onnxruntime.ai/docs/get-started/with-javascript/node.html"
+      ],
+      "notes": [
+        "Compare native-package footprint and accelerator availability with the Rust ort path."
+      ]
+    },
+    {
+      "candidate_id": "opencv-js",
+      "display_name": "OpenCV.js",
+      "track": "typescript",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "upstream-build",
+        "name": "OpenCV.js",
+        "upstream": "https://github.com/opencv/opencv",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "preprocess",
+        "regions",
+        "object-detection"
+      ],
+      "deployment_targets": [
+        "browser",
+        "node",
+        "wasm",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-package-only",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://docs.opencv.org/4.x/d5/d10/tutorial_js_root.html"
+      ],
+      "notes": [
+        "Use for deterministic preprocessing and classical vision before OCR or learned inference."
+      ]
+    },
+    {
+      "candidate_id": "gocv",
+      "display_name": "GoCV",
+      "track": "go",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "go-module",
+        "name": "gocv.io/x/gocv",
+        "upstream": "https://github.com/hybridgroup/gocv",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "preprocess",
+        "image-classification",
+        "object-detection",
+        "regions"
+      ],
+      "deployment_targets": [
+        "go-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "gpu"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://gocv.io/"
+      ],
+      "notes": [
+        "A Go service is allowed only when measured benefits beat the default Rust worker path."
+      ]
+    },
+    {
+      "candidate_id": "gosseract",
+      "display_name": "Gosseract",
+      "track": "go",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "go-module",
+        "name": "github.com/otiai10/gosseract/v2",
+        "upstream": "https://github.com/otiai10/gosseract",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation"
+      ],
+      "deployment_targets": [
+        "go-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/otiai10/gosseract"
+      ],
+      "notes": [
+        "Account for native Tesseract, Leptonica, and language-data packaging."
+      ]
+    },
+    {
+      "candidate_id": "tfgo",
+      "display_name": "tfgo",
+      "track": "go",
+      "kind": "local-runtime",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "go-module",
+        "name": "github.com/galeone/tfgo",
+        "upstream": "https://github.com/galeone/tfgo",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "object-detection"
+      ],
+      "deployment_targets": [
+        "go-worker",
+        "linux-server"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/galeone/tfgo"
+      ],
+      "notes": [
+        "Revalidate maintenance, TensorFlow C-library compatibility, and supported model formats before pilot."
+      ]
+    },
+    {
+      "candidate_id": "graft-tensorflow-go",
+      "display_name": "Graft TensorFlow Go bindings",
+      "track": "go",
+      "kind": "local-runtime",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "go-module",
+        "name": "github.com/wamuir/graft/tensorflow",
+        "upstream": "https://github.com/wamuir/graft",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "object-detection"
+      ],
+      "deployment_targets": [
+        "go-worker",
+        "linux-server"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/wamuir/graft"
+      ],
+      "notes": [
+        "Compare against tfgo and ONNX Runtime Go; do not carry multiple TensorFlow bindings without a measured reason."
+      ]
+    },
+    {
+      "candidate_id": "onnxruntime-go",
+      "display_name": "onnxruntime_go",
+      "track": "go",
+      "kind": "local-runtime",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "go-module",
+        "name": "github.com/yalue/onnxruntime_go",
+        "upstream": "https://github.com/yalue/onnxruntime_go",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "image-classification",
+        "object-detection",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "go-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "gpu"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011"
+      ],
+      "evidence_urls": [
+        "https://github.com/yalue/onnxruntime_go"
+      ],
+      "notes": [
+        "Pin the matching ONNX Runtime shared-library version and execution-provider matrix."
+      ]
+    },
+    {
+      "candidate_id": "candle",
+      "display_name": "Candle",
+      "track": "rust",
+      "kind": "framework",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "crates.io",
+        "name": "candle-core",
+        "upstream": "https://github.com/huggingface/candle",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "object-detection",
+        "captioning",
+        "ocr",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "rust-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "wasm",
+        "gpu",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/huggingface/candle"
+      ],
+      "notes": [
+        "Benchmark only selected models and operators; framework availability is not model compatibility."
+      ]
+    },
+    {
+      "candidate_id": "burn",
+      "display_name": "Burn",
+      "track": "rust",
+      "kind": "framework",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "crates.io",
+        "name": "burn",
+        "upstream": "https://github.com/tracel-ai/burn",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "object-detection",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "rust-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "wasm",
+        "gpu",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://burn.dev/docs/burn/"
+      ],
+      "notes": [
+        "Adopt only for supported model/operator/backends that outperform or simplify the ort path."
+      ]
+    },
+    {
+      "candidate_id": "oar-ocr",
+      "display_name": "oar-ocr",
+      "track": "rust",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "crates.io",
+        "name": "oar-ocr",
+        "upstream": "https://github.com/GreatV/oar-ocr",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation",
+        "layout",
+        "tables",
+        "formulas",
+        "seals",
+        "captioning"
+      ],
+      "deployment_targets": [
+        "rust-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "gpu",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/GreatV/oar-ocr"
+      ],
+      "notes": [
+        "Disable implicit production downloads; promote only checksummed model artifacts through the model registry."
+      ]
+    },
+    {
+      "candidate_id": "ocrs",
+      "display_name": "ocrs",
+      "track": "rust",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "crates.io",
+        "name": "ocrs",
+        "upstream": "https://github.com/robertknight/ocrs",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "layout"
+      ],
+      "deployment_targets": [
+        "rust-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "wasm",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/robertknight/ocrs"
+      ],
+      "notes": [
+        "Record current language limitations and benchmark meme typography before any default-route decision."
+      ]
+    },
+    {
+      "candidate_id": "ort",
+      "display_name": "ort",
+      "track": "rust",
+      "kind": "local-runtime",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "crates.io",
+        "name": "ort",
+        "upstream": "https://github.com/pykeio/ort",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "image-classification",
+        "object-detection",
+        "captioning",
+        "native-visual-embeddings"
+      ],
+      "deployment_targets": [
+        "rust-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "gpu",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-model-artifacts",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/pykeio/ort"
+      ],
+      "notes": [
+        "Treat ONNX Runtime and ort versions, execution providers, target architecture, and model opsets as one compatibility tuple."
+      ]
+    },
+    {
+      "candidate_id": "opencv-rust",
+      "display_name": "opencv-rust",
+      "track": "rust",
+      "kind": "local-library",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "crates.io",
+        "name": "opencv",
+        "upstream": "https://github.com/twistedfall/opencv-rust",
+        "version_policy": "pin-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "preprocess",
+        "regions",
+        "object-detection"
+      ],
+      "deployment_targets": [
+        "rust-worker",
+        "linux-server",
+        "macos-desktop",
+        "windows-desktop",
+        "arm64",
+        "gpu",
+        "local-only"
+      ],
+      "model_or_api_binding": "pinned-package-only",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://github.com/twistedfall/opencv-rust"
+      ],
+      "notes": [
+        "Compare native dependency and container complexity with pure-Rust preprocessing."
+      ]
+    },
+    {
+      "candidate_id": "google-cloud-vision",
+      "display_name": "Google Cloud Vision",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Cloud Vision API",
+        "upstream": "https://cloud.google.com/vision/docs",
+        "version_policy": "pin-api-and-sdk-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation",
+        "handwriting",
+        "image-classification",
+        "scene-labeling",
+        "object-detection",
+        "moderation",
+        "batch"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "pinned-api-version",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://cloud.google.com/vision/docs/ocr",
+        "https://cloud.google.com/vision/docs/labels"
+      ],
+      "notes": [
+        "Keep document OCR and general image analysis distinct in routing and cost accounting."
+      ]
+    },
+    {
+      "candidate_id": "google-document-ai",
+      "display_name": "Google Cloud Document AI",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Document AI",
+        "upstream": "https://cloud.google.com/document-ai/docs",
+        "version_policy": "pin-processor-and-api-during-benchmark"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation",
+        "handwriting",
+        "layout",
+        "tables",
+        "batch"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "pinned-api-version",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://cloud.google.com/document-ai/docs"
+      ],
+      "notes": [
+        "Record processor identity and region; do not collapse it into Cloud Vision."
+      ]
+    },
+    {
+      "candidate_id": "aws-rekognition",
+      "display_name": "AWS Rekognition",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Amazon Rekognition",
+        "upstream": "https://docs.aws.amazon.com/rekognition/",
+        "version_policy": "pin-sdk-and-record-model-version"
+      },
+      "benchmark_capabilities": [
+        "image-classification",
+        "scene-labeling",
+        "object-detection",
+        "regions",
+        "moderation"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "pinned-api-version",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://docs.aws.amazon.com/rekognition/latest/dg/labels.html",
+        "https://docs.aws.amazon.com/rekognition/latest/dg/moderation.html"
+      ],
+      "notes": [
+        "Do not use Rekognition as the AWS document-OCR abstraction; Textract is evaluated separately."
+      ]
+    },
+    {
+      "candidate_id": "aws-textract",
+      "display_name": "AWS Textract",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Amazon Textract",
+        "upstream": "https://docs.aws.amazon.com/textract/",
+        "version_policy": "pin-sdk-and-api-contract"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "handwriting",
+        "layout",
+        "tables",
+        "batch"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "pinned-api-version",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://docs.aws.amazon.com/textract/latest/dg/what-is.html",
+        "https://docs.aws.amazon.com/textract/latest/dg/how-it-works-tables.html"
+      ],
+      "notes": [
+        "Keep forms, tables, layout, and plain OCR metrics separate."
+      ]
+    },
+    {
+      "candidate_id": "azure-ai-vision",
+      "display_name": "Azure AI Vision",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Azure Vision Image Analysis",
+        "upstream": "https://learn.microsoft.com/azure/ai-services/computer-vision/",
+        "version_policy": "pin-api-version-and-migration-status"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "handwriting",
+        "image-classification",
+        "scene-labeling",
+        "object-detection",
+        "captioning",
+        "moderation"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "pinned-api-version",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://learn.microsoft.com/azure/ai-services/computer-vision/overview-image-analysis",
+        "https://learn.microsoft.com/azure/ai-services/computer-vision/concept-ocr"
+      ],
+      "notes": [
+        "Record current deprecation and migration status before any adoption decision."
+      ]
+    },
+    {
+      "candidate_id": "azure-document-intelligence",
+      "display_name": "Azure AI Document Intelligence",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Azure AI Document Intelligence",
+        "upstream": "https://learn.microsoft.com/azure/ai-services/document-intelligence/",
+        "version_policy": "pin-api-and-model-version"
+      },
+      "benchmark_capabilities": [
+        "ocr",
+        "regions",
+        "orientation",
+        "handwriting",
+        "layout",
+        "tables",
+        "batch"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "pinned-api-version",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://learn.microsoft.com/azure/ai-services/document-intelligence/overview"
+      ],
+      "notes": [
+        "Keep document analysis distinct from general Azure image analysis."
+      ]
+    },
+    {
+      "candidate_id": "openai-image-input",
+      "display_name": "OpenAI image-input-capable models",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "OpenAI Responses API image inputs",
+        "upstream": "https://developers.openai.com/api/docs/guides/images-vision",
+        "version_policy": "runtime-configured-model-with-allowlist"
+      },
+      "benchmark_capabilities": [
+        "captioning",
+        "image-classification",
+        "visual-question-answering",
+        "ocr",
+        "object-detection"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "runtime-configured-model",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://developers.openai.com/api/docs/guides/images-vision"
+      ],
+      "notes": [
+        "Model names remain configuration; validate bounded structured observations and preserve raw responses separately."
+      ]
+    },
+    {
+      "candidate_id": "gemini-image-understanding",
+      "display_name": "Gemini image understanding",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Gemini API image understanding",
+        "upstream": "https://ai.google.dev/gemini-api/docs/image-understanding",
+        "version_policy": "runtime-configured-model-with-allowlist"
+      },
+      "benchmark_capabilities": [
+        "captioning",
+        "image-classification",
+        "visual-question-answering",
+        "ocr",
+        "object-detection",
+        "segmentation"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "runtime-configured-model",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://ai.google.dev/gemini-api/docs/image-understanding"
+      ],
+      "notes": [
+        "Do not invent native image-embedding or text-embedding endpoints; verify each selected model's current capabilities."
+      ]
+    },
+    {
+      "candidate_id": "anthropic-claude-vision",
+      "display_name": "Claude vision",
+      "track": "cloud",
+      "kind": "cloud-api",
+      "identity": {
+        "status": "exact",
+        "ecosystem": "cloud-api",
+        "name": "Claude API vision",
+        "upstream": "https://platform.claude.com/docs/en/build-with-claude/vision",
+        "version_policy": "runtime-configured-model-with-allowlist"
+      },
+      "benchmark_capabilities": [
+        "captioning",
+        "image-classification",
+        "visual-question-answering",
+        "ocr"
+      ],
+      "deployment_targets": [
+        "cloud-api"
+      ],
+      "model_or_api_binding": "runtime-configured-model",
+      "disposition": "benchmark",
+      "production_dependency": false,
+      "pinned_version": null,
+      "license": null,
+      "decision_record": null,
+      "tracking_issues": [
+        "DEN-1011",
+        "DEN-1018"
+      ],
+      "evidence_urls": [
+        "https://platform.claude.com/docs/en/build-with-claude/vision"
+      ],
+      "notes": [
+        "Do not invent a native image-embedding endpoint; model names remain configuration."
+      ]
+    }
+  ]
+}

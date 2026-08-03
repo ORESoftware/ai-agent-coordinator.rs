@@ -1,0 +1,80 @@
+name: memebank-vision-candidates
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - repository-blueprints/memebank/memebank-e2e/benchmarks/vision/candidates/candidate-inventory.json
+      - repository-blueprints/memebank/memebank-e2e/benchmarks/vision/README.md
+      - scripts/validate_memebank_vision_candidates.py
+      - scripts/test_validate_memebank_vision_candidates.py
+      - docs/memebank-vision-candidates.md
+      - .github/workflows/memebank-vision-candidates.yml
+  push:
+    branches:
+      - main
+    paths:
+      - repository-blueprints/memebank/memebank-e2e/benchmarks/vision/candidates/candidate-inventory.json
+      - repository-blueprints/memebank/memebank-e2e/benchmarks/vision/README.md
+      - scripts/validate_memebank_vision_candidates.py
+      - scripts/test_validate_memebank_vision_candidates.py
+      - docs/memebank-vision-candidates.md
+      - .github/workflows/memebank-vision-candidates.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate Python syntax
+        run: |
+          python3 -m py_compile \
+            scripts/validate_memebank_vision_candidates.py \
+            scripts/test_validate_memebank_vision_candidates.py
+
+      - name: Run inventory regression tests
+        run: python3 -m unittest -v scripts/test_validate_memebank_vision_candidates.py
+
+      - name: Validate canonical inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_memebank_vision_candidates.py | tee /tmp/memebank-vision-summary.txt
+          {
+            echo '## MemeBank vision candidate inventory'
+            echo
+            echo '```text'
+            cat /tmp/memebank-vision-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Reject credential literals in managed files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            repository-blueprints/memebank/memebank-e2e/benchmarks/vision/candidates/candidate-inventory.json
+            repository-blueprints/memebank/memebank-e2e/benchmarks/vision/README.md
+            scripts/validate_memebank_vision_candidates.py
+            scripts/test_validate_memebank_vision_candidates.py
+            docs/memebank-vision-candidates.md
+            .github/workflows/memebank-vision-candidates.yml
+          )
+          if grep -En 'gh[pousr]_[A-Za-z0-9]{20,}' "${files[@]}"; then
+            echo 'credential-shaped literal detected in vision candidate files' >&2
+            exit 1
+          fi
