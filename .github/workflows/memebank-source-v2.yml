@@ -1,0 +1,81 @@
+name: memebank-source-v2
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - repository-fleets/memebank-source-v2.json
+      - repository-fleets/memebank-source-v2/**
+      - repository-fleets/validate_memebank_source_v2.py
+      - .github/workflows/memebank-source-v2.yml
+  push:
+    branches:
+      - main
+    paths:
+      - repository-fleets/memebank-source-v2.json
+      - repository-fleets/memebank-source-v2/**
+      - repository-fleets/validate_memebank_source_v2.py
+      - .github/workflows/memebank-source-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Audit stored carrier chunks
+        shell: bash
+        run: |
+          set -euo pipefail
+          wc -c repository-fleets/memebank-source-v2/*.txt
+          sha256sum repository-fleets/memebank-source-v2/*.txt
+
+      - name: Upload exact stored carrier for transport diagnosis
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: memebank-source-v2-stored
+          path: |
+            repository-fleets/memebank-source-v2.json
+            repository-fleets/memebank-source-v2/*.txt
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Validate Python syntax
+        run: python3 -m py_compile repository-fleets/validate_memebank_source_v2.py
+
+      - name: Reconstruct archive and all Git histories
+        run: python3 repository-fleets/validate_memebank_source_v2.py
+
+      - name: Prove v1 remains unusable
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path('repository-fleets/memebank-source.json').read_text())
+          mismatches = []
+          for record in manifest['payload']['chunks']:
+              path = Path(record['path'])
+              data = path.read_bytes()
+              if len(data) != record['bytes'] or hashlib.sha256(data).hexdigest() != record['sha256']:
+                  mismatches.append(record['path'])
+          if not mismatches:
+              raise SystemExit('historical v1 unexpectedly became valid; review publisher assumptions')
+          print(f'PASS v1 remains quarantined: {len(mismatches)} integrity mismatches')
+          PY
