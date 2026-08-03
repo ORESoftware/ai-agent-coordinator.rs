@@ -8,6 +8,7 @@ on:
       - repository-fleets/memebank-source-v2.json
       - repository-fleets/memebank-source-v2/**
       - repository-fleets/validate_memebank_source_v2.py
+      - repository-fleets/test_validate_memebank_source_v2.py
       - .github/workflows/memebank-source-v2.yml
   push:
     branches:
@@ -16,6 +17,7 @@ on:
       - repository-fleets/memebank-source-v2.json
       - repository-fleets/memebank-source-v2/**
       - repository-fleets/validate_memebank_source_v2.py
+      - repository-fleets/test_validate_memebank_source_v2.py
       - .github/workflows/memebank-source-v2.yml
   workflow_dispatch:
 
@@ -54,7 +56,13 @@ jobs:
           retention-days: 1
 
       - name: Validate Python syntax
-        run: python3 -m py_compile repository-fleets/validate_memebank_source_v2.py
+        run: |
+          python3 -m py_compile \
+            repository-fleets/validate_memebank_source_v2.py \
+            repository-fleets/test_validate_memebank_source_v2.py
+
+      - name: Run carrier attack-regression tests
+        run: python3 -m unittest -v repository-fleets/test_validate_memebank_source_v2.py
 
       - name: Reconstruct archive and all Git histories
         run: python3 repository-fleets/validate_memebank_source_v2.py
