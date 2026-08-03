@@ -50,6 +50,8 @@ jobs:
             scripts/test_audit_hypesiege_streempilot_remote.py
 
       - name: Run complete, partial, alias, and adversarial tests
+        env:
+          PYTHONPATH: scripts
         run: python3 -m unittest -v scripts/test_audit_hypesiege_streempilot_remote.py
 
       - name: Reproduce the dated connected-installation audit
