@@ -184,6 +184,9 @@ async fn create_job(
     let idempotency_key = headers
         .get("idempotency-key")
         .and_then(|value| value.to_str().ok());
+    request
+        .validate_idempotency_key(idempotency_key)
+        .map_err(AppError::BadRequest)?;
     let job = state
         .database
         .create_job(&request, idempotency_key)
