@@ -1,0 +1,102 @@
+name: repair-memebank-source-v2-transport
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/repair-memebank-source-v2-transport.yml
+      - repository-fleets/memebank-source-v2/*.txt
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref == 'agent/repair-memebank-source-v2-20260803'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out the exact pull-request branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+
+      - name: Repair only the diagnosed transport mutations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          root = Path('repository-fleets/memebank-source-v2')
+
+          def sha(data: bytes) -> str:
+              return hashlib.sha256(data).hexdigest()
+
+          repairs = []
+
+          path = root / 'memebank-source-v2.tar.gz.b64.part-001.txt'
+          data = path.read_bytes()
+          good = '78a8b5fa6986ecd3fd042761b3c1807bac7731f475b268f178cbc9c67b823e4c'
+          bad = '074185e5a0f1aeee81b71a99138fc6b94eae58cfa4c2f77381d6d77192ce96a8'
+          if sha(data) == bad:
+              assert len(data) == 12001
+              assert data[6647:6648] == b'W'
+              data = data[:6647] + data[6648:]
+              assert data[9030:9031] == b'G'
+              data = data[:9030] + b'E' + data[9031:]
+              assert len(data) == 12000 and sha(data) == good
+              path.write_bytes(data)
+              repairs.append(str(path))
+          else:
+              assert sha(data) == good
+
+          path = root / 'memebank-source-v2.tar.gz.b64.part-005.txt'
+          data = path.read_bytes()
+          good = '6369068a2debb4b96799a67cad2112b75da0ab109e595bcee978796f8fbe3aee'
+          bad = '51108f846860da5923759f3ef7e18332c741b51efe1fc76dcbf6bc00ad2ed9ef'
+          if sha(data) == bad:
+              assert len(data) == 12001 and data[7581:7583] == b'qe'
+              data = data[:7581] + b'J' + data[7583:]
+              assert len(data) == 12000 and sha(data) == good
+              path.write_bytes(data)
+              repairs.append(str(path))
+          else:
+              assert sha(data) == good
+
+          path = root / 'memebank-source-v2.tar.gz.b64.part-007.txt'
+          data = path.read_bytes()
+          good = 'dfb15b110a87fca11a13abc632cf443ec69a8ac7bea718099a6178325cad6c98'
+          bad = 'a4f584bad4f7a5f90d6cb57ed169b030af9a30941fa20702b2088ab22726e43d'
+          if sha(data) == bad:
+              assert len(data) == 7168 and data[614:615] == b'd'
+              data = data[:614] + b'D' + data[615:]
+              assert sha(data) == good
+              path.write_bytes(data)
+              repairs.append(str(path))
+          else:
+              assert sha(data) == good
+
+          print('repaired=' + ','.join(repairs))
+          PY
+
+      - name: Commit verified repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          if git diff --quiet -- repository-fleets/memebank-source-v2/*.txt; then
+            echo 'Carrier bytes already match the approved ledger.'
+            exit 0
+          fi
+          git config user.name 'ORESoftware publication automation'
+          git config user.email 'bot@oresoftware.dev'
+          git add repository-fleets/memebank-source-v2/*.txt
+          git commit -m 'fix: restore exact source-v2 carrier bytes'
+          git push origin "HEAD:${GITHUB_HEAD_REF}"
