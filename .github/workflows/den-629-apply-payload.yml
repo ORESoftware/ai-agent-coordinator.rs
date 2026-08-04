@@ -1,3 +1,4 @@
+# one-shot trigger after workflow exists in the parent tree
 name: DEN-629 apply reviewed organization relationship payload
 
 on:
