@@ -76,16 +76,16 @@ async fn main() -> anyhow::Result<()> {
         Vec::new()
     };
 
-    let linear = LinearReconciliationClient::new(LinearReconciliationConfig::from_env(
-        args.dry_run,
-    )?)?
-    .apply_plan(&bytes, &plan, &authorization)
-    .await?;
+    let linear =
+        LinearReconciliationClient::new(LinearReconciliationConfig::from_env(args.dry_run)?)?
+            .apply_plan(&bytes, &plan, &authorization)
+            .await?;
     let report = CommandReport {
         github_evidence,
         linear,
     };
-    let output = serde_json::to_string_pretty(&report).context("failed to serialize apply report")?;
+    let output =
+        serde_json::to_string_pretty(&report).context("failed to serialize apply report")?;
     if let Some(path) = args.output {
         fs::write(&path, format!("{output}\n"))
             .with_context(|| format!("failed to write report to {}", path.display()))?;

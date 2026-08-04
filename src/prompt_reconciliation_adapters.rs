@@ -1,9 +1,4 @@
-use std::{
-    collections::BTreeSet,
-    env, fmt,
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::BTreeSet, env, fmt, sync::Arc, time::Duration};
 
 use reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE, RETRY_AFTER},
@@ -16,9 +11,7 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 use tokio::time::sleep;
 
-use crate::prompt_reconciliation::{
-    LinearMutationKind, LinearMutationPlan, ReconciliationPlan,
-};
+use crate::prompt_reconciliation::{LinearMutationKind, LinearMutationPlan, ReconciliationPlan};
 
 const APPLY_ENV: &str = "PROMPT_RECONCILIATION_APPLY_ENABLED";
 const CONFIRMATION: &str = "APPLY PROMPT RECONCILIATION";
@@ -110,8 +103,9 @@ pub struct Secret(Arc<str>);
 
 impl Secret {
     pub fn from_environment(name: &'static str) -> Result<Self, AdapterError> {
-        let value = env::var(name)
-            .map_err(|_| AdapterError::policy(format!("required credential {name} is unavailable")))?;
+        let value = env::var(name).map_err(|_| {
+            AdapterError::policy(format!("required credential {name} is unavailable"))
+        })?;
         Self::new(value)
     }
 
@@ -183,7 +177,11 @@ pub struct RepositoryAllowlist {
 impl RepositoryAllowlist {
     pub fn parse(value: &str) -> Result<Self, AdapterError> {
         let mut repositories = BTreeSet::new();
-        for entry in value.split(',').map(str::trim).filter(|entry| !entry.is_empty()) {
+        for entry in value
+            .split(',')
+            .map(str::trim)
+            .filter(|entry| !entry.is_empty())
+        {
             let (owner, repository) = split_repository(entry)?;
             repositories.insert(repository_key(owner, repository));
         }
@@ -236,11 +234,10 @@ impl GithubEvidenceConfig {
             .parse::<Url>()
             .map_err(|_| AdapterError::policy("GitHub API URL is invalid"))?;
         validate_endpoint(&api_base, "api.github.com", false)?;
-        let allowlist = RepositoryAllowlist::parse(
-            &env::var(GITHUB_ALLOWLIST_ENV).map_err(|_| {
+        let allowlist =
+            RepositoryAllowlist::parse(&env::var(GITHUB_ALLOWLIST_ENV).map_err(|_| {
                 AdapterError::policy(format!("{GITHUB_ALLOWLIST_ENV} is required"))
-            })?,
-        )?;
+            })?)?;
         Ok(Self {
             api_base: ensure_trailing_slash(api_base),
             token: Secret::from_environment(GITHUB_TOKEN_ENV)?,
@@ -326,12 +323,13 @@ impl GithubEvidenceClient {
                     "pull",
                     &number.to_string(),
                 )?;
-                let returned_number = value
-                    .get("number")
-                    .and_then(Value::as_u64)
-                    .ok_or(AdapterError::Malformed {
-                        operation: "GitHub pull request lookup",
-                    })?;
+                let returned_number =
+                    value
+                        .get("number")
+                        .and_then(Value::as_u64)
+                        .ok_or(AdapterError::Malformed {
+                            operation: "GitHub pull request lookup",
+                        })?;
                 if returned_number != number {
                     return Err(AdapterError::Malformed {
                         operation: "GitHub pull request lookup",
@@ -354,11 +352,7 @@ impl GithubEvidenceClient {
         }
     }
 
-    async fn get_json(
-        &self,
-        path: &str,
-        operation: &'static str,
-    ) -> Result<Value, AdapterError> {
+    async fn get_json(&self, path: &str, operation: &'static str) -> Result<Value, AdapterError> {
         let url = self
             .config
             .api_base
@@ -370,7 +364,10 @@ impl GithubEvidenceClient {
             let response = self
                 .client
                 .get(url.clone())
-                .header(AUTHORIZATION, format!("Bearer {}", self.config.token.expose()))
+                .header(
+                    AUTHORIZATION,
+                    format!("Bearer {}", self.config.token.expose()),
+                )
                 .header("x-github-api-version", "2022-11-28")
                 .header("accept", "application/vnd.github+json")
                 .send()
@@ -639,11 +636,11 @@ impl LinearReconciliationClient {
                 "Linear issue creation",
             )
             .await?;
-        let created = data
-            .pointer("/issueCreate/issue")
-            .ok_or(AdapterError::AmbiguousMutation {
-                operation: "Linear issue creation",
-            })?;
+        let created =
+            data.pointer("/issueCreate/issue")
+                .ok_or(AdapterError::AmbiguousMutation {
+                    operation: "Linear issue creation",
+                })?;
         let issue = LinearIssue::from_value(created, "Linear issue creation")?;
         validate_issue_project(&issue, project)?;
         if issue.title != mutation.title || !issue.contains_marker(marker) {
@@ -1119,8 +1116,7 @@ impl LinearIssue {
     }
 
     fn contains_marker(&self, marker: &str) -> bool {
-        self.description.contains(marker)
-            || self.comments.iter().any(|body| body.contains(marker))
+        self.description.contains(marker) || self.comments.iter().any(|body| body.contains(marker))
     }
 }
 
@@ -1154,7 +1150,11 @@ fn parse_github_evidence_link(link: &str) -> Result<ParsedGithubEvidence, Adapte
     }
     let segments = url
         .path_segments()
-        .map(|segments| segments.filter(|segment| !segment.is_empty()).collect::<Vec<_>>())
+        .map(|segments| {
+            segments
+                .filter(|segment| !segment.is_empty())
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
     if segments.len() != 4 {
         return Err(AdapterError::policy(
@@ -1202,11 +1202,9 @@ fn validate_canonical_github_url(
     object: &str,
     object_id: &str,
 ) -> Result<(), AdapterError> {
-    let parsed = value
-        .parse::<Url>()
-        .map_err(|_| AdapterError::Malformed {
-            operation: "GitHub canonical URL validation",
-        })?;
+    let parsed = value.parse::<Url>().map_err(|_| AdapterError::Malformed {
+        operation: "GitHub canonical URL validation",
+    })?;
     let expected_path = format!("/{repository}/{object}/{object_id}");
     if parsed.scheme() == "https"
         && parsed.host_str() == Some("github.com")
@@ -1226,14 +1224,16 @@ fn validate_canonical_github_url(
 }
 
 fn validate_linear_issue_url(value: &str) -> Result<(), AdapterError> {
-    let parsed = value
-        .parse::<Url>()
-        .map_err(|_| AdapterError::Malformed {
-            operation: "Linear issue URL validation",
-        })?;
+    let parsed = value.parse::<Url>().map_err(|_| AdapterError::Malformed {
+        operation: "Linear issue URL validation",
+    })?;
     let segments = parsed
         .path_segments()
-        .map(|segments| segments.filter(|segment| !segment.is_empty()).collect::<Vec<_>>())
+        .map(|segments| {
+            segments
+                .filter(|segment| !segment.is_empty())
+                .collect::<Vec<_>>()
+        })
         .unwrap_or_default();
     let valid_path = segments.len() >= 4 && segments.get(1) == Some(&"issue");
     if parsed.scheme() == "https"
@@ -1319,9 +1319,9 @@ fn repository_key(owner: &str, repository: &str) -> String {
 fn validate_slug(label: &str, value: &str) -> Result<(), AdapterError> {
     if value.is_empty()
         || value.len() > MAX_IDENTIFIER_BYTES
-        || value.bytes().any(|byte| {
-            !byte.is_ascii_alphanumeric() && !matches!(byte, b'-' | b'_' | b'.')
-        })
+        || value
+            .bytes()
+            .any(|byte| !byte.is_ascii_alphanumeric() && !matches!(byte, b'-' | b'_' | b'.'))
     {
         return Err(AdapterError::policy(format!("{label} is invalid")));
     }
@@ -1332,8 +1332,7 @@ fn validate_safe_token(label: &str, value: &str) -> Result<(), AdapterError> {
     if value.is_empty()
         || value.len() > MAX_IDENTIFIER_BYTES
         || value.bytes().any(|byte| {
-            !byte.is_ascii_alphanumeric()
-                && !matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
+            !byte.is_ascii_alphanumeric() && !matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
         })
     {
         return Err(AdapterError::policy(format!("{label} is invalid")));
@@ -1474,14 +1473,10 @@ async fn read_bounded(
     operation: &'static str,
 ) -> Result<Vec<u8>, AdapterError> {
     let mut bytes = Vec::new();
-    while let Some(chunk) = response
-        .chunk()
-        .await
-        .map_err(|_| AdapterError::SafeRead {
-            operation,
-            retryable: true,
-        })?
-    {
+    while let Some(chunk) = response.chunk().await.map_err(|_| AdapterError::SafeRead {
+        operation,
+        retryable: true,
+    })? {
         if bytes.len().saturating_add(chunk.len()) > maximum_bytes {
             return Err(AdapterError::policy(
                 "adapter response exceeds the configured byte bound",
@@ -1518,16 +1513,13 @@ fn parse_graphql_data(
             })
         };
     }
-    envelope
-        .get("data")
-        .cloned()
-        .ok_or_else(|| {
-            if mutation {
-                AdapterError::AmbiguousMutation { operation }
-            } else {
-                AdapterError::Malformed { operation }
-            }
-        })
+    envelope.get("data").cloned().ok_or({
+        if mutation {
+            AdapterError::AmbiguousMutation { operation }
+        } else {
+            AdapterError::Malformed { operation }
+        }
+    })
 }
 
 #[cfg(test)]
@@ -1558,10 +1550,7 @@ mod tests {
         body: Value,
     }
 
-    async fn mock_request(
-        State(state): State<MockState>,
-        request: Request,
-    ) -> AxumResponse {
+    async fn mock_request(State(state): State<MockState>, request: Request) -> AxumResponse {
         let method = request.method().to_string();
         let path = request.uri().path().to_owned();
         let authorization = request
@@ -1654,10 +1643,9 @@ mod tests {
 
     #[test]
     fn allowlist_is_exact_and_case_insensitive() {
-        let allowlist = RepositoryAllowlist::parse(
-            "ORESoftware/ai-agent-coordinator.rs,sonus-auris/mobile",
-        )
-        .unwrap();
+        let allowlist =
+            RepositoryAllowlist::parse("ORESoftware/ai-agent-coordinator.rs,sonus-auris/mobile")
+                .unwrap();
         assert!(allowlist.permits("oresoftware/AI-AGENT-COORDINATOR.RS"));
         assert!(!allowlist.permits("ORESoftware/other"));
         assert!(!allowlist.permits("evil/ai-agent-coordinator.rs"));
@@ -1667,9 +1655,7 @@ mod tests {
     #[tokio::test]
     async fn github_commit_lookup_is_authenticated_and_canonical() {
         let sha = "a".repeat(40);
-        let link = format!(
-            "https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}"
-        );
+        let link = format!("https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}");
         let (base, requests) = mock_server(vec![(
             StatusCode::OK,
             json!({"sha": sha, "html_url": link}),
@@ -1737,7 +1723,10 @@ mod tests {
         assert_eq!(resolved.base_branch.as_deref(), Some("main"));
         let requests = requests.lock().unwrap();
         assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].path, "/repos/ORESoftware/ai-agent-coordinator.rs/pulls/75");
+        assert_eq!(
+            requests[0].path,
+            "/repos/ORESoftware/ai-agent-coordinator.rs/pulls/75"
+        );
         assert_eq!(
             requests[0].authorization.as_deref(),
             Some("Bearer github-test-token")
@@ -1747,9 +1736,7 @@ mod tests {
     #[tokio::test]
     async fn github_safe_read_retries_one_transient_failure() {
         let sha = "b".repeat(40);
-        let link = format!(
-            "https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}"
-        );
+        let link = format!("https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}");
         let (base, requests) = mock_server(vec![
             (
                 StatusCode::TOO_MANY_REQUESTS,
@@ -1771,9 +1758,7 @@ mod tests {
     async fn github_rejects_canonical_url_for_a_different_object() {
         let sha = "c".repeat(40);
         let different = "d".repeat(40);
-        let link = format!(
-            "https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}"
-        );
+        let link = format!("https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}");
         let (base, requests) = mock_server(vec![(
             StatusCode::OK,
             json!({
@@ -1797,9 +1782,7 @@ mod tests {
     #[tokio::test]
     async fn github_rejects_oversized_response() {
         let sha = "e".repeat(40);
-        let link = format!(
-            "https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}"
-        );
+        let link = format!("https://github.com/ORESoftware/ai-agent-coordinator.rs/commit/{sha}");
         let (base, requests) = mock_server(vec![(
             StatusCode::OK,
             json!({"sha": sha, "html_url": link, "padding": "x".repeat(40 * 1024)}),
@@ -1829,8 +1812,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let result = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -1862,8 +1845,8 @@ mod tests {
             (StatusCode::OK, json!({"data": {"issues": {"nodes": []}}})),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, true))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, true)).unwrap();
         let result = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -1889,8 +1872,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let error = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -1914,8 +1897,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let result = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -1944,8 +1927,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let result = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -1984,8 +1967,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let result = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -2003,8 +1986,8 @@ mod tests {
             (StatusCode::OK, json!({"data": {"issue": issue}})),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let error = client
             .apply_mutation(&mutation(LinearMutationKind::Amend), &authorization())
             .await
@@ -2029,8 +2012,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let error = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -2057,8 +2040,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let error = client
             .apply_mutation(&mutation(LinearMutationKind::Amend), &authorization())
             .await
@@ -2080,8 +2063,8 @@ mod tests {
             ),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, false)).unwrap();
         let error = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
@@ -2097,8 +2080,8 @@ mod tests {
             (StatusCode::OK, json!({"data": {"issues": {"nodes": []}}})),
         ])
         .await;
-        let client = LinearReconciliationClient::new(LinearReconciliationConfig::test(url, true))
-            .unwrap();
+        let client =
+            LinearReconciliationClient::new(LinearReconciliationConfig::test(url, true)).unwrap();
         let result = client
             .apply_mutation(&mutation(LinearMutationKind::Create), &authorization())
             .await
