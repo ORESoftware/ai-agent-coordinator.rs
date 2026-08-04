@@ -1,0 +1,100 @@
+name: Installed organization repository fleet plans
+
+on:
+  pull_request:
+    paths:
+      - 'repository-fleets/apostille-me.json'
+      - 'repository-fleets/evento-globolo.json'
+      - 'repository-fleets/embedded-alerts.json'
+      - 'repository-fleets/hacker-house-medellin.json'
+      - 'repository-fleets/liberty-cal.json'
+      - 'scripts/render_repository_fleet.py'
+      - 'scripts/test_installed_org_repository_fleets.py'
+      - 'docs/installed-org-repository-fleets-2026-08-04.md'
+      - '.github/workflows/installed-org-repository-fleets.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'repository-fleets/apostille-me.json'
+      - 'repository-fleets/evento-globolo.json'
+      - 'repository-fleets/embedded-alerts.json'
+      - 'repository-fleets/hacker-house-medellin.json'
+      - 'repository-fleets/liberty-cal.json'
+      - 'scripts/render_repository_fleet.py'
+      - 'scripts/test_installed_org_repository_fleets.py'
+      - 'docs/installed-org-repository-fleets-2026-08-04.md'
+      - '.github/workflows/installed-org-repository-fleets.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installed-org-fleets-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Compile and run manifest contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/render_repository_fleet.py \
+            scripts/test_installed_org_repository_fleets.py
+          python -m unittest -v scripts/test_installed_org_repository_fleets.py
+
+      - name: Render every permitted network-free plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          for organization in apostille-me evento-globolo embedded-alerts hacker-house-medellin; do
+            python scripts/render_repository_fleet.py \
+              --manifest "repository-fleets/${organization}.json" \
+              --mode plan > "$RUNNER_TEMP/${organization}-plan.json"
+            python scripts/render_repository_fleet.py \
+              --manifest "repository-fleets/${organization}.json" \
+              --mode dry-run > "$RUNNER_TEMP/${organization}-dry-run.json"
+          done
+          python scripts/render_repository_fleet.py \
+            --manifest repository-fleets/liberty-cal.json \
+            --mode plan > "$RUNNER_TEMP/liberty-cal-plan.json"
+
+      - name: Reject credentials, conflict markers, and accidental live enablement
+        shell: bash
+        run: |
+          set -euo pipefail
+          paths=(
+            repository-fleets/apostille-me.json
+            repository-fleets/evento-globolo.json
+            repository-fleets/embedded-alerts.json
+            repository-fleets/hacker-house-medellin.json
+            repository-fleets/liberty-cal.json
+            scripts/test_installed_org_repository_fleets.py
+            docs/installed-org-repository-fleets-2026-08-04.md
+            .github/workflows/installed-org-repository-fleets.yml
+          )
+          if grep -nE 'gh[pousr]_[A-Za-z0-9]{20,}|lin_api_|BEGIN [A-Z ]*PRIVATE KEY|CHAT_BRIDGE_TOKEN' "${paths[@]}"; then
+            echo 'Credential-shaped content is forbidden.' >&2
+            exit 1
+          fi
+          if grep -nE '^(<{7}|={7}|>{7})' "${paths[@]}"; then
+            echo 'Conflict markers are forbidden.' >&2
+            exit 1
+          fi
+          if grep -n '"live_creation_enabled": true' repository-fleets/{apostille-me,evento-globolo,embedded-alerts,hacker-house-medellin,liberty-cal}.json; then
+            echo 'Live repository creation must remain disabled in this planning PR.' >&2
+            exit 1
+          fi
