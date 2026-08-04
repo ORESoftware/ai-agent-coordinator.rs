@@ -40,28 +40,12 @@ jobs:
 
           path = Path('src/prompt_reconciliation_adapters.rs')
           source = path.read_text(encoding='utf-8')
-          old = '''    envelope
-              .get("data")
-              .cloned()
-              .ok_or_else(|| {
-                  if mutation {
-                      AdapterError::AmbiguousMutation { operation }
-                  } else {
-                      AdapterError::Malformed { operation }
-                  }
-              })
-          '''
-          new = '''    envelope.get("data").cloned().ok_or({
-              if mutation {
-                  AdapterError::AmbiguousMutation { operation }
-              } else {
-                  AdapterError::Malformed { operation }
-              }
-          })
-          '''
-          if source.count(old) != 1:
-              raise SystemExit(f'expected one GraphQL data error block, found {source.count(old)}')
-          path.write_text(source.replace(old, new, 1), encoding='utf-8')
+          needle = '.ok_or_else(|| {'
+          if source.count(needle) != 1:
+              raise SystemExit(
+                  f'expected one lazy GraphQL data error conversion, found {source.count(needle)}'
+              )
+          path.write_text(source.replace(needle, '.ok_or({', 1), encoding='utf-8')
 
       - name: Format and validate the permanent product tree
         shell: bash
@@ -90,3 +74,5 @@ jobs:
           git add -A
           git commit -m 'fix(DEN-1610): format adapters and satisfy strict Clippy'
           git push origin HEAD:agent/den-1610-authenticated-adapters-current-main-20260804
+
+# retry-generation: 1
