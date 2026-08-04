@@ -12,6 +12,7 @@ pub mod linear_delivery {
     pub use crate::linear_delivery_worker::*;
 }
 pub mod prompt_intake;
+pub mod prompt_reconciliation;
 pub mod providers;
 pub mod security;
 pub mod slack_run;
