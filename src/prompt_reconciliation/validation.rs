@@ -45,7 +45,10 @@ pub(super) fn index_prompt_evidence<'a>(
             });
         }
         validate_prompt_evidence(prompt)?;
-        if indexed.insert(prompt.mutation_key.as_str(), prompt).is_some() {
+        if indexed
+            .insert(prompt.mutation_key.as_str(), prompt)
+            .is_some()
+        {
             return Err(ReconciliationError::DuplicatePromptEvidence(
                 prompt.mutation_key.clone(),
             ));
@@ -156,10 +159,7 @@ pub(super) fn validate_expected_repositories(
     Ok(())
 }
 
-fn validate_identifier(
-    field: &'static str,
-    value: &str,
-) -> Result<(), ReconciliationError> {
+fn validate_identifier(field: &'static str, value: &str) -> Result<(), ReconciliationError> {
     let value = value.trim();
     if value.is_empty()
         || value.chars().count() > MAX_IDENTIFIER_LEN
