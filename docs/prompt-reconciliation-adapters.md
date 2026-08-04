@@ -122,3 +122,5 @@ cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo doc --locked --no-deps
 cargo build --locked --release
 ```
+
+A temporary same-repository finalizer may apply canonical Rustfmt or a narrowly identified lint correction, but it must delete itself before the review head is permanent. GitHub can classify that bot-authored commit as `action_required` without allocating jobs; an owner-authored, behavior-neutral documentation commit then triggers the ordinary exact-head workflows. Merge evidence must come from those ordinary workflows on the final review SHA rather than from the temporary finalizer alone.
