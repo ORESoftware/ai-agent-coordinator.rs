@@ -68,6 +68,8 @@ jobs:
           )
           mappings.insert(insert_at, fanwaave_mapping)
           registry["observed_at"] = "2026-08-04"
+          for item in [*mappings, *registry["unmapped_installed_organizations"]]:
+              item["github_app"]["observed_at"] = "2026-08-04"
 
           old_overrides = registry["repository_overrides"]
           retained_overrides = [
