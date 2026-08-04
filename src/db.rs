@@ -83,6 +83,9 @@ impl Database {
         idempotency_key: Option<&str>,
     ) -> Result<Job> {
         request.validate().map_err(anyhow::Error::msg)?;
+        request
+            .validate_idempotency_key(idempotency_key)
+            .map_err(anyhow::Error::msg)?;
 
         if let Some(key) = idempotency_key {
             if let Some(existing) = jobs::Entity::find()
