@@ -16,7 +16,7 @@ pub const PROTOCOL_SCHEMA_VERSION: u16 = 1;
 pub const COORDINATOR_PROTOCOL_ID: &str = "agent-pontifex.coordinator.v1";
 pub const PROTOCOL_SOURCE_REPOSITORY: &str = "ORESoftware/ai-agent-bridge.rs";
 pub const PROTOCOL_SOURCE_PATH: &str = "sdk/agent-pontifex-protocol/src/lib.rs";
-pub const PROTOCOL_SOURCE_REVISION: &str = "a5c4ece6fc4fbff204de45576d59430cdf41977f";
+pub const PROTOCOL_SOURCE_REVISION: &str = "ce8e853ffd907c14aaed09afd1ac18adfe28c8de";
 
 const JOB_KEYS: &[&str] = &[
     "attempts",
