@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/den-1610-patch/**'
       - '.github/workflows/den-1610-patch-materializer.yml'
+  workflow_dispatch:
 
 permissions:
   contents: write
