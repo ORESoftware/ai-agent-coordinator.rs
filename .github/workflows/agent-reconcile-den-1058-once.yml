@@ -1,0 +1,88 @@
+name: DEN-1058 reconcile bootstrap lifecycle once
+
+on:
+  push:
+    branches:
+      - agent/den-1058-bootstrap-lifecycle-v3
+    paths:
+      - .github/workflows/agent-reconcile-den-1058-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-1058-bootstrap-lifecycle-reconcile
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.ref == 'refs/heads/agent/den-1058-bootstrap-lifecycle-v3' &&
+      github.actor == 'ORESoftware'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out the current-main successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-1058-bootstrap-lifecycle-v3
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Fetch the exact reviewed bootstrap branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin agent/den-1058-bootstrap-lifecycle-v2
+          test "$(git rev-parse FETCH_HEAD)" = "50555e511c05556aad03bc07cf92139ae8d9a2f7"
+          git checkout 50555e511c05556aad03bc07cf92139ae8d9a2f7 -- \
+            .github/workflows/meta-agent-bootstrap-contract.yml \
+            deploy/k8s/bootstrap/meta-agent/README.md \
+            deploy/k8s/bootstrap/meta-agent/job.yaml \
+            deploy/k8s/bootstrap/meta-agent/kustomization.yaml \
+            scripts/validate-meta-agent-bootstrap.rb
+
+      - name: Remove only the repository Job from steady state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("deploy/k8s/kustomization.yaml")
+          text = path.read_text(encoding="utf-8")
+          target = "  - meta-agent-repository-bootstrap-job.yaml\n"
+          if text.count(target) != 1:
+              raise SystemExit("expected exactly one steady-state repository bootstrap entry")
+          path.write_text(text.replace(target, ""), encoding="utf-8")
+          PY
+
+      - name: Validate the semantic replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -c scripts/validate-meta-agent-bootstrap.rb
+          ruby scripts/validate-meta-agent-bootstrap.rb
+          ruby scripts/validate-meta-agent-bootstrap.rb --self-test
+          docker run --rm \
+            --volume "$PWD:/repo:ro" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/meta-agent-bootstrap-contract.yml
+          git diff --check
+          ! grep -F 'meta-agent-repository-bootstrap-job.yaml' deploy/k8s/kustomization.yaml
+
+      - name: Commit the current-main successor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add \
+            .github/workflows/meta-agent-bootstrap-contract.yml \
+            deploy/k8s/kustomization.yaml \
+            deploy/k8s/bootstrap/meta-agent \
+            scripts/validate-meta-agent-bootstrap.rb
+          git commit -m 'fix(DEN-1058): reconcile hardened bootstrap with current main'
+          git push origin HEAD:agent/den-1058-bootstrap-lifecycle-v3
