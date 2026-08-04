@@ -34,8 +34,8 @@ pub(super) fn select_candidate<'a>(
             .mutation_keys
             .iter()
             .any(|key| key == &decision.mutation_key);
-        let exact_scope = candidate.scope_signature.as_deref()
-            == Some(decision.scope_signature.as_str());
+        let exact_scope =
+            candidate.scope_signature.as_deref() == Some(decision.scope_signature.as_str());
         let candidate_repositories = candidate
             .repositories
             .iter()
@@ -66,12 +66,7 @@ pub(super) fn select_candidate<'a>(
         scored.push((score, candidate.issue_id.as_str(), candidate, reason));
     }
 
-    scored.sort_by(|left, right| {
-        right
-            .0
-            .cmp(&left.0)
-            .then_with(|| left.1.cmp(right.1))
-    });
+    scored.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(right.1)));
     let Some((top_score, _, top_candidate, top_reason)) = scored.first().copied() else {
         return CandidateAssessment {
             selected: None,
