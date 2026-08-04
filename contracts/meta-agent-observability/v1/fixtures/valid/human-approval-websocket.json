@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "event_id": "eefc4c60-9fd0-4868-a88d-fab8180f0ee2",
+  "idempotency_key": "approval:run-demo:task-42:review-1",
+  "occurred_at": "2026-08-01T20:02:00Z",
+  "source": {
+    "agent_id": "operator-ui",
+    "provider": "human",
+    "model": "none",
+    "metadata": {"surface": "leptos-ui"}
+  },
+  "correlation": {
+    "correlation_id": "2d81fd9d-2174-4b5e-aec5-778f06bf3375",
+    "causation_id": "55aa82fa-92fa-45fb-9c0a-bec24bb56715",
+    "parent_event_id": "55aa82fa-92fa-45fb-9c0a-bec24bb56715",
+    "server_id": "meta-agent-control-plane",
+    "session_id": "session-demo",
+    "run_id": "run-demo",
+    "goal_id": "goal-1",
+    "task_id": "task-42"
+  },
+  "kind": "human_approved",
+  "payload_classification": "internal",
+  "redaction_state": "sanitized",
+  "evidence_references": [],
+  "delivery": {
+    "transport": "websocket",
+    "delivery_id": "ws-approval-1",
+    "attempt": 1,
+    "ack_requested": true,
+    "sequence": 4
+  },
+  "payload": {
+    "decision": "approved",
+    "summary": "Proceed with the reviewed protocol change."
+  }
+}

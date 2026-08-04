@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.oresoftware.com/meta-agent-observability/v1/event-envelope.schema.json",
+  "title": "Meta Agent Observable Event Envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "event_id",
+    "idempotency_key",
+    "occurred_at",
+    "source",
+    "correlation",
+    "kind",
+    "payload_classification",
+    "redaction_state",
+    "evidence_references",
+    "delivery",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "event_id": {"type": "string", "format": "uuid"},
+    "idempotency_key": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "source": {"$ref": "#/$defs/source"},
+    "correlation": {"$ref": "#/$defs/correlation"},
+    "kind": {"type": "string"},
+    "payload_classification": {"type": "string"},
+    "redaction_state": {"type": "string"},
+    "evidence_references": {
+      "type": "array",
+      "maxItems": 16,
+      "items": {"$ref": "#/$defs/evidenceReference"}
+    },
+    "delivery": {"$ref": "#/$defs/delivery"},
+    "payload": {"type": "object"}
+  },
+  "$defs": {
+    "boundedIdentifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["agent_id", "provider", "model", "metadata"],
+      "properties": {
+        "agent_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "provider": {"$ref": "#/$defs/boundedIdentifier"},
+        "model": {"$ref": "#/$defs/boundedIdentifier"},
+        "instance_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "metadata": {
+          "type": "object",
+          "maxProperties": 32,
+          "additionalProperties": {
+            "type": "string",
+            "maxLength": 512
+          }
+        }
+      }
+    },
+    "correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["correlation_id"],
+      "properties": {
+        "correlation_id": {"type": "string", "format": "uuid"},
+        "causation_id": {"type": "string", "format": "uuid"},
+        "parent_event_id": {"type": "string", "format": "uuid"},
+        "server_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "session_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "run_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "goal_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "task_id": {"$ref": "#/$defs/boundedIdentifier"}
+      }
+    },
+    "evidenceReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "reference", "sha256"],
+      "properties": {
+        "kind": {"enum": ["artifact", "commit", "document", "log", "metric", "test"]},
+        "reference": {"type": "string", "minLength": 1, "maxLength": 2048},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "observed_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transport", "delivery_id", "attempt", "ack_requested"],
+      "properties": {
+        "transport": {"enum": ["http", "websocket", "tcp", "udp"]},
+        "delivery_id": {"$ref": "#/$defs/boundedIdentifier"},
+        "attempt": {"type": "integer", "minimum": 1, "maximum": 16},
+        "ack_requested": {"type": "boolean"},
+        "sequence": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
