@@ -7,20 +7,27 @@ metadata:
     app.kubernetes.io/name: ai-agent-coordinator
     app.kubernetes.io/component: repository-bootstrap
     app.kubernetes.io/part-of: oresoftware-agent-platform
-  annotations:
-    argocd.argoproj.io/sync-wave: "5"
+    app.kubernetes.io/managed-by: manual-bootstrap
 spec:
   backoffLimit: 0
   activeDeadlineSeconds: 300
+  ttlSecondsAfterFinished: 86400
   template:
     metadata:
       labels:
         app.kubernetes.io/name: ai-agent-coordinator
         app.kubernetes.io/component: repository-bootstrap
         app.kubernetes.io/part-of: oresoftware-agent-platform
+        app.kubernetes.io/managed-by: manual-bootstrap
     spec:
       automountServiceAccountToken: false
+      enableServiceLinks: false
+      hostNetwork: false
+      hostPID: false
+      hostIPC: false
+      shareProcessNamespace: false
       restartPolicy: Never
+      terminationGracePeriodSeconds: 10
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -31,6 +38,7 @@ spec:
         - name: create-repository
           image: curlimages/curl:8.17.0@sha256:935d9100e9ba842cdb060de42472c7ca90cfe9a7c96e4dacb55e79e560b3ff40
           imagePullPolicy: IfNotPresent
+          terminationMessagePolicy: FallbackToLogsOnError
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
@@ -64,10 +72,9 @@ spec:
               accept='application/vnd.github+json'
               version='2022-11-28'
               target='meta-agents-demo/meta-agent-control-plane.rs'
+              curl_common="--silent --show-error --proto =https --tlsv1.2 --connect-timeout 10 --max-time 30"
 
-              user_code="$(curl --silent --show-error \
-                --output /tmp/user.json \
-                --write-out '%{http_code}' \
+              user_code="$(curl ${curl_common} --output /tmp/user.json --write-out '%{http_code}' \
                 --header "Accept: ${accept}" \
                 --header "Authorization: Bearer ${token}" \
                 --header "X-GitHub-Api-Version: ${version}" \
@@ -82,9 +89,7 @@ spec:
                 exit 65
               }
 
-              membership_code="$(curl --silent --show-error \
-                --output /tmp/membership.json \
-                --write-out '%{http_code}' \
+              membership_code="$(curl ${curl_common} --output /tmp/membership.json --write-out '%{http_code}' \
                 --header "Accept: ${accept}" \
                 --header "Authorization: Bearer ${token}" \
                 --header "X-GitHub-Api-Version: ${version}" \
@@ -100,9 +105,7 @@ spec:
                   exit 65
                 }
 
-              repository_code="$(curl --silent --show-error \
-                --output /tmp/repository.json \
-                --write-out '%{http_code}' \
+              repository_code="$(curl ${curl_common} --output /tmp/repository.json --write-out '%{http_code}' \
                 --header "Accept: ${accept}" \
                 --header "Authorization: Bearer ${token}" \
                 --header "X-GitHub-Api-Version: ${version}" \
@@ -114,9 +117,7 @@ spec:
                   status=existing
                   ;;
                 404)
-                  repository_code="$(curl --silent --show-error \
-                    --output /tmp/repository.json \
-                    --write-out '%{http_code}' \
+                  repository_code="$(curl ${curl_common} --output /tmp/repository.json --write-out '%{http_code}' \
                     --request POST \
                     --header "Accept: ${accept}" \
                     --header "Authorization: Bearer ${token}" \

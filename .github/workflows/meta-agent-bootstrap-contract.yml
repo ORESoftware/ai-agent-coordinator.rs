@@ -1,0 +1,57 @@
+name: Meta Agents bootstrap contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/meta-agent-bootstrap-contract.yml'
+      - 'deploy/k8s/kustomization.yaml'
+      - 'deploy/k8s/bootstrap/meta-agent/**'
+      - 'scripts/validate-meta-agent-bootstrap.rb'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact pull-request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/meta-agent-bootstrap-contract.yml
+
+      - name: Compile Ruby contract
+        shell: bash
+        run: ruby -c scripts/validate-meta-agent-bootstrap.rb
+
+      - name: Reject whitespace and conflict-marker drift
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' \
+            deploy/k8s/kustomization.yaml \
+            deploy/k8s/bootstrap/meta-agent \
+            scripts/validate-meta-agent-bootstrap.rb; then
+            echo 'Git conflict markers are forbidden.' >&2
+            exit 1
+          fi
+
+      - name: Validate isolated bootstrap manifest
+        shell: bash
+        run: ruby scripts/validate-meta-agent-bootstrap.rb
+
+      - name: Prove negative drift cases fail closed
+        shell: bash
+        run: ruby scripts/validate-meta-agent-bootstrap.rb --self-test
