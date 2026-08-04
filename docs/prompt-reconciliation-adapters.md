@@ -29,6 +29,8 @@ PROMPT_RECONCILIATION_GITHUB_TOKEN
 PROMPT_RECONCILIATION_GITHUB_REPOSITORIES=owner/repo,owner/other-repo
 ```
 
+`PROMPT_RECONCILIATION_GITHUB_TOKEN` is credential-type agnostic. Prefer a short-lived, repository-scoped GitHub App installation token from the connected App session. A personal access token is not required. The token must exist only in the process environment, must cover every exact allowlisted repository needed by the reviewed plan, and must never be placed in command arguments, the plan, reports, issue text, URLs, logs, or telemetry.
+
 `PROMPT_RECONCILIATION_GITHUB_API_URL` defaults to `https://api.github.com/` and exists only to support explicit loopback mock tests inside the crate.
 
 The client accepts only canonical links of these forms:
