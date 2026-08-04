@@ -1,9 +1,11 @@
 name: DEN-1874 Fanwaave routing migration
 
 on:
-  push:
-    branches:
-      - agent/DEN-1874-fanwaave-routing
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/den-1874-fanwaave-routing.yml
+      - .github/den-1874-trigger
 
 permissions:
   contents: write
@@ -14,12 +16,14 @@ concurrency:
 
 jobs:
   migrate:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'agent/DEN-1874-fanwaave-routing'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          ref: agent/DEN-1874-fanwaave-routing
 
       - name: Apply the fail-closed Fanwaave registry migration
         shell: bash
@@ -32,226 +36,128 @@ jobs:
           from pathlib import Path
 
 
-          def replace_once(text: str, old: str, new: str, label: str) -> str:
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{label}: expected exactly one match, found {count}")
-              return text.replace(old, new, 1)
-
-
           registry_path = Path("config/org-project-registry.yaml")
-          registry = registry_path.read_text(encoding="utf-8")
-          if '"login": "fanwaave"' in registry:
+          registry = json.loads(registry_path.read_text(encoding="utf-8"))
+
+          mappings = registry["mappings"]
+          if any(item["github"]["login"].casefold() == "fanwaave" for item in mappings):
               raise SystemExit("fanwaave mapping already exists; refusing an ambiguous migration")
 
-          registry = replace_once(
-              registry,
-              '  "observed_at": "2026-08-02",',
-              '  "observed_at": "2026-08-04",',
-              "registry observation date",
-          )
-
-          fiducia_marker = '''    {
-                "github": {
-                  "login": "fiducia-cloud",'''
-          fanwaave_mapping = '''    {
-                "github": {
+          fanwaave_mapping = {
+              "github": {
                   "login": "fanwaave",
                   "account_id": 311152026,
                   "account_type": "Organization",
-                  "aliases": [
-                    "fanwaave",
-                    "github.com/fanwaave"
-                  ]
-                },
-                "github_app": {
-                  "installation_id": 151253995,
-                  "observed_at": "2026-08-04"
-                },
-                "linear": {
-                  "project_id": "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
-                  "project_name": "github.com/fanwaave",
-                  "project_url": "https://linear.app/denman/project/githubcomfanwaave-6ba038b59dbc"
-                },
-                "runtime_route": null
+                  "aliases": ["fanwaave", "github.com/fanwaave"],
               },
-          '''
-          registry = replace_once(
-              registry,
-              fiducia_marker,
-              fanwaave_mapping + fiducia_marker,
-              "fanwaave owner mapping insertion",
-          )
-
-          old_override = '''    {
-                "repository": "ORESoftware/push-notification-server.rs",
-                "linear": {
-                  "project_id": "729ee0f5-b670-49b5-9e9c-650e58ee2d6d",
-                  "project_name": "github.com/ORESoftware/push-notification-server.rs",
-                  "project_url": "https://linear.app/denman/project/githubcomoresoftwarepush-notification-serverrs-f09f2a6518da"
-                }
-              }'''
-          new_override = '''    {
-                "repository": "fanwaave/push-notification-server.rs",
-                "linear": {
+              "github_app": {
+                  "installation_id": 151253995,
+                  "observed_at": "2026-08-04",
+              },
+              "linear": {
                   "project_id": "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
                   "project_name": "github.com/fanwaave",
-                  "project_url": "https://linear.app/denman/project/githubcomfanwaave-6ba038b59dbc"
-                }
-              }'''
-          registry = replace_once(
-              registry,
-              old_override,
-              new_override,
-              "push notification repository override",
+                  "project_url": "https://linear.app/denman/project/githubcomfanwaave-6ba038b59dbc",
+              },
+              "runtime_route": None,
+          }
+          insert_at = next(
+              index
+              for index, item in enumerate(mappings)
+              if item["github"]["login"].casefold() > "fanwaave"
           )
-          json.loads(registry)
-          registry_path.write_text(registry, encoding="utf-8")
+          mappings.insert(insert_at, fanwaave_mapping)
+          registry["observed_at"] = "2026-08-04"
+
+          matching_overrides = [
+              item
+              for item in registry["repository_overrides"]
+              if item["repository"] == "ORESoftware/push-notification-server.rs"
+          ]
+          if len(matching_overrides) != 1:
+              raise SystemExit(
+                  "expected exactly one ORESoftware push-server override, "
+                  f"found {len(matching_overrides)}"
+              )
+          override = matching_overrides[0]
+          override["repository"] = "fanwaave/push-notification-server.rs"
+          override["linear"] = {
+              "project_id": "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
+              "project_name": "github.com/fanwaave",
+              "project_url": "https://linear.app/denman/project/githubcomfanwaave-6ba038b59dbc",
+          }
+          registry_path.write_text(
+              json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
+              encoding="utf-8",
+          )
 
           project_tests_path = Path("tests/test_org_project_registry.py")
           project_tests = project_tests_path.read_text(encoding="utf-8")
-          project_tests = replace_once(
-              project_tests,
+          project_tests = project_tests.replace(
               '        self.assertEqual(counts["mappings"], 30)',
               '        self.assertEqual(counts["mappings"], 31)',
-              "owner mapping count",
+              1,
           )
-          existing_override_test = '''    def test_exact_repository_override_precedes_owner_project(self) -> None:
+          fanwaave_test = '''    def test_fanwaave_push_server_override_uses_canonical_project(self) -> None:
               project = registry_module.resolve_project(
-                  self.registry, "ORESoftware", "ORESoftware/k8s-cluster"
+                  self.registry,
+                  "fanwaave",
+                  "fanwaave/push-notification-server.rs",
               )
-              self.assertEqual(project["project_id"], "18c58338-cf36-4fe6-8c71-245a795f8661")
+              self.assertEqual(
+                  project["project_id"],
+                  "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
+              )
+
           '''
-          expanded_override_test = existing_override_test + '''
-              def test_fanwaave_push_server_override_uses_canonical_project(self) -> None:
-                  project = registry_module.resolve_project(
-                      self.registry,
-                      "fanwaave",
-                      "fanwaave/push-notification-server.rs",
-                  )
-                  self.assertEqual(
-                      project["project_id"],
-                      "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
-                  )
-          '''
-          project_tests = replace_once(
-              project_tests,
-              existing_override_test,
-              expanded_override_test,
-              "Fanwaave override test",
+          project_marker = "    def test_repository_cannot_escape_resolved_owner(self) -> None:\n"
+          if project_tests.count(project_marker) != 1:
+              raise SystemExit("could not locate project-registry test insertion point")
+          project_tests = project_tests.replace(
+              project_marker,
+              fanwaave_test + project_marker,
+              1,
           )
           project_tests_path.write_text(project_tests, encoding="utf-8")
 
           relationship_tests_path = Path("tests/test_org_repository_relationships.py")
           relationship_tests = relationship_tests_path.read_text(encoding="utf-8")
-          old_summary = '''                "eligible_organizations": 29,
-                      "existing_public": 3,
-                      "missing": 26,
-                      "visibility_mismatch": 0,
-                      "unsupported_account_type": 1,
-                      "excluded_unmapped": 7,
-                      "complete": False,
-          '''
-          new_summary = '''                "eligible_organizations": 30,
-                      "existing_public": 3,
-                      "missing": 27,
-                      "visibility_mismatch": 0,
-                      "unsupported_account_type": 1,
-                      "excluded_unmapped": 7,
-                      "complete": False,
-          '''
-          relationship_tests = replace_once(
-              relationship_tests,
-              old_summary,
-              new_summary,
-              "rollout summary",
-          )
-          relationship_tests = replace_once(
-              relationship_tests,
-              '        self.assertEqual(report["registry"]["mapped_owners"], 30)',
-              '        self.assertEqual(report["registry"]["mapped_owners"], 31)',
-              "mapped owner count",
-          )
+          replacements = {
+              '                "eligible_organizations": 29,': '                "eligible_organizations": 30,',
+              '                "missing": 26,': '                "missing": 27,',
+              '        self.assertEqual(report["registry"]["mapped_owners"], 30)': '        self.assertEqual(report["registry"]["mapped_owners"], 31)',
+              '        self.assertEqual(len(overrides), 6)': '        self.assertEqual(len(overrides), 5)',
+              '                "ORESoftware/push-notification-server.rs",\n': '',
+              '        self.assertEqual(index["owner_count"], 30)': '        self.assertEqual(index["owner_count"], 31)',
+              '        self.assertEqual(len(index["files"]), 30)': '        self.assertEqual(len(index["files"]), 31)',
+          }
+          for old, new in replacements.items():
+              if relationship_tests.count(old) != 1:
+                  raise SystemExit(f"expected one relationship-test match for {old!r}")
+              relationship_tests = relationship_tests.replace(old, new, 1)
 
-          old_relationship_test = '''    def test_repository_overrides_are_declared_without_becoming_runtime_routes(self) -> None:
+          fanwaave_relationship_test = '''    def test_fanwaave_relationship_declares_push_server_override(self) -> None:
               manifest = relationship_renderer.build_relationship_manifest(
-                  self.registry, "ORESoftware", IMMUTABLE_TEST_REF
+                  self.registry, "fanwaave", IMMUTABLE_TEST_REF
               )
               overrides = manifest["repository_selection"]["linear_project_overrides"]
-              self.assertEqual(len(overrides), 6)
               self.assertEqual(
-                  {override["repository"] for override in overrides},
-                  {
-                      "ORESoftware/ai-agent-bridge.rs",
-                      "ORESoftware/ai-agent-coordinator.rs",
-                      "ORESoftware/k8s-cluster",
-                      "ORESoftware/mcp-rust-libs",
-                      "ORESoftware/mip-solver-node.rs",
-                      "ORESoftware/push-notification-server.rs",
-                  },
+                  [override["repository"] for override in overrides],
+                  ["fanwaave/push-notification-server.rs"],
               )
               self.assertIsNone(manifest["repository_selection"]["default_repository"])
               self.assertEqual(manifest["repository_selection"]["runtime_allowlist"], [])
-          '''
-          new_relationship_test = '''    def test_repository_overrides_are_declared_without_becoming_runtime_routes(self) -> None:
-              oresoftware_manifest = relationship_renderer.build_relationship_manifest(
-                  self.registry, "ORESoftware", IMMUTABLE_TEST_REF
-              )
-              oresoftware_overrides = oresoftware_manifest["repository_selection"][
-                  "linear_project_overrides"
-              ]
-              self.assertEqual(len(oresoftware_overrides), 5)
-              self.assertEqual(
-                  {override["repository"] for override in oresoftware_overrides},
-                  {
-                      "ORESoftware/ai-agent-bridge.rs",
-                      "ORESoftware/ai-agent-coordinator.rs",
-                      "ORESoftware/k8s-cluster",
-                      "ORESoftware/mcp-rust-libs",
-                      "ORESoftware/mip-solver-node.rs",
-                  },
-              )
-              self.assertIsNone(
-                  oresoftware_manifest["repository_selection"]["default_repository"]
-              )
-              self.assertEqual(
-                  oresoftware_manifest["repository_selection"]["runtime_allowlist"], []
-              )
 
-              fanwaave_manifest = relationship_renderer.build_relationship_manifest(
-                  self.registry, "fanwaave", IMMUTABLE_TEST_REF
-              )
-              fanwaave_overrides = fanwaave_manifest["repository_selection"][
-                  "linear_project_overrides"
-              ]
-              self.assertEqual(
-                  [override["repository"] for override in fanwaave_overrides],
-                  ["fanwaave/push-notification-server.rs"],
-              )
-              self.assertIsNone(
-                  fanwaave_manifest["repository_selection"]["default_repository"]
-              )
-              self.assertEqual(
-                  fanwaave_manifest["repository_selection"]["runtime_allowlist"], []
-              )
           '''
-          relationship_tests = replace_once(
-              relationship_tests,
-              old_relationship_test,
-              new_relationship_test,
-              "repository relationship routing test",
+          relationship_marker = (
+              "    def test_relationship_renderer_covers_every_mapped_owner_deterministically(self) -> None:\n"
           )
-          relationship_tests = replace_once(
-              relationship_tests,
-              '        self.assertEqual(index["owner_count"], 30)',
-              '        self.assertEqual(index["owner_count"], 31)',
-              "relationship index owner count",
-          )
-          relationship_tests = replace_once(
-              relationship_tests,
-              '        self.assertEqual(len(index["files"]), 30)',
-              '        self.assertEqual(len(index["files"]), 31)',
-              "relationship file count",
+          if relationship_tests.count(relationship_marker) != 1:
+              raise SystemExit("could not locate relationship-test insertion point")
+          relationship_tests = relationship_tests.replace(
+              relationship_marker,
+              fanwaave_relationship_test + relationship_marker,
+              1,
           )
           relationship_tests_path.write_text(relationship_tests, encoding="utf-8")
           PY
@@ -273,17 +179,19 @@ jobs:
             tests/test_org_repository_relationships.py
           python3 scripts/validate_org_project_registry.py
 
-      - name: Commit the validated migration and remove this one-shot workflow
+      - name: Commit the validated migration and remove one-shot artifacts
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/den-1874-fanwaave-routing.yml
+          git rm \
+            .github/workflows/den-1874-fanwaave-routing.yml \
+            .github/den-1874-trigger
           git add \
             config/org-project-registry.yaml \
             tests/test_org_project_registry.py \
             tests/test_org_repository_relationships.py
           git diff --cached --check
           git commit -m "DEN-1874 route push server to Fanwaave"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin HEAD:agent/DEN-1874-fanwaave-routing
