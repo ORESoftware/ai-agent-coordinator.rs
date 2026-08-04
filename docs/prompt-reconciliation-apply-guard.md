@@ -30,4 +30,4 @@ cargo clippy --all-targets --all-features -- -D warnings
 cargo build --release --bin prompt-reconciliation-apply-guard
 ```
 
-The remainder of DEN-1610 will add authenticated, allowlisted GitHub evidence reads and guarded Linear update-before-create mutations with mocked connector tests.
+The authenticated, allowlisted GitHub evidence reader and guarded Linear update-before-create worker are documented in `docs/prompt-reconciliation-adapters.md`. Distributed fencing and duplicate-race repair remain scoped to DEN-1611.

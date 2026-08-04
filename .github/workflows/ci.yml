@@ -1,63 +1,272 @@
 name: CI
 
 on:
+  push:
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: den-1610-source-reference-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  extract-reviewed-source:
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
-      - name: Check out exact source head
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
+      - name: Validate GitHub Actions
+        id: actionlint
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/ci.yml 2>&1 | tee actionlint-output.log
+      - name: Upload failing actionlint output
+        if: steps.actionlint.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: actionlint-output
+          path: actionlint-output.log
+          retention-days: 1
+          if-no-files-found: error
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - name: Apply canonical Rust formatting for validation
+        id: format
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo fmt --all 2>&1 | tee rustfmt-command.log
+          if ! git diff --quiet -- src tests; then
+            echo 'changed=true' >> "$GITHUB_OUTPUT"
+          fi
+      - name: Upload formatter diagnostics
+        if: steps.format.outputs.changed == 'true' || steps.format.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rustfmt-output
+          path: |
+            rustfmt-command.log
+            src/**/*.rs
+            tests/**/*.rs
+          retention-days: 1
+          if-no-files-found: error
+      - name: Clippy
+        id: clippy
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo clippy --locked --all-targets --all-features -- -D warnings 2>&1 | tee clippy-output.log
+      - name: Upload failing Clippy output
+        if: steps.clippy.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: clippy-output
+          path: clippy-output.log
+          retention-days: 1
+          if-no-files-found: error
+      - name: Test
+        id: test
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          cargo test --locked --all 2>&1 | tee test-output.log
+      - name: Upload failing test output
+        if: steps.test.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: rust-test-output
+          path: test-output.log
+          retention-days: 1
+          if-no-files-found: error
+      - name: Documentation
+        id: docs
+        continue-on-error: true
+        run: cargo doc --locked --no-deps
+      - name: Release build
+        id: release
+        continue-on-error: true
+        run: cargo build --locked --release
+      - name: Require all validation gates
+        if: always()
+        env:
+          ACTIONLINT_OUTCOME: ${{ steps.actionlint.outcome }}
+          FORMAT_OUTCOME: ${{ steps.format.outcome }}
+          CLIPPY_OUTCOME: ${{ steps.clippy.outcome }}
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          DOCS_OUTCOME: ${{ steps.docs.outcome }}
+          RELEASE_OUTCOME: ${{ steps.release.outcome }}
+        shell: bash
+        run: |
+          test "$ACTIONLINT_OUTCOME" = success
+          test "$FORMAT_OUTCOME" = success
+          test "$CLIPPY_OUTCOME" = success
+          test "$TEST_OUTCOME" = success
+          test "$DOCS_OUTCOME" = success
+          test "$RELEASE_OUTCOME" = success
+          git diff --exit-code -- src tests
 
-      - name: Verify and extract reviewed DEN-1610 source
+  flags-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout coordinator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Checkout pinned flags-2-env source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: 7f72052994c71e68bcb28c322f0c2e3bac54e544
+          path: vendor/flags-2-env
+          persist-credentials: false
+      - name: Build pinned flags2env
+        run: make -B -C vendor/flags-2-env all
+      - name: Audit the non-secret CLI contract
+        id: flags_audit
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -o pipefail
+          bash scripts/with-flags audit 2>&1 | tee flags-audit.log
+      - name: Upload failing flags audit
+        if: failure() && steps.flags_audit.outcome == 'failure'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: flags-audit-output
+          path: flags-audit.log
+          retention-days: 1
+          if-no-files-found: error
+      - name: Verify representative mappings and long-form aliases
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin \
-            refs/heads/agent/den-1610-authenticated-adapters-v2:refs/remotes/origin/den-1610-source
-
-          mkdir -p artifacts/parts artifacts/source
-          for part in 00 01 02 03 04 05 06; do
-            git show "refs/remotes/origin/den-1610-source:.github/den-1610-patch/part-${part}" \
-              > "artifacts/parts/part-${part}"
+          bash scripts/with-flags \
+            --config=coordinator.example.yaml \
+            --json-logs=true \
+            --linear-delivery-enabled=true \
+            --linear-delivery-dry-run=true \
+            --linear-api-url=https://api.linear.app/graphql \
+            --linear-api-auth-scheme=api_key \
+            --linear-team-key=DEN \
+            --linear-project-names=sonus-auris=github.com/sonus-auris,daedalus-fab=github.com/daedalus-fab \
+            --linear-max-retries=4 \
+            --github-repository-admin-enabled=false \
+            --github-repository-admin-allowed-orgs=fiducia-cloud,sonus-auris \
+            --github-api-base-url=https://api.github.com \
+            --github-api-version=2022-11-28 \
+            --github-api-user-agent=ai-agent-coordinator-ci \
+            --log-filter=warn \
+            -- bash -euo pipefail -c '
+              test "$COORDINATOR_CONFIG" = "coordinator.example.yaml"
+              test "$COORDINATOR_JSON_LOGS" = "true"
+              test "$LINEAR_DELIVERY_ENABLED" = "true"
+              test "$LINEAR_DELIVERY_DRY_RUN" = "true"
+              test "$LINEAR_API_URL" = "https://api.linear.app/graphql"
+              test "$LINEAR_API_AUTH_SCHEME" = "api_key"
+              test "$LINEAR_TEAM_KEY" = "DEN"
+              test "$LINEAR_PROJECT_NAMES" = "sonus-auris=github.com/sonus-auris,daedalus-fab=github.com/daedalus-fab"
+              test "$LINEAR_MAX_RETRIES" = "4"
+              test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = "false"
+              test "$GITHUB_REPOSITORY_ADMIN_ALLOWED_ORGS" = "fiducia-cloud,sonus-auris"
+              test "$GITHUB_API_BASE_URL" = "https://api.github.com"
+              test "$GITHUB_API_VERSION" = "2022-11-28"
+              test "$GITHUB_API_USER_AGENT" = "ai-agent-coordinator-ci"
+              test "$RUST_LOG" = "warn"
+              test -z "${COORDINATOR_API_TOKEN+x}"
+              test -z "${AI_AGENT_COORDINATOR_DATABASE_URL+x}"
+              test -z "${DATABASE_URL+x}"
+              test -z "${GITHUB_WEBHOOK_SECRET+x}"
+              test -z "${GITHUB_REPOSITORY_ADMIN_TOKEN+x}"
+              test -z "${LINEAR_API_TOKEN+x}"
+              test -z "${MISTRAL_API_KEY+x}"
+              test -z "${OPENROUTER_API_KEY+x}"
+              test -z "${OPENAI_API_KEY+x}"
+            '
+      - name: Verify fail-closed defaults
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/with-flags -- bash -euo pipefail -c '
+            test "$COORDINATOR_CONFIG" = "coordinator.yaml"
+            test "$COORDINATOR_JSON_LOGS" = "false"
+            test "$LINEAR_DELIVERY_ENABLED" = "false"
+            test "$LINEAR_DELIVERY_DRY_RUN" = "true"
+            test "$LINEAR_API_URL" = "https://api.linear.app/graphql"
+            test "$LINEAR_API_AUTH_SCHEME" = "api_key"
+            test "$LINEAR_TEAM_KEY" = "DEN"
+            test "$LINEAR_REQUEST_TIMEOUT_MS" = "10000"
+            test "$LINEAR_MAX_RESPONSE_BYTES" = "262144"
+            test "$LINEAR_MAX_RETRIES" = "3"
+            test "$LINEAR_MIN_ORG_INTERVAL_MS" = "100"
+            test "$GITHUB_REPOSITORY_ADMIN_ENABLED" = "false"
+            test "$GITHUB_API_BASE_URL" = "https://api.github.com"
+            test "$GITHUB_API_VERSION" = "2022-11-28"
+            test "$GITHUB_API_USER_AGENT" = "ai-agent-coordinator"
+            test "$RUST_LOG" = "ai_agent_coordinator=info,tower_http=info"
+            test -z "${LINEAR_API_TOKEN+x}"
+          '
+      - name: Prove unknown command-line flags fail closed
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set -euo pipefail
+          if bash scripts/with-flags --not-a-declared-option=true -- true; then
+            echo 'unknown flags must fail closed' >&2
+            exit 1
+          fi
+      - name: Prove secret command-line flags are rejected
+        env:
+          FLAGS2ENV_BIN: ${{ github.workspace }}/vendor/flags-2-env/build/flags2env
+        shell: bash
+        run: |
+          set +e
+          for option in coordinator-api-token database-url linear-api-token; do
+            output="$(bash scripts/with-flags "--${option}=must-not-be-accepted" -- true 2>&1)"
+            status=$?
+            test "$status" -eq 64
+            if grep -Fq 'must-not-be-accepted' <<<"$output"; then
+              echo 'credential value leaked into rejection output' >&2
+              exit 1
+            fi
           done
+          set -e
 
-          # The carrier chunks are line-wrapped transport fragments. Their exact
-          # byte hashes can change when Git normalizes the final newline even when
-          # the reconstructed base64 payload is unchanged. Trust only the pinned
-          # archive digest and the six pinned extracted-source digests below.
-          cat artifacts/parts/part-* > artifacts/den-1610-source.tar.gz.b64
-          base64 --decode artifacts/den-1610-source.tar.gz.b64 \
-            > artifacts/den-1610-source.tar.gz
-          echo 'ee72cc9919ec7b5efbdbdecfa1c3b7ddb40db3dcc3f9bbb0f446260e122e916b  artifacts/den-1610-source.tar.gz' \
-            | sha256sum --check -
-          tar -xzf artifacts/den-1610-source.tar.gz -C artifacts/source
-
-          sha256sum --check <<'SOURCES'
-          bd534651a15a650012a06f5d33776da8f4e1faa8588103191cb4b29982f21d87  artifacts/source/src/prompt_reconciliation_adapters.rs
-          1317f9ee404312d9b007531efbc794c7c8d27270c3e1bbdfc92c262bcee7b217  artifacts/source/src/bin/prompt-reconciliation-apply.rs
-          a62df7e64bb4e63d1b4b4c20b8044654c69ee21e7714072adcb9b686561f166d  artifacts/source/src/prompt_reconciliation/model.rs
-          35003ee088ecedfebfcf825bffbd288d2d2a0df073808c62eb8d1a0b96fd8306  artifacts/source/src/lib.rs
-          f420ddf3a71f5562acc7fc46d970e39f82556442fa15398374218945226dbeaa  artifacts/source/docs/prompt-reconciliation-adapters.md
-          ce7d84defd8bfe868d412aee2193e9f0435054df4b0d4c084456f50cf5e486e3  artifacts/source/docs/prompt-reconciliation-apply-guard.md
-          SOURCES
-
-      - name: Upload verified source reference
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          name: den-1610-source-reference
-          path: artifacts/source/
-          if-no-files-found: error
-          retention-days: 1
+          persist-credentials: false
+      - uses: taiki-e/install-action@c44f6b046f1c29ae5918b1e0bfdbb2f1813836fd # v2
+        with:
+          tool: cargo-audit@0.22.2
+      - name: Dependency audit
+        # SeaORM's PostgreSQL feature locks SQLx's optional, disabled MySQL
+        # dependency graph. RUSTSEC-2023-0071 is in that unbuilt sqlx-mysql
+        # graph (`cargo tree -i rsa` is empty for this crate).
+        run: cargo audit --deny warnings --ignore RUSTSEC-2023-0071

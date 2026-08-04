@@ -13,6 +13,7 @@ pub mod linear_delivery {
 }
 pub mod prompt_intake;
 pub mod prompt_reconciliation;
+pub mod prompt_reconciliation_adapters;
 pub mod providers;
 pub mod security;
 pub mod slack_run;
