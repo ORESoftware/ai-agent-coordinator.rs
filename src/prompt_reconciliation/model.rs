@@ -99,7 +99,8 @@ pub enum ReceiptOutcome {
     Superseded,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReconciliationPlan {
     pub schema_version: u32,
     pub source_report_schema_version: u32,
@@ -109,7 +110,8 @@ pub struct ReconciliationPlan {
     pub prompts: Vec<PromptReconciliationPlan>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ReconciliationPlanCounts {
     pub input_decisions: usize,
     pub ignored: usize,
@@ -120,7 +122,8 @@ pub struct ReconciliationPlanCounts {
     pub create: usize,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct PromptReconciliationPlan {
     pub source_identity: String,
     pub mutation_key: String,
@@ -133,7 +136,7 @@ pub struct PromptReconciliationPlan {
     pub evidence_links: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PlanAction {
     Ignore,
@@ -144,7 +147,7 @@ pub enum PlanAction {
     CreateIssue,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PlanReason {
     NonActionable,
@@ -166,7 +169,8 @@ pub enum PlanReason {
     NoLinearCandidate,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct LinearMutationPlan {
     pub operation_id: String,
     pub idempotency_key: String,
@@ -178,7 +182,7 @@ pub struct LinearMutationPlan {
     pub body: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum LinearMutationKind {
     Amend,
