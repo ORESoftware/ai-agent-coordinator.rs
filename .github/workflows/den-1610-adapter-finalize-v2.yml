@@ -83,3 +83,5 @@ jobs:
           git add -A
           git commit -m 'fix(DEN-1610): format adapters and satisfy strict Clippy'
           git push origin HEAD:agent/den-1610-authenticated-adapters-current-main-20260804
+
+# trigger-generation: 1
