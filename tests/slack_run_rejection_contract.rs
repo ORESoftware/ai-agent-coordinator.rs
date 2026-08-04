@@ -106,6 +106,8 @@ fn rejects_repository_urls_git_suffixes_and_path_escape_shapes() {
         "/ai-agent-coordinator.rs",
         "ORESoftware/../ai-agent-coordinator.rs",
         "ORESoftware/ai-agent@coordinator.rs",
+        "ORESoftware/ai agent coordinator",
+        "ORESoftware//ai-agent-coordinator.rs",
     ] {
         let mut value = valid_payload();
         value["routing"]["repository"] = json!(repository);
@@ -119,7 +121,17 @@ fn rejects_repository_urls_git_suffixes_and_path_escape_shapes() {
 
 #[test]
 fn rejects_noncanonical_linear_issue_identifiers() {
-    for issue in ["den-1231", "D-1231", "DEN-01231", "DEN-", "DEN-12A", "DEN--1231"] {
+    for issue in [
+        "den-1231",
+        "D-1231",
+        "DEN-01231",
+        "DEN-",
+        "DEN-12A",
+        "DEN--1231",
+        " DEN-1231",
+        "DEN-1231 ",
+        "DEN_1231",
+    ] {
         let mut value = valid_payload();
         value["routing"]["linear_issue"] = json!(issue);
         assert_eq!(
@@ -131,12 +143,16 @@ fn rejects_noncanonical_linear_issue_identifiers() {
 }
 
 #[test]
-fn rejects_uppercase_short_and_nonhex_run_ids() {
+fn rejects_noncanonical_run_ids() {
     for run_id in [
         "ores-00112233445566778899AABB",
         "ores-00112233",
         "ores-00112233445566778899aabz",
         "run-00112233445566778899aabb",
+        "ores-00112233445566778899aabb00",
+        " ores-00112233445566778899aabb",
+        "ores-00112233445566778899aabb ",
+        "",
     ] {
         let mut value = valid_payload();
         value["run_id"] = json!(run_id);
@@ -150,7 +166,16 @@ fn rejects_uppercase_short_and_nonhex_run_ids() {
 
 #[test]
 fn rejects_invalid_slack_timestamps_and_nul_bearing_text() {
-    for timestamp in ["1000", "1000.", ".000001", "1000.000001.extra", "-1.000001"] {
+    for timestamp in [
+        "1000",
+        "1000.",
+        ".000001",
+        "1000.000001.extra",
+        "-1.000001",
+        "1000.000 001",
+        " 1000.000001",
+        "1000.000001 ",
+    ] {
         let mut value = valid_payload();
         value["context"]["messages"][0]["ts"] = json!(timestamp);
         assert_eq!(
@@ -170,4 +195,36 @@ fn rejects_invalid_slack_timestamps_and_nul_bearing_text() {
         rejection(&message),
         "slack_agent_run context message is invalid"
     );
+}
+
+#[test]
+fn rejects_unknown_fields_at_every_security_boundary() {
+    let cases = [
+        ("top-level", vec!["unexpected"]),
+        ("origin", vec!["origin", "unexpected"]),
+        ("context", vec!["context", "unexpected"]),
+        (
+            "context message",
+            vec!["context", "messages", "0", "unexpected"],
+        ),
+        ("routing", vec!["routing", "unexpected"]),
+    ];
+
+    for (label, path) in cases {
+        let mut value = valid_payload();
+        let mut cursor = &mut value;
+        for component in &path[..path.len() - 1] {
+            cursor = if let Ok(index) = component.parse::<usize>() {
+                &mut cursor[index]
+            } else {
+                &mut cursor[*component]
+            };
+        }
+        cursor[path[path.len() - 1]] = json!("must-not-be-accepted");
+        assert_eq!(
+            rejection(&value),
+            "slack_agent_run payload does not match schema v1",
+            "{label} unknown field must fail closed"
+        );
+    }
 }
