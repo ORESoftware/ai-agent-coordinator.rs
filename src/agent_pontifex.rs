@@ -92,7 +92,9 @@ impl CompatibilityDescriptor {
             return Err(ContractError::new("unexpected coordinator protocol"));
         }
         if self.service != "ai-agent-coordinator" || self.implementation != "agent-pontifex" {
-            return Err(ContractError::new("unexpected community implementation identity"));
+            return Err(ContractError::new(
+                "unexpected community implementation identity",
+            ));
         }
         if self.protocol_source.repository != PROTOCOL_SOURCE_REPOSITORY
             || self.protocol_source.path != PROTOCOL_SOURCE_PATH
@@ -101,7 +103,9 @@ impl CompatibilityDescriptor {
             return Err(ContractError::new("protocol source pin drifted"));
         }
         if !is_lower_hex_commit(&self.protocol_source.revision) {
-            return Err(ContractError::new("protocol source revision is not immutable"));
+            return Err(ContractError::new(
+                "protocol source revision is not immutable",
+            ));
         }
 
         let mut seen = BTreeSet::new();
@@ -114,9 +118,15 @@ impl CompatibilityDescriptor {
         let mut sorted = self.capabilities.clone();
         sorted.sort();
         if sorted != self.capabilities {
-            return Err(ContractError::new("capabilities are not deterministically sorted"));
+            return Err(ContractError::new(
+                "capabilities are not deterministically sorted",
+            ));
         }
-        if self.extensions.keys().any(|key| key.starts_with("fiducia.")) {
+        if self
+            .extensions
+            .keys()
+            .any(|key| key.starts_with("fiducia."))
+        {
             return Err(ContractError::new(
                 "the community descriptor cannot claim Fiducia extensions",
             ));
@@ -148,7 +158,15 @@ pub fn validate_job_value(value: &Value) -> Result<(), ContractError> {
         return Err(ContractError::new("job envelope keys drifted"));
     }
 
-    for key in ["id", "org", "repo", "task_type", "created_at", "updated_at", "available_at"] {
+    for key in [
+        "id",
+        "org",
+        "repo",
+        "task_type",
+        "created_at",
+        "updated_at",
+        "available_at",
+    ] {
         require_non_empty_string(object.get(key), key)?;
     }
     for key in ["priority", "attempts", "max_attempts"] {
@@ -160,7 +178,10 @@ pub fn validate_job_value(value: &Value) -> Result<(), ContractError> {
         .get("status")
         .and_then(Value::as_str)
         .ok_or_else(|| ContractError::new("job status must be a string"))?;
-    if !matches!(status, "queued" | "running" | "succeeded" | "failed" | "cancelled") {
+    if !matches!(
+        status,
+        "queued" | "running" | "succeeded" | "failed" | "cancelled"
+    ) {
         return Err(ContractError::new("job status is outside the public enum"));
     }
     for key in ["claimed_by", "lease_expires_at", "last_error"] {
@@ -195,9 +216,9 @@ fn require_non_empty_string(value: Option<&Value>, key: &str) -> Result<(), Cont
 fn validate_identifier(value: &str, field: &str) -> Result<(), ContractError> {
     if value.is_empty()
         || value.len() > 128
-        || !value
-            .bytes()
-            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"-_.".contains(&byte))
+        || !value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || b"-_.".contains(&byte)
+        })
     {
         return Err(ContractError::new(format!("invalid {field} identifier")));
     }
@@ -240,10 +261,7 @@ mod tests {
     use serde_json::json;
 
     fn sample_job() -> Job {
-        let timestamp = Utc
-            .with_ymd_and_hms(2026, 8, 4, 18, 0, 0)
-            .single()
-            .unwrap();
+        let timestamp = Utc.with_ymd_and_hms(2026, 8, 4, 18, 0, 0).single().unwrap();
         Job {
             id: "job-1".to_string(),
             org: "agent-pontifex".to_string(),
