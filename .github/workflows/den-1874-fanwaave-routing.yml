@@ -69,23 +69,16 @@ jobs:
           mappings.insert(insert_at, fanwaave_mapping)
           registry["observed_at"] = "2026-08-04"
 
-          matching_overrides = [
+          old_overrides = registry["repository_overrides"]
+          retained_overrides = [
               item
-              for item in registry["repository_overrides"]
-              if item["repository"] == "ORESoftware/push-notification-server.rs"
+              for item in old_overrides
+              if item["repository"] != "ORESoftware/push-notification-server.rs"
           ]
-          if len(matching_overrides) != 1:
-              raise SystemExit(
-                  "expected exactly one ORESoftware push-server override, "
-                  f"found {len(matching_overrides)}"
-              )
-          override = matching_overrides[0]
-          override["repository"] = "fanwaave/push-notification-server.rs"
-          override["linear"] = {
-              "project_id": "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
-              "project_name": "github.com/fanwaave",
-              "project_url": "https://linear.app/denman/project/githubcomfanwaave-6ba038b59dbc",
-          }
+          if len(old_overrides) - len(retained_overrides) != 1:
+              raise SystemExit("expected exactly one obsolete ORESoftware push-server override")
+          registry["repository_overrides"] = retained_overrides
+
           registry_path.write_text(
               json.dumps(registry, indent=2, ensure_ascii=False) + "\n",
               encoding="utf-8",
@@ -93,23 +86,28 @@ jobs:
 
           project_tests_path = Path("tests/test_org_project_registry.py")
           project_tests = project_tests_path.read_text(encoding="utf-8")
-          project_tests = project_tests.replace(
-              '        self.assertEqual(counts["mappings"], 30)',
-              '        self.assertEqual(counts["mappings"], 31)',
-              1,
-          )
-          fanwaave_test = '''    def test_fanwaave_push_server_override_uses_canonical_project(self) -> None:
-              project = registry_module.resolve_project(
-                  self.registry,
-                  "fanwaave",
-                  "fanwaave/push-notification-server.rs",
-              )
-              self.assertEqual(
-                  project["project_id"],
-                  "d765e227-5726-42c8-8643-a8bd9e5a9a8c",
-              )
+          replacements = {
+              '        self.assertEqual(counts["mappings"], 30)': '        self.assertEqual(counts["mappings"], 31)',
+              '        self.assertEqual(counts["repository_overrides"], 6)': '        self.assertEqual(counts["repository_overrides"], 5)',
+          }
+          for old, new in replacements.items():
+              if project_tests.count(old) != 1:
+                  raise SystemExit(f"expected one project-test match for {old!r}")
+              project_tests = project_tests.replace(old, new, 1)
 
-          '''
+          fanwaave_test = (
+              "    def test_fanwaave_push_server_uses_owner_project(self) -> None:\n"
+              "        project = registry_module.resolve_project(\n"
+              "            self.registry,\n"
+              "            \"fanwaave\",\n"
+              "            \"fanwaave/push-notification-server.rs\",\n"
+              "        )\n"
+              "        self.assertEqual(\n"
+              "            project[\"project_id\"],\n"
+              "            \"d765e227-5726-42c8-8643-a8bd9e5a9a8c\",\n"
+              "        )\n"
+              "\n"
+          )
           project_marker = "    def test_repository_cannot_escape_resolved_owner(self) -> None:\n"
           if project_tests.count(project_marker) != 1:
               raise SystemExit("could not locate project-registry test insertion point")
@@ -122,7 +120,7 @@ jobs:
 
           relationship_tests_path = Path("tests/test_org_repository_relationships.py")
           relationship_tests = relationship_tests_path.read_text(encoding="utf-8")
-          replacements = {
+          relationship_replacements = {
               '                "eligible_organizations": 29,': '                "eligible_organizations": 30,',
               '                "missing": 26,': '                "missing": 27,',
               '        self.assertEqual(report["registry"]["mapped_owners"], 30)': '        self.assertEqual(report["registry"]["mapped_owners"], 31)',
@@ -131,34 +129,10 @@ jobs:
               '        self.assertEqual(index["owner_count"], 30)': '        self.assertEqual(index["owner_count"], 31)',
               '        self.assertEqual(len(index["files"]), 30)': '        self.assertEqual(len(index["files"]), 31)',
           }
-          for old, new in replacements.items():
+          for old, new in relationship_replacements.items():
               if relationship_tests.count(old) != 1:
                   raise SystemExit(f"expected one relationship-test match for {old!r}")
               relationship_tests = relationship_tests.replace(old, new, 1)
-
-          fanwaave_relationship_test = '''    def test_fanwaave_relationship_declares_push_server_override(self) -> None:
-              manifest = relationship_renderer.build_relationship_manifest(
-                  self.registry, "fanwaave", IMMUTABLE_TEST_REF
-              )
-              overrides = manifest["repository_selection"]["linear_project_overrides"]
-              self.assertEqual(
-                  [override["repository"] for override in overrides],
-                  ["fanwaave/push-notification-server.rs"],
-              )
-              self.assertIsNone(manifest["repository_selection"]["default_repository"])
-              self.assertEqual(manifest["repository_selection"]["runtime_allowlist"], [])
-
-          '''
-          relationship_marker = (
-              "    def test_relationship_renderer_covers_every_mapped_owner_deterministically(self) -> None:\n"
-          )
-          if relationship_tests.count(relationship_marker) != 1:
-              raise SystemExit("could not locate relationship-test insertion point")
-          relationship_tests = relationship_tests.replace(
-              relationship_marker,
-              fanwaave_relationship_test + relationship_marker,
-              1,
-          )
           relationship_tests_path.write_text(relationship_tests, encoding="utf-8")
           PY
 
@@ -193,5 +167,5 @@ jobs:
             tests/test_org_project_registry.py \
             tests/test_org_repository_relationships.py
           git diff --cached --check
-          git commit -m "DEN-1874 route push server to Fanwaave"
+          git commit -m "DEN-1874 route push server through Fanwaave"
           git push origin HEAD:agent/DEN-1874-fanwaave-routing
