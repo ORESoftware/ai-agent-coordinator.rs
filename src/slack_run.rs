@@ -179,10 +179,7 @@ impl Routing {
         validate_repository(&self.repository)?;
         validate_identifier("routing.linear_team_id", &self.linear_team_id)?;
         validate_identifier("routing.linear_project_id", &self.linear_project_id)?;
-        validate_identifier(
-            "routing.linear_run_project_id",
-            &self.linear_run_project_id,
-        )?;
+        validate_identifier("routing.linear_run_project_id", &self.linear_run_project_id)?;
         if self
             .linear_issue
             .as_deref()
@@ -331,10 +328,13 @@ fn validate_observable_event(event: &Value, run: &SlackAgentRunPayload) -> Resul
                 || value.len() > MAX_OBSERVABLE_METADATA_VALUE_BYTES
                 || value.contains('\0')
         })
-        || event.source.metadata.get("surface").map(String::as_str)
-            != Some("slack_slash_command")
+        || event.source.metadata.get("surface").map(String::as_str) != Some("slack_slash_command")
         || event.source.metadata.get("action").map(String::as_str) != Some(run.action.as_str())
-        || event.source.metadata.get("write_policy").map(String::as_str)
+        || event
+            .source
+            .metadata
+            .get("write_policy")
+            .map(String::as_str)
             != Some(write_policy_name(run.routing.write_policy))
     {
         return Err("slack_agent_run observable_event source metadata is invalid".to_owned());
@@ -444,9 +444,10 @@ fn valid_uuid(value: &str) -> bool {
         && [8, 13, 18, 23]
             .into_iter()
             .all(|index| bytes.get(index) == Some(&b'-'))
-        && bytes.iter().enumerate().all(|(index, byte)| {
-            [8, 13, 18, 23].contains(&index) || byte.is_ascii_hexdigit()
-        })
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| [8, 13, 18, 23].contains(&index) || byte.is_ascii_hexdigit())
 }
 
 fn validate_broadcast_targets(targets: &[String]) -> Result<(), String> {
