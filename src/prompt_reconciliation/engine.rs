@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use crate::prompt_intake::{PromptDecision, PromptIntakeReport, ProjectResolutionState};
+use crate::prompt_intake::{ProjectResolutionState, PromptDecision, PromptIntakeReport};
 
 use super::{
     candidates::select_candidate,
@@ -81,7 +81,8 @@ fn plan_prompt(
         ));
     }
 
-    if decision.needs_review || decision.project_resolution.state != ProjectResolutionState::Resolved
+    if decision.needs_review
+        || decision.project_resolution.state != ProjectResolutionState::Resolved
     {
         return Ok(plan_without_mutation(
             decision,
