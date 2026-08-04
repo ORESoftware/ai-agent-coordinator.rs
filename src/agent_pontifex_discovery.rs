@@ -188,7 +188,10 @@ mod tests {
         descriptor.validate().unwrap();
         assert_eq!(descriptor.protocol, COORDINATOR_PROTOCOL_ID);
         assert_eq!(descriptor.service, COORDINATOR_SERVICE_ID);
-        assert_eq!(descriptor.protocol_versions, ProtocolVersionRange::current());
+        assert_eq!(
+            descriptor.protocol_versions,
+            ProtocolVersionRange::current()
+        );
         assert!(descriptor.extensions.is_empty());
         assert!(descriptor
             .capabilities
