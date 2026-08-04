@@ -66,6 +66,8 @@ For every planned operation the worker:
 8. creates at most once and verifies that the response has the exact project, title, operation marker, and canonical Linear URL; and
 9. treats transport loss, server failures, malformed mutation responses, or GraphQL mutation errors as ambiguous rather than retrying blindly.
 
+A GraphQL HTTP 200 response without a `data` object is ambiguous for a mutation and malformed for a read; neither case is treated as success.
+
 An amendment is a marker-bearing comment. This preserves the original issue description and creates an auditable requirements delta. A rerun that finds the marker returns `already_applied` with zero Linear mutations.
 
 Dry-run mode performs the authenticated project and duplicate reads, returns `planned_amend` or `planned_create`, and refuses any mutation request inside the adapter itself.
