@@ -2,6 +2,12 @@
 
 DEN-1611 protects reconciliation from overlapping workers, expired leases, stale retries, and duplicate issue races.
 
+## Layering after DEN-1610
+
+The merged DEN-1610 adapter layer remains authoritative for exact plan authorization, allowlisted GitHub evidence reads, guarded Linear update-before-create, the second duplicate search, operation markers, mutation-free dry-run, and ambiguous-mutation refusal. The fencing layer wraps that execution across workers; it does not add a second provider client, persist credentials, or require a personal access token.
+
+A production worker must acquire the account/window lease before beginning remote mutation, carry the current fence through receipt compare-and-set, record the exact result before release, and refuse any create/amend/duplicate-repair attempt whose capability is expired or whose fence is stale.
+
 ## Lease and fence invariants
 
 - every successful acquisition receives a strictly increasing fencing token;
@@ -38,3 +44,5 @@ These tests model process loss and stale retries while keeping one in-memory sta
 ## Production storage
 
 The current state machine is storage-neutral. Production must use a linearizable compare-and-set store or a Fiducia lease/fence primitive. A local file lock alone is insufficient across pods or hosts. The durable adapter must preserve `next_fence`, receipt generation, receipts, aliases, and lease expiry atomically, then rerun the failure sequences across actual process restarts and injected partial failures.
+
+The storage adapter must also prove that a stale fence cannot invoke the merged DEN-1610 mutation client and that a post-create race is repaired to one canonical Linear issue with explicit duplicate aliases. Until that evidence exists, this PR establishes the deterministic state-machine contract but does not claim distributed exactly-once mutation.
