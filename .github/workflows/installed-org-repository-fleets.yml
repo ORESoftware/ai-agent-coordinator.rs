@@ -86,7 +86,8 @@ jobs:
             docs/installed-org-repository-fleets-2026-08-04.md
             .github/workflows/installed-org-repository-fleets.yml
           )
-          if grep -nE 'gh[pousr]_[A-Za-z0-9]{20,}|lin_api_|BEGIN [A-Z ]*PRIVATE KEY|CHAT_BRIDGE_TOKEN' "${paths[@]}"; then
+          credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_''api_|BEGIN [A-Z ]*PRIVATE KEY|CHAT_''BRIDGE_TOKEN'
+          if grep -nE "$credential_pattern" "${paths[@]}"; then
             echo 'Credential-shaped content is forbidden.' >&2
             exit 1
           fi
