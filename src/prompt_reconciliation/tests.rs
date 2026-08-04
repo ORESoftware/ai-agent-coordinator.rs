@@ -2,8 +2,8 @@ use chrono::{Duration, TimeZone, Utc};
 
 use super::*;
 use crate::prompt_intake::{
-    PromptClassification, PromptDecision, PromptIntakeCounts, PromptIntakeReport,
-    PromptIntakeWindow, ProjectResolution, ProjectResolutionState,
+    ProjectResolution, ProjectResolutionState, PromptClassification, PromptDecision,
+    PromptIntakeCounts, PromptIntakeReport, PromptIntakeWindow,
 };
 
 fn report(decisions: Vec<PromptDecision>) -> PromptIntakeReport {
@@ -35,7 +35,10 @@ fn report(decisions: Vec<PromptDecision>) -> PromptIntakeReport {
 }
 
 fn decision(key: &str, repository: Option<&str>) -> PromptDecision {
-    let repositories = repository.into_iter().map(str::to_owned).collect::<Vec<_>>();
+    let repositories = repository
+        .into_iter()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
     PromptDecision {
         source_identity: format!("source-{key}"),
         content_fingerprint: format!("content-{key}"),
@@ -89,7 +92,10 @@ fn candidate(key: &str, status: LinearIssueStatus) -> LinearIssueCandidate {
 
 #[test]
 fn identical_inputs_produce_byte_stable_json() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
             mutation_key: "m1".to_owned(),
@@ -99,16 +105,19 @@ fn identical_inputs_produce_byte_stable_json() {
         }],
         receipts: Vec::new(),
     };
-    let first = serde_json::to_vec(&build_reconciliation_plan(&report, &evidence).unwrap())
-        .unwrap();
-    let second = serde_json::to_vec(&build_reconciliation_plan(&report, &evidence).unwrap())
-        .unwrap();
+    let first =
+        serde_json::to_vec(&build_reconciliation_plan(&report, &evidence).unwrap()).unwrap();
+    let second =
+        serde_json::to_vec(&build_reconciliation_plan(&report, &evidence).unwrap()).unwrap();
     assert_eq!(first, second);
 }
 
 #[test]
 fn applied_receipt_suppresses_all_duplicate_mutations() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: Vec::new(),
         receipts: vec![MutationReceipt {
@@ -126,7 +135,10 @@ fn applied_receipt_suppresses_all_duplicate_mutations() {
 
 #[test]
 fn existing_exact_candidate_is_amended_before_create() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
             mutation_key: "m1".to_owned(),
@@ -146,7 +158,10 @@ fn existing_exact_candidate_is_amended_before_create() {
 
 #[test]
 fn default_branch_landing_without_candidate_does_not_create_noise() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
             mutation_key: "m1".to_owned(),
@@ -163,7 +178,10 @@ fn default_branch_landing_without_candidate_does_not_create_noise() {
 
 #[test]
 fn default_branch_landing_preserves_residual_operational_work() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
             mutation_key: "m1".to_owned(),
@@ -182,7 +200,10 @@ fn default_branch_landing_preserves_residual_operational_work() {
 
 #[test]
 fn no_candidate_for_unlanded_scope_proposes_create() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
             mutation_key: "m1".to_owned(),
@@ -194,12 +215,18 @@ fn no_candidate_for_unlanded_scope_proposes_create() {
     };
     let plan = build_reconciliation_plan(&report, &evidence).unwrap();
     assert_eq!(plan.prompts[0].action, PlanAction::CreateIssue);
-    assert_eq!(plan.prompts[0].mutation.as_ref().unwrap().kind, LinearMutationKind::Create);
+    assert_eq!(
+        plan.prompts[0].mutation.as_ref().unwrap().kind,
+        LinearMutationKind::Create
+    );
 }
 
 #[test]
 fn equally_strong_candidates_fail_closed_for_review() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let mut second = candidate("m1", LinearIssueStatus::InProgress);
     second.issue_id = "DEN-1609".to_owned();
     second.url = "https://linear.app/denman/issue/DEN-1609/example".to_owned();
@@ -221,7 +248,10 @@ fn equally_strong_candidates_fail_closed_for_review() {
 
 #[test]
 fn incomplete_github_evidence_fails_closed() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
             mutation_key: "m1".to_owned(),
@@ -240,11 +270,13 @@ fn incomplete_github_evidence_fails_closed() {
 
 #[test]
 fn unsafe_urls_are_rejected_before_planning() {
-    let report = report(vec![decision("m1", Some("ORESoftware/ai-agent-coordinator.rs"))]);
+    let report = report(vec![decision(
+        "m1",
+        Some("ORESoftware/ai-agent-coordinator.rs"),
+    )]);
     let mut unsafe_repository = repository(LandingState::DefaultBranch, true);
     unsafe_repository.links = vec![
-        "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/31?token=secret"
-            .to_owned(),
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/31?token=secret".to_owned(),
     ];
     let evidence = ReconciliationEvidence {
         prompts: vec![PromptEvidence {
