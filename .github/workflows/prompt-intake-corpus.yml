@@ -6,6 +6,7 @@ on:
       - .github/workflows/prompt-intake-corpus.yml
       - docs/prompt-intake-corpus.md
       - fixtures/prompt-intake/chatgpt-60-item-corpus.json
+      - scripts/expand_prompt_intake_fixture.py
       - scripts/prompt_intake_corpus.py
       - scripts/test_prompt_intake_corpus.py
   push:
@@ -14,6 +15,7 @@ on:
       - .github/workflows/prompt-intake-corpus.yml
       - docs/prompt-intake-corpus.md
       - fixtures/prompt-intake/chatgpt-60-item-corpus.json
+      - scripts/expand_prompt_intake_fixture.py
       - scripts/prompt_intake_corpus.py
       - scripts/test_prompt_intake_corpus.py
   workflow_dispatch:
@@ -43,6 +45,7 @@ jobs:
       - name: Compile acceptance tooling
         run: >-
           python -m py_compile
+          scripts/expand_prompt_intake_fixture.py
           scripts/prompt_intake_corpus.py
           scripts/test_prompt_intake_corpus.py
       - name: Run corpus regressions
@@ -52,18 +55,21 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p test-results/prompt-intake
-          python scripts/prompt_intake_corpus.py validate \
+          python scripts/expand_prompt_intake_fixture.py \
             fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+            --output test-results/prompt-intake/expanded.json
+          python scripts/prompt_intake_corpus.py validate \
+            test-results/prompt-intake/expanded.json \
             > test-results/prompt-intake/validation.json
           python scripts/prompt_intake_corpus.py summarize \
-            fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+            test-results/prompt-intake/expanded.json \
             --output test-results/prompt-intake/summary.json
           python scripts/prompt_intake_corpus.py purge \
-            fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+            test-results/prompt-intake/expanded.json \
             --now 2026-09-15T00:00:00Z \
             --output test-results/prompt-intake/retention.json
           python scripts/prompt_intake_corpus.py summarize \
-            fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+            test-results/prompt-intake/expanded.json \
             --output "$RUNNER_TEMP/summary-second-run.json"
           cmp test-results/prompt-intake/summary.json "$RUNNER_TEMP/summary-second-run.json"
       - name: Upload acceptance evidence
