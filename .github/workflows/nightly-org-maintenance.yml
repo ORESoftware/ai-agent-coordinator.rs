@@ -28,7 +28,7 @@ on:
       - 'tests/test_nightly_org_tracking.py'
   schedule:
     # Native timezone-aware schedule. GitHub may still delay dispatch under load.
-    - cron: '30 0 * * *'
+    - cron: '0 1 * * *'
       timezone: 'America/Lima'
   workflow_dispatch:
     inputs:
@@ -94,8 +94,8 @@ jobs:
 
           policy = json.loads(Path('config/nightly-org-maintenance-policy.json').read_text())
           assert policy['timezone'] == 'America/Lima'
-          assert policy['local_hour'] == 0
-          assert policy['local_minute'] == 30
+          assert policy['local_hour'] == 1
+          assert policy['local_minute'] == 0
           assert policy['max_parallel_organizations'] == 3
           assert policy['min_new_prs_per_org'] == 1
           assert policy['max_new_prs_per_org'] == 3
