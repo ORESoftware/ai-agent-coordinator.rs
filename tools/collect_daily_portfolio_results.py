@@ -33,6 +33,7 @@ MAX_CLOCK_SKEW_SECONDS = 300
 MAX_FRESHNESS_SECONDS = 7 * 24 * 60 * 60
 RUN_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+OPEN_SUPPORTS_DIR_FD = os.open in os.supports_dir_fd
 
 TOP_LEVEL_KEYS = {
     "schema_version",
@@ -136,6 +137,53 @@ def _require_int(value: Any, label: str, minimum: int, maximum: int) -> int:
     return value
 
 
+def _read_descriptor(
+    descriptor: int,
+    *,
+    maximum: int,
+    label: str,
+    expected_identity: tuple[int, int] | None = None,
+) -> bytes:
+    before = os.fstat(descriptor)
+    if expected_identity is not None and (before.st_dev, before.st_ino) != expected_identity:
+        raise CollectorError(f"{label} changed before it was opened")
+    if not stat.S_ISREG(before.st_mode):
+        raise CollectorError(f"{label} must be a regular file")
+    if before.st_size > maximum:
+        raise CollectorError(f"{label} exceeds {maximum} bytes")
+
+    chunks: list[bytes] = []
+    remaining = maximum + 1
+    while remaining > 0:
+        chunk = os.read(descriptor, min(64 * 1024, remaining))
+        if not chunk:
+            break
+        chunks.append(chunk)
+        remaining -= len(chunk)
+    payload = b"".join(chunks)
+    after = os.fstat(descriptor)
+
+    if len(payload) > maximum:
+        raise CollectorError(f"{label} exceeds {maximum} bytes")
+    identity_before = (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    )
+    identity_after = (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    )
+    if identity_before != identity_after or len(payload) != after.st_size:
+        raise CollectorError(f"{label} changed while it was being read")
+    return payload
+
+
 def _read_regular_file(path: Path, *, maximum: int, label: str) -> bytes:
     try:
         metadata = path.lstat()
@@ -159,43 +207,14 @@ def _read_regular_file(path: Path, *, maximum: int, label: str) -> bytes:
         raise CollectorError(f"cannot open {label}: {path}: {exc}") from exc
 
     try:
-        before = os.fstat(descriptor)
-        if not stat.S_ISREG(before.st_mode):
-            raise CollectorError(f"{label} changed away from a regular file")
-        if before.st_size > maximum:
-            raise CollectorError(f"{label} exceeds {maximum} bytes")
-        chunks: list[bytes] = []
-        remaining = maximum + 1
-        while remaining > 0:
-            chunk = os.read(descriptor, min(64 * 1024, remaining))
-            if not chunk:
-                break
-            chunks.append(chunk)
-            remaining -= len(chunk)
-        payload = b"".join(chunks)
-        after = os.fstat(descriptor)
+        return _read_descriptor(
+            descriptor,
+            maximum=maximum,
+            label=label,
+            expected_identity=(metadata.st_dev, metadata.st_ino),
+        )
     finally:
         os.close(descriptor)
-
-    if len(payload) > maximum:
-        raise CollectorError(f"{label} exceeds {maximum} bytes")
-    identity_before = (
-        before.st_dev,
-        before.st_ino,
-        before.st_size,
-        before.st_mtime_ns,
-        before.st_ctime_ns,
-    )
-    identity_after = (
-        after.st_dev,
-        after.st_ino,
-        after.st_size,
-        after.st_mtime_ns,
-        after.st_ctime_ns,
-    )
-    if identity_before != identity_after or len(payload) != after.st_size:
-        raise CollectorError(f"{label} changed while it was being read")
-    return payload
 
 
 def _parse_json_bytes(payload: bytes, label: str) -> Any:
@@ -231,7 +250,24 @@ def _validate_relative_path(value: Any, label: str) -> str:
     return value
 
 
-def _validate_root(root: Path) -> Path:
+def _secure_open_flags(*, directory: bool) -> int:
+    if not OPEN_SUPPORTS_DIR_FD or not hasattr(os, "O_NOFOLLOW"):
+        raise CollectorError(
+            "secure result-root traversal requires openat and O_NOFOLLOW support"
+        )
+    flags = os.O_RDONLY | os.O_NOFOLLOW
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if directory:
+        if not hasattr(os, "O_DIRECTORY"):
+            raise CollectorError(
+                "secure result-root traversal requires O_DIRECTORY support"
+            )
+        flags |= os.O_DIRECTORY
+    return flags
+
+
+def _open_result_root(root: Path) -> int:
     try:
         metadata = root.lstat()
     except OSError as exc:
@@ -240,33 +276,62 @@ def _validate_root(root: Path) -> Path:
         raise CollectorError("result root must not be a symbolic link")
     if not stat.S_ISDIR(metadata.st_mode):
         raise CollectorError("result root must be a directory")
+
     try:
-        return root.resolve(strict=True)
+        descriptor = os.open(root, _secure_open_flags(directory=True))
     except OSError as exc:
-        raise CollectorError(f"cannot resolve result root: {root}: {exc}") from exc
+        raise CollectorError(f"cannot securely open result root: {root}: {exc}") from exc
+    opened = os.fstat(descriptor)
+    if (opened.st_dev, opened.st_ino) != (metadata.st_dev, metadata.st_ino):
+        os.close(descriptor)
+        raise CollectorError("result root changed before it was opened")
+    return descriptor
 
 
-def _resolve_result(root: Path, relative: str) -> tuple[Path, bool]:
-    candidate = root
-    missing = False
-    for segment in relative.split("/"):
-        candidate = candidate / segment
+def _read_relative_regular_file(
+    root_descriptor: int,
+    relative: str,
+    *,
+    maximum: int,
+    label: str,
+) -> bytes | None:
+    parts = relative.split("/")
+    current = os.dup(root_descriptor)
+    try:
+        for segment in parts[:-1]:
+            try:
+                next_descriptor = os.open(
+                    segment,
+                    _secure_open_flags(directory=True),
+                    dir_fd=current,
+                )
+            except FileNotFoundError:
+                return None
+            except OSError as exc:
+                raise CollectorError(
+                    f"cannot securely open parent of {label}: {relative}: {exc}"
+                ) from exc
+            os.close(current)
+            current = next_descriptor
+
         try:
-            metadata = candidate.lstat()
+            descriptor = os.open(
+                parts[-1],
+                _secure_open_flags(directory=False),
+                dir_fd=current,
+            )
         except FileNotFoundError:
-            missing = True
-            break
+            return None
         except OSError as exc:
-            raise CollectorError(f"cannot inspect result path for {relative}: {exc}") from exc
-        if stat.S_ISLNK(metadata.st_mode):
-            raise CollectorError(f"result path for {relative} contains a symbolic link")
-    try:
-        resolved = candidate.resolve(strict=False)
-    except OSError as exc:
-        raise CollectorError(f"cannot resolve result path for {relative}: {exc}") from exc
-    if resolved != root and root not in resolved.parents:
-        raise CollectorError(f"result path for {relative} escapes the approved root")
-    return candidate, missing
+            raise CollectorError(
+                f"cannot securely open {label}: {relative}: {exc}"
+            ) from exc
+        try:
+            return _read_descriptor(descriptor, maximum=maximum, label=label)
+        finally:
+            os.close(descriptor)
+    finally:
+        os.close(current)
 
 
 def _load_manifest(path: Path) -> Manifest:
@@ -425,67 +490,70 @@ def _to_input_envelope(normalized: Mapping[str, Any]) -> dict[str, Any]:
 
 def collect(manifest_path: Path, result_root: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     manifest = _load_manifest(manifest_path)
-    root = _validate_root(result_root)
+    root_descriptor = _open_result_root(result_root)
     raw_lanes: dict[str, Any] = {}
     provenance_by_lane: dict[str, dict[str, Any]] = {}
 
-    for entry in manifest.lanes:
-        candidate, missing = _resolve_result(root, entry.result_path)
-        if missing or not candidate.exists():
-            if entry.missing_policy == "fail":
-                raise CollectorError(f"required lane result is missing: {entry.lane}")
-            raw_lanes[entry.lane] = _unavailable_lane(
-                entry.lane,
-                manifest.generated_at,
-                "Normalized lane result is unavailable.",
+    try:
+        for entry in manifest.lanes:
+            payload = _read_relative_regular_file(
+                root_descriptor,
+                entry.result_path,
+                maximum=MAX_LANE_BYTES,
+                label=f"lane result {entry.lane}",
             )
+            if payload is None:
+                if entry.missing_policy == "fail":
+                    raise CollectorError(f"required lane result is missing: {entry.lane}")
+                raw_lanes[entry.lane] = _unavailable_lane(
+                    entry.lane,
+                    manifest.generated_at,
+                    "Normalized lane result is unavailable.",
+                )
+                provenance_by_lane[entry.lane] = {
+                    "lane": entry.lane,
+                    "run_id": entry.run_id,
+                    "state": "missing",
+                    "source_issue": composer.LANE_SPECS[entry.lane]["source_issue"],
+                    "expected_sha256": entry.expected_sha256,
+                    "observed_sha256": None,
+                    "bytes": None,
+                    "generated_at": None,
+                    "age_seconds": None,
+                    "max_age_seconds": entry.max_age_seconds,
+                }
+                continue
+            if entry.expected_sha256 is None or entry.expected_bytes is None:
+                raise CollectorError(
+                    f"lane result exists without manifest integrity metadata: {entry.lane}"
+                )
+            if len(payload) != entry.expected_bytes:
+                raise CollectorError(
+                    f"lane result byte count mismatch for {entry.lane}: "
+                    f"expected {entry.expected_bytes}, observed {len(payload)}"
+                )
+            observed_digest = _sha256_bytes(payload)
+            if observed_digest != entry.expected_sha256:
+                raise CollectorError(f"lane result digest mismatch for {entry.lane}")
+            lane_value = _require_object(
+                _parse_json_bytes(payload, f"lane result {entry.lane}"),
+                f"lane result {entry.lane}",
+            )
+            raw_lanes[entry.lane] = lane_value
             provenance_by_lane[entry.lane] = {
                 "lane": entry.lane,
                 "run_id": entry.run_id,
-                "state": "missing",
+                "state": "collected",
                 "source_issue": composer.LANE_SPECS[entry.lane]["source_issue"],
                 "expected_sha256": entry.expected_sha256,
-                "observed_sha256": None,
-                "bytes": None,
-                "generated_at": None,
+                "observed_sha256": observed_digest,
+                "bytes": len(payload),
+                "generated_at": lane_value.get("generated_at"),
                 "age_seconds": None,
                 "max_age_seconds": entry.max_age_seconds,
             }
-            continue
-        if entry.expected_sha256 is None or entry.expected_bytes is None:
-            raise CollectorError(
-                f"lane result exists without manifest integrity metadata: {entry.lane}"
-            )
-        payload = _read_regular_file(
-            candidate,
-            maximum=MAX_LANE_BYTES,
-            label=f"lane result {entry.lane}",
-        )
-        if len(payload) != entry.expected_bytes:
-            raise CollectorError(
-                f"lane result byte count mismatch for {entry.lane}: "
-                f"expected {entry.expected_bytes}, observed {len(payload)}"
-            )
-        observed_digest = _sha256_bytes(payload)
-        if observed_digest != entry.expected_sha256:
-            raise CollectorError(f"lane result digest mismatch for {entry.lane}")
-        lane_value = _require_object(
-            _parse_json_bytes(payload, f"lane result {entry.lane}"),
-            f"lane result {entry.lane}",
-        )
-        raw_lanes[entry.lane] = lane_value
-        provenance_by_lane[entry.lane] = {
-            "lane": entry.lane,
-            "run_id": entry.run_id,
-            "state": "collected",
-            "source_issue": composer.LANE_SPECS[entry.lane]["source_issue"],
-            "expected_sha256": entry.expected_sha256,
-            "observed_sha256": observed_digest,
-            "bytes": len(payload),
-            "generated_at": lane_value.get("generated_at"),
-            "age_seconds": None,
-            "max_age_seconds": entry.max_age_seconds,
-        }
+    finally:
+        os.close(root_descriptor)
 
     raw_envelope = {
         "schema_version": composer.INPUT_SCHEMA,
