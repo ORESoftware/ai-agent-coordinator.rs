@@ -161,13 +161,13 @@ def validate_text(text: str, *, expect_org: str | None = None) -> list[str]:
     if "github issue" not in lowered or "linear" not in lowered:
         errors.append("profile does not preserve recoverable GitHub and Linear work context")
 
-    if expect_org:
+    if expect_org is not None:
         normalized = expect_org.strip().lower()
-        if not normalized or normalized != expect_org.strip():
-            errors.append("--expect-org must be a non-empty lowercase GitHub login")
+        if not normalized:
+            errors.append("--expect-org must be a non-empty GitHub login")
         elif f"github.com/{normalized}" not in lowered:
             errors.append(
-                f"profile does not contain the canonical GitHub URL for {normalized}"
+                f"profile does not contain the canonical GitHub URL for {expect_org.strip()}"
             )
 
     return errors
@@ -188,7 +188,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser.add_argument("profile", type=Path, help="path to profile/README.md")
     parser.add_argument(
         "--expect-org",
-        help="expected lowercase GitHub organization login",
+        help="expected GitHub organization login; matching is case-insensitive",
     )
     return parser.parse_args(argv)
 
