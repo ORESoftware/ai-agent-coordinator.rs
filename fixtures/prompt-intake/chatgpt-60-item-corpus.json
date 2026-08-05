@@ -1,0 +1,218 @@
+{
+  "corpus_id": "chatgpt-60-item-reconciliation-2026-08-03",
+  "cutoff_at": "2026-08-04T04:59:59Z",
+  "daily_briefing": {
+    "do_today": [
+      "DEN-27",
+      "DEN-1230",
+      "DEN-370",
+      "DEN-1324",
+      "DEN-1298",
+      "DEN-1041",
+      "DEN-834",
+      "DEN-268"
+    ],
+    "ignore": [
+      "DEN-1042",
+      "DEN-28",
+      "DEN-39",
+      "DEN-766",
+      "DEN-315",
+      "DEN-452",
+      "DEN-872",
+      "DEN-43",
+      "DEN-775",
+      "DEN-298",
+      "DEN-171",
+      "DEN-1320"
+    ],
+    "monitor": [
+      "DEN-8",
+      "DEN-1066",
+      "DEN-258",
+      "DEN-394",
+      "DEN-395",
+      "DEN-256",
+      "DEN-318",
+      "DEN-822",
+      "DEN-299",
+      "DEN-812",
+      "DEN-317",
+      "DEN-824",
+      "DEN-93",
+      "DEN-533",
+      "DEN-319",
+      "DEN-608",
+      "DEN-833",
+      "DEN-296",
+      "DEN-1057",
+      "DEN-986",
+      "DEN-393",
+      "DEN-881",
+      "DEN-877",
+      "DEN-266",
+      "DEN-391",
+      "DEN-864",
+      "DEN-260",
+      "DEN-860",
+      "DEN-836",
+      "DEN-114",
+      "DEN-1231",
+      "DEN-1043",
+      "DEN-238",
+      "DEN-871",
+      "DEN-609",
+      "DEN-405",
+      "DEN-786",
+      "DEN-208",
+      "DEN-823",
+      "DEN-262"
+    ]
+  },
+  "expected": {
+    "classification_counts": {
+      "operational_program": 13,
+      "product_work": 19,
+      "recurring_automation": 9,
+      "repository_work": 19
+    },
+    "decision_counts": {
+      "amend_existing": 48,
+      "no_op_reference": 12
+    },
+    "exclusion_counts": {
+      "already_completed": 8,
+      "duplicate_reference": 4
+    },
+    "items": 60,
+    "live": 48,
+    "planned_creates": 0,
+    "reference_only": 12,
+    "status_counts": {
+      "backlog": 1,
+      "done": 8,
+      "duplicate": 4,
+      "in_progress": 40,
+      "todo": 7
+    }
+  },
+  "item_columns": [
+    "canonical_issue",
+    "project_key",
+    "priority",
+    "status",
+    "classification",
+    "duplicate_of"
+  ],
+  "relation_cases": [
+    {
+      "case_id": "duplicate-001",
+      "kind": "duplicate_issue",
+      "source_issue": "DEN-1042",
+      "target_issue": "DEN-1041"
+    },
+    {
+      "case_id": "duplicate-002",
+      "kind": "duplicate_issue",
+      "source_issue": "DEN-39",
+      "target_issue": "DEN-28"
+    },
+    {
+      "case_id": "duplicate-003",
+      "kind": "duplicate_issue",
+      "source_issue": "DEN-452",
+      "target_issue": "DEN-315"
+    },
+    {
+      "case_id": "duplicate-004",
+      "kind": "duplicate_issue",
+      "source_issue": "DEN-43",
+      "target_issue": "DEN-315"
+    },
+    {
+      "canonical_issue": "DEN-834",
+      "case_id": "refinement-001",
+      "expected_decision": "amend_existing",
+      "kind": "material_refinement",
+      "material_fields": [
+        "acceptance_criteria",
+        "next_steps",
+        "test_evidence"
+      ],
+      "source_fingerprints": [
+        "cca883ac2c6fad1e4b0e2c9fd13aa7ffacb972192744d0f82e6d11088c2a9439",
+        "7de7a3819b503b44f729e33740fc4ae07cb506d1e88f3fc0691cf1b06846f6ac"
+      ]
+    }
+  ],
+  "retention_policy": {
+    "receipt_days": 365,
+    "source_metadata_days": 30
+  },
+  "rows": [
+    ["DEN-8", "github.com/ORESoftware", "urgent", "in_progress", "product_work", null],
+    ["DEN-1041", "github.com/ORESoftware", "urgent", "in_progress", "product_work", null],
+    ["DEN-1066", "meta-agents-demo", "medium", "todo", "product_work", null],
+    ["DEN-258", "github.com/fiducia-cloud", "high", "in_progress", "product_work", null],
+    ["DEN-1042", "github.com/ORESoftware", "high", "duplicate", "product_work", "DEN-1041"],
+    ["DEN-834", "ai-agent-coordinator", "high", "in_progress", "product_work", null],
+    ["DEN-28", "github.com/ORESoftware", "urgent", "done", "repository_work", null],
+    ["DEN-39", "Messaging Intel", "urgent", "duplicate", "repository_work", "DEN-28"],
+    ["DEN-394", "k8s-cluster", "high", "in_progress", "operational_program", null],
+    ["DEN-395", "github.com/ORESoftware", "high", "todo", "product_work", null],
+    ["DEN-256", "github.com/ORESoftware", "urgent", "in_progress", "product_work", null],
+    ["DEN-1230", "github.com/ORESoftware", "urgent", "in_progress", "operational_program", null],
+    ["DEN-1298", "ai-agent-bridge", "urgent", "in_progress", "repository_work", null],
+    ["DEN-318", "github.com/ORESoftware", "high", "in_progress", "operational_program", null],
+    ["DEN-822", "Shared Platform", "high", "in_progress", "product_work", null],
+    ["DEN-299", "sonus-auris", "urgent", "in_progress", "operational_program", null],
+    ["DEN-27", "Shared Platform", "urgent", "in_progress", "operational_program", null],
+    ["DEN-812", "fiducia-cloud", "urgent", "in_progress", "recurring_automation", null],
+    ["DEN-317", "github.com/ORESoftware", "urgent", "in_progress", "product_work", null],
+    ["DEN-824", "ai-agent-coordinator", "high", "in_progress", "recurring_automation", null],
+    ["DEN-93", "sonus-auris", "urgent", "in_progress", "repository_work", null],
+    ["DEN-533", "github.com/ORESoftware", "high", "in_progress", "operational_program", null],
+    ["DEN-319", "ai-agent-coordinator", "urgent", "in_progress", "repository_work", null],
+    ["DEN-268", "github.com/ORESoftware", "urgent", "in_progress", "recurring_automation", null],
+    ["DEN-766", "ai-agent-bridge", "high", "done", "product_work", null],
+    ["DEN-608", "fiducia-cloud", "urgent", "in_progress", "repository_work", null],
+    ["DEN-1324", "ai-agent-bridge", "urgent", "todo", "operational_program", null],
+    ["DEN-833", "benefactor-cc", "high", "in_progress", "recurring_automation", null],
+    ["DEN-296", "sonus-auris", "urgent", "in_progress", "operational_program", null],
+    ["DEN-1057", "meta-agents-demo", "high", "in_progress", "product_work", null],
+    ["DEN-986", "messaging-intel", "high", "in_progress", "product_work", null],
+    ["DEN-393", "k8s-cluster", "urgent", "in_progress", "operational_program", null],
+    ["DEN-881", "hypesiege", "urgent", "in_progress", "repository_work", null],
+    ["DEN-877", "github.com/ORESoftware", "urgent", "in_progress", "repository_work", null],
+    ["DEN-266", "github.com/ORESoftware", "high", "in_progress", "recurring_automation", null],
+    ["DEN-315", "k8s-cluster", "urgent", "done", "repository_work", null],
+    ["DEN-452", "github.com/ORESoftware", "urgent", "duplicate", "repository_work", "DEN-315"],
+    ["DEN-391", "ai-agent-bridge", "high", "todo", "operational_program", null],
+    ["DEN-864", "github.com/ORESoftware", "high", "backlog", "product_work", null],
+    ["DEN-260", "benefactor-cc", "urgent", "in_progress", "product_work", null],
+    ["DEN-860", "fiducia-cloud", "high", "in_progress", "repository_work", null],
+    ["DEN-836", "sonus-auris", "urgent", "todo", "operational_program", null],
+    ["DEN-114", "ai-agent-coordinator", "medium", "todo", "repository_work", null],
+    ["DEN-1231", "github.com/ORESoftware", "high", "in_progress", "product_work", null],
+    ["DEN-1043", "memebank", "urgent", "in_progress", "repository_work", null],
+    ["DEN-872", "zed-pkg", "high", "done", "repository_work", null],
+    ["DEN-43", "github.com/ORESoftware", "urgent", "duplicate", "repository_work", "DEN-315"],
+    ["DEN-238", "github.com/ORESoftware", "urgent", "in_progress", "recurring_automation", null],
+    ["DEN-871", "fiducia-cloud", "high", "in_progress", "product_work", null],
+    ["DEN-370", "k8s-cluster", "urgent", "in_progress", "repository_work", null],
+    ["DEN-609", "sonus-auris", "urgent", "in_progress", "repository_work", null],
+    ["DEN-405", "github.com/ORESoftware", "urgent", "in_progress", "operational_program", null],
+    ["DEN-775", "sonus-auris", "urgent", "done", "operational_program", null],
+    ["DEN-786", "fiducia-cloud", "urgent", "in_progress", "recurring_automation", null],
+    ["DEN-298", "anticaptrad", "high", "done", "repository_work", null],
+    ["DEN-171", "ai-agent-bridge", "urgent", "done", "product_work", null],
+    ["DEN-208", "github.com/ORESoftware", "urgent", "in_progress", "recurring_automation", null],
+    ["DEN-823", "ai-agent-coordinator", "high", "todo", "recurring_automation", null],
+    ["DEN-262", "anticaptrad", "high", "in_progress", "product_work", null],
+    ["DEN-1320", "ai-agent-bridge", "urgent", "done", "repository_work", null]
+  ],
+  "schema_version": 1,
+  "snapshot_at": "2026-08-04T05:00:00Z",
+  "storage_format": "compact_v1",
+  "telemetry_samples_ms": [12, 18, 23, 31, 47, 75, 118, 184]
+}
