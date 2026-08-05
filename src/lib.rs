@@ -1,5 +1,6 @@
 pub mod app;
 pub mod config;
+pub mod daily_portfolio_delivery;
 pub mod db;
 pub mod email_attention;
 pub mod entity;
