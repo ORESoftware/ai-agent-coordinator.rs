@@ -3,7 +3,9 @@ use ai_agent_coordinator::daily_portfolio_delivery::{
     PlanOutcome, PlanSpec, RunMode,
 };
 
-fn digest(character: char) -> String {
+fn digest(seed: char) -> String {
+    let nibble = seed.to_digit(36).expect("test digest seed") % 16;
+    let character = char::from_digit(nibble, 16).expect("hex digest character");
     std::iter::repeat_n(character, 64).collect()
 }
 
