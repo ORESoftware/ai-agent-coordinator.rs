@@ -17,6 +17,19 @@
   "max_changed_bytes_per_pr": 512000,
   "merge_label": "agent:nightly",
   "merge_method": "squash",
+  "prefer_existing_pr_merges": true,
+  "require_tracking_sync": true,
+  "create_missing_github_projects": true,
+  "require_linear_issue_for_documentation_changes": true,
+  "sync_all_published_prs_to_github_projects": true,
+  "sync_linked_prs_to_linear": true,
+  "priority_order": [
+    "merge freshly eligible existing pull requests",
+    "write, test, commit, push, and open pull requests for active Linear work",
+    "repair correctness and test coverage with executable code changes",
+    "update documentation only as part of delivery or as an explicitly tracked task",
+    "synchronize published evidence to Linear and GitHub Projects"
+  ],
   "priority_owners": [],
   "disabled_owners": [],
   "protected_paths": [
@@ -34,9 +47,9 @@
   ],
   "fallback_tasks": [
     "Add or strengthen focused tests for an existing behavior that lacks meaningful coverage.",
-    "Repair documentation or examples that have drifted from the current public API or command-line behavior.",
-    "Improve deterministic validation, error handling, or observability for an existing low-risk path.",
+    "Improve deterministic validation, error handling, or observability for an existing low-risk code path.",
     "Remove a small amount of clearly dead code or duplication while preserving public behavior and adding regression coverage.",
-    "Harden repository hygiene with bounded formatting, lint, conflict-marker, or generated-drift checks without changing release semantics."
+    "Harden repository hygiene with bounded formatting, lint, conflict-marker, or generated-drift checks without changing release semantics.",
+    "Repair documentation or examples that have drifted from the current public API or command-line behavior, but only when linked to a mapped Linear issue and synchronized to the organization GitHub Project."
   ]
 }
