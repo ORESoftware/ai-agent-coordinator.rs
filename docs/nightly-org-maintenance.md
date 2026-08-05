@@ -9,7 +9,7 @@ repository; the scheduler does not maintain a second organization list.
 
 ## Schedule and concurrency
 
-The workflow is scheduled for **00:30 America/Lima** with GitHub Actions'
+The workflow is scheduled for **01:00 America/Lima** with GitHub Actions'
 native IANA-timezone schedule field. The organization matrix uses
 `max-parallel: 3`, so no more than three organizations execute at once. Each
 organization job has a 30-minute hard timeout and a 20-minute model work budget.
