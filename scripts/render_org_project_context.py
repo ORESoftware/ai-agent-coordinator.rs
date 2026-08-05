@@ -196,7 +196,7 @@ def _profile_readme(context: Mapping[str, Any]) -> str:
     project_name = _markdown_link_text(linear["project_name"])
     profile = f"""# {login}
 
-The `{login}` GitHub organization hosts repositories and shared work mapped to the Linear project [{project_name}]({linear['project_url']}). This public profile gives people and authorized AI agents a safe starting point without replacing repository-specific documentation.
+The `{login}` GitHub organization hosts repositories and shared work mapped to the Linear project `{project_name}`. This public profile gives people and authorized AI agents a safe starting point without replacing repository-specific documentation.
 
 ## Start here
 
