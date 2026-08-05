@@ -236,6 +236,7 @@ The reviewed central registry is authoritative for GitHub/Linear identity and ro
 - Resolve Git conflicts semantically: inspect the merge base, both sides, path-scoped history, and 3–10 relevant commits when available; read linked issues, pull requests, tests, schemas, migrations, architecture decisions, and relevant same-organization or external repositories. Never accept `ours`, `theirs`, current, or incoming wholesale without conceptual review.
 - Preserve compatible intent, APIs, schemas, tests, documentation, security controls, and operational safeguards from every relevant side, then scan the complete worktree for unresolved conflict markers and run all affected validation.
 
+{_semantic_conflict_markdown()}
 ## Public context boundary
 
 This profile and the `.github` repository are intentionally public. They may contain public identifiers, links, policies, and operating guidance. They must not contain credentials, private customer or user data, private issue content, incident details, security-sensitive topology, or unpublished business information.
