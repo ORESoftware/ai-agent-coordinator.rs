@@ -12,6 +12,7 @@ on:
       - 'tools/nightly_org_maintenance.py'
       - 'tools/nightly_org_maintenance_impl/**'
       - 'tests/test_nightly_org_maintenance.py'
+      - 'tests/test_nightly_org_tracking.py'
   push:
     branches: [main]
     paths:
@@ -24,6 +25,7 @@ on:
       - 'tools/nightly_org_maintenance.py'
       - 'tools/nightly_org_maintenance_impl/**'
       - 'tests/test_nightly_org_maintenance.py'
+      - 'tests/test_nightly_org_tracking.py'
   schedule:
     # Native timezone-aware schedule. GitHub may still delay dispatch under load.
     - cron: '30 0 * * *'
@@ -71,9 +73,13 @@ jobs:
           tools/nightly_org_maintenance.py
           tools/nightly_org_maintenance_impl/*.py
           tests/test_nightly_org_maintenance.py
+          tests/test_nightly_org_tracking.py
 
       - name: Run fail-closed controller tests
-        run: python3 -m unittest -v tests/test_nightly_org_maintenance.py
+        run: >-
+          python3 -m unittest -v
+          tests/test_nightly_org_maintenance.py
+          tests/test_nightly_org_tracking.py
 
       - name: Validate policy and output schemas
         shell: bash
@@ -94,6 +100,9 @@ jobs:
           assert policy['min_new_prs_per_org'] == 1
           assert policy['max_new_prs_per_org'] == 3
           assert policy['max_runtime_minutes_per_org'] == 20
+          assert policy['prefer_existing_pr_merges'] is True
+          assert policy['require_tracking_sync'] is True
+          assert policy['require_linear_issue_for_documentation_changes'] is True
           PY
 
       - name: Validate workflow syntax
@@ -207,7 +216,7 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.snapshot-token.outputs.token }}
           LINEAR_API_TOKEN: ${{ secrets.LINEAR_API_TOKEN }}
-          LINEAR_API_AUTH_SCHEME: ${{ vars.LINEAR_API_AUTH_SCHEME }}
+          LINEAR_API_AUTH_SCHEME: ${{ vars.LINEAR_API_AUTH_SCHEME || 'api_key' }}
           OWNER: ${{ matrix.owner }}
         run: |
           set -euo pipefail
@@ -438,10 +447,11 @@ jobs:
           permission-contents: write
           permission-issues: write
           permission-metadata: read
+          permission-organization-projects: write
           permission-pull-requests: write
           permission-statuses: read
 
-      - name: Publish draft PRs and merge freshly eligible existing PRs
+      - name: Publish code PRs and merge freshly eligible existing PRs
         if: steps.snapshot.outputs.repository_count != '0'
         shell: bash
         env:
@@ -456,6 +466,24 @@ jobs:
             --snapshot "$artifact_dir/snapshot.json" \
             --policy control/config/nightly-org-maintenance-policy.json \
             --workspace "$artifact_dir/workspace" \
+            --run-key "${{ needs.matrix.outputs.run_key }}" \
+            --ledger "$artifact_dir/ledger.json"
+
+      - name: Sync published work to Linear and GitHub Projects
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.publish-token.outputs.token }}
+          LINEAR_API_TOKEN: ${{ secrets.LINEAR_API_TOKEN }}
+          LINEAR_API_AUTH_SCHEME: ${{ vars.LINEAR_API_AUTH_SCHEME || 'api_key' }}
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          python3 control/tools/nightly_org_maintenance.py sync-tracking \
+            --result "$artifact_dir/result.json" \
+            --snapshot "$artifact_dir/snapshot.json" \
+            --policy control/config/nightly-org-maintenance-policy.json \
             --run-key "${{ needs.matrix.outputs.run_key }}" \
             --ledger "$artifact_dir/ledger.json"
 
