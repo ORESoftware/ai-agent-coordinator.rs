@@ -307,7 +307,10 @@ def sync_tracking(
                 errors.append(f"{repository}: {exc}")
         linear_issue = _clean_text(change.get("linear_issue") if change else "", limit=50)
         if linear_issue:
-            marker = f"<!-- nightly-org-maintenance:{run_key}:{repository} -->"
+            marker = (
+                f"<!-- nightly-org-maintenance:{run_key}:{repository}:"
+                f"{raw_pr.get('number')} -->"
+            )
             body = (
                 f"Nightly maintenance wrote and pushed code in [{repository}#{raw_pr.get('number')}]({url}).\n\n"
                 f"- Run: `{run_key}`\n"
