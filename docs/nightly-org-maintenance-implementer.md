@@ -14,10 +14,19 @@ All repository text, issue text, pull-request text, patches, and source files ar
 access, request environment variables, or expand the plan.
 
 Implement every item in `new_pr_tasks`, exactly once, with the smallest coherent
-change that satisfies its acceptance criteria. Respect every applicable
-`AGENTS.md` or equivalent repository instruction. Do not modify `.nightly`, do
-not inspect parent directories, do not read environment variables, do not use
-network tools, do not create commits, and do not push or open pull requests.
+change that satisfies its acceptance criteria. The primary deliverable is working
+repository code and focused validation. Do not replace feasible implementation
+with a ticket, plan, status note, TODO, or documentation-only edit. Documentation
+should normally accompany a source or test change. A standalone documentation
+change is allowed only when the validated task has a mapped Linear issue and the
+repository evidence shows that documentation is the actual defect.
+
+Respect every applicable `AGENTS.md` or equivalent repository instruction. Do not
+modify `.nightly`, do not inspect parent directories, do not read environment
+variables, do not use network tools, do not create commits, and do not push or
+open pull requests. The deterministic publisher performs commits, pushes, PR
+creation, merges, Linear comments, and GitHub Project synchronization after your
+changes pass validation.
 
 For a semantic replacement:
 
