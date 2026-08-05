@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "timezone": "America/Lima",
+  "local_hour": 1,
+  "local_minute": 0,
+  "max_parallel_organizations": 3,
+  "min_new_prs_per_org": 1,
+  "max_new_prs_per_org": 3,
+  "max_existing_pr_merges_per_org": 3,
+  "max_runtime_minutes_per_org": 20,
+  "max_organizations_per_run": 100,
+  "max_repositories_in_snapshot": 40,
+  "max_open_prs_per_repository": 12,
+  "max_linear_issues": 50,
+  "include_forks": false,
+  "max_changed_files_per_pr": 40,
+  "max_changed_bytes_per_pr": 512000,
+  "merge_label": "agent:nightly",
+  "merge_method": "squash",
+  "priority_owners": [],
+  "disabled_owners": [],
+  "protected_paths": [
+    ".github/workflows/**",
+    "**/.github/workflows/**",
+    "**/migrations/**",
+    "**/migration/**",
+    "**/terraform/**",
+    "**/infra/**",
+    "**/deploy/**",
+    "**/auth/**",
+    "**/payments/**",
+    "**/*secret*",
+    "**/*credential*"
+  ],
+  "fallback_tasks": [
+    "Add or strengthen focused tests for an existing behavior that lacks meaningful coverage.",
+    "Repair documentation or examples that have drifted from the current public API or command-line behavior.",
+    "Improve deterministic validation, error handling, or observability for an existing low-risk path.",
+    "Remove a small amount of clearly dead code or duplication while preserving public behavior and adding regression coverage.",
+    "Harden repository hygiene with bounded formatting, lint, conflict-marker, or generated-drift checks without changing release semantics."
+  ]
+}
