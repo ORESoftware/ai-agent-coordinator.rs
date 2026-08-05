@@ -1,5 +1,7 @@
 pub mod app;
 pub mod config;
+/// Storage-independent fenced delivery contract; persistence adapters must preserve its invariants.
+pub mod daily_portfolio_delivery;
 pub mod db;
 pub mod email_attention;
 pub mod entity;
