@@ -2,6 +2,8 @@ pub mod app;
 pub mod config;
 /// Storage-independent fenced delivery contract; persistence adapters must preserve its invariants.
 pub mod daily_portfolio_delivery;
+/// PostgreSQL-backed fenced delivery repository for durable coordinator execution.
+pub mod daily_portfolio_delivery_store;
 pub mod db;
 pub mod email_attention;
 pub mod entity;
