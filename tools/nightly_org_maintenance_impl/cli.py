@@ -7,6 +7,8 @@ from .plan import *
 from .workspace import *
 from .result import *
 from .publish import *
+from .tracking import *
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -53,7 +55,9 @@ def build_parser() -> argparse.ArgumentParser:
     result.add_argument("--output", type=Path, required=True)
     result.set_defaults(handler=command_validate_result)
 
-    publish_parser = subparsers.add_parser("publish", help="Push branches, open PRs, and merge eligible PRs.")
+    publish_parser = subparsers.add_parser(
+        "publish", help="Push code branches, open PRs, and merge eligible PRs."
+    )
     publish_parser.add_argument("--result", type=Path, required=True)
     publish_parser.add_argument("--plan", type=Path, required=True)
     publish_parser.add_argument("--snapshot", type=Path, required=True)
@@ -64,6 +68,20 @@ def build_parser() -> argparse.ArgumentParser:
     publish_parser.add_argument("--github-token-env", default="GH_TOKEN")
     publish_parser.add_argument("--step-summary", default=os.environ.get("GITHUB_STEP_SUMMARY"))
     publish_parser.set_defaults(handler=command_publish)
+
+    tracking = subparsers.add_parser(
+        "sync-tracking",
+        help="Mirror published and merged PR evidence into Linear and GitHub Projects.",
+    )
+    tracking.add_argument("--result", type=Path, required=True)
+    tracking.add_argument("--snapshot", type=Path, required=True)
+    tracking.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
+    tracking.add_argument("--run-key", required=True)
+    tracking.add_argument("--ledger", type=Path, required=True)
+    tracking.add_argument("--github-token-env", default="GH_TOKEN")
+    tracking.add_argument("--linear-token-env", default="LINEAR_API_TOKEN")
+    tracking.add_argument("--step-summary", default=os.environ.get("GITHUB_STEP_SUMMARY"))
+    tracking.set_defaults(handler=command_sync_tracking)
     return parser
 
 
@@ -76,5 +94,6 @@ def main(argv: list[str] | None = None) -> int:
     except MaintenanceError as exc:
         print(json.dumps({"status": "error", "error": str(exc)}), file=sys.stderr)
         return 2
+
 
 __all__ = [name for name in globals() if not name.startswith("__")]
