@@ -32,6 +32,7 @@ jobs:
           toolchain: '1.97.0'
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
       - name: Apply reviewed failure-atomicity and identifier changes
         shell: bash
         run: |
@@ -39,113 +40,95 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
-              file_path = Path(path)
-              source = file_path.read_text(encoding="utf-8")
-              if source.count(old) != 1:
-                  raise SystemExit(f"expected one exact replacement in {path}")
-              file_path.write_text(source.replace(old, new, 1), encoding="utf-8")
+          def read_lines(path: str) -> list[str]:
+              return Path(path).read_text(encoding="utf-8").splitlines(keepends=True)
 
-          replace_once(
-              "src/daily_portfolio_delivery.rs",
-              '''        self.next_fence = self
-                  .next_fence
-                  .checked_add(1)
-                  .ok_or(DeliveryStateError::CounterOverflow)?;
-              let expires_at_ms = now_ms
-                  .checked_add(ttl_ms)
-                  .ok_or(DeliveryStateError::CounterOverflow)?;
-              let token = LeaseToken {
-                  run_key: run_key.to_owned(),
-                  owner: owner.to_owned(),
-                  fence: self.next_fence,
-                  expires_at_ms,
-              };
-              self.leases.insert(run_key.to_owned(), token.clone());
-          ''',
-              '''        // Compute every fallible value before mutating durable state. An invalid
-              // caller timestamp must not consume a fence or partially claim a lease.
-              let next_fence = self
-                  .next_fence
-                  .checked_add(1)
-                  .ok_or(DeliveryStateError::CounterOverflow)?;
-              let expires_at_ms = now_ms
-                  .checked_add(ttl_ms)
-                  .ok_or(DeliveryStateError::CounterOverflow)?;
-              let token = LeaseToken {
-                  run_key: run_key.to_owned(),
-                  owner: owner.to_owned(),
-                  fence: next_fence,
-                  expires_at_ms,
-              };
-              self.next_fence = next_fence;
-              self.leases.insert(run_key.to_owned(), token.clone());
-          ''',
-          )
-          replace_once(
-              "src/daily_portfolio_delivery.rs",
-              '''            DeliveryStatus::Planned | DeliveryStatus::Failed => {
-                      record.attempts = record
-                          .attempts
-                          .checked_add(1)
-                          .ok_or(DeliveryStateError::CounterOverflow)?;
-                      record.generation = record
-                          .generation
-                          .checked_add(1)
-                          .ok_or(DeliveryStateError::CounterOverflow)?;
-                      record.status = DeliveryStatus::Delivering;
-          ''',
-              '''            DeliveryStatus::Planned | DeliveryStatus::Failed => {
-                      // Preserve compare-and-set failure atomicity: calculate both
-                      // counters before changing either field.
-                      let attempts = record
-                          .attempts
-                          .checked_add(1)
-                          .ok_or(DeliveryStateError::CounterOverflow)?;
-                      let generation = record
-                          .generation
-                          .checked_add(1)
-                          .ok_or(DeliveryStateError::CounterOverflow)?;
-                      record.attempts = attempts;
-                      record.generation = generation;
-                      record.status = DeliveryStatus::Delivering;
-          ''',
-          )
-          replace_once(
-              "src/daily_portfolio_delivery.rs",
-              '''fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {
-              let lower = value.to_ascii_lowercase();
-              let credential_shaped = [
-                  "ghp_",
-                  "gho_",
-                  "ghu_",
-                  "ghs_",
-                  "ghr_",
-                  "github_pat_",
-                  "sk-",
-                  "xoxb-",
-                  "xoxa-",
-                  "xoxp-",
-                  "xoxr-",
-                  "xoxs-",
+          def unique_index(lines: list[str], needle: str, *, start: int = 0) -> int:
+              matches = [index for index in range(start, len(lines)) if lines[index] == needle]
+              if len(matches) != 1:
+                  raise SystemExit(
+                      f"expected one anchor {needle!r} from line {start + 1}; found {len(matches)}"
+                  )
+              return matches[0]
+
+          def replace_inclusive(
+              lines: list[str],
+              start_anchor: str,
+              end_anchor: str,
+              replacement: str,
+          ) -> list[str]:
+              start = unique_index(lines, start_anchor)
+              end = unique_index(lines, end_anchor, start=start)
+              if end < start:
+                  raise SystemExit("invalid replacement bounds")
+              return [
+                  *lines[:start],
+                  *replacement.splitlines(keepends=True),
+                  *lines[end + 1 :],
               ]
-              .iter()
-              .any(|prefix| lower.starts_with(prefix))
-                  || lower.contains("api_key=")
-                  || lower.contains("apikey=")
-                  || lower.contains("access_token=")
-                  || lower.contains("auth_token=")
-                  || lower.contains("bearer=")
-                  || lower.contains("token=")
-                  || lower.contains("password=")
-                  || lower.contains("secret=");
-              let valid = !value.is_empty()
-                  && value.len() <= MAX_IDENTIFIER_BYTES
-                  && !credential_shaped
-                  && value.bytes().all(|byte| {
-                      byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
-                  });
+
+          def replace_exclusive_end(
+              lines: list[str],
+              start_anchor: str,
+              end_anchor: str,
+              replacement: str,
+          ) -> list[str]:
+              start = unique_index(lines, start_anchor)
+              end = unique_index(lines, end_anchor, start=start + 1)
+              return [
+                  *lines[:start],
+                  *replacement.splitlines(keepends=True),
+                  *lines[end:],
+              ]
+
+          source_path = "src/daily_portfolio_delivery.rs"
+          source = read_lines(source_path)
+          source = replace_inclusive(
+              source,
+              "        self.next_fence = self\n",
+              "        self.leases.insert(run_key.to_owned(), token.clone());\n",
+              '''        // Compute every fallible value before mutating durable state. An invalid
+          // caller timestamp must not consume a fence or partially claim a lease.
+          let next_fence = self
+              .next_fence
+              .checked_add(1)
+              .ok_or(DeliveryStateError::CounterOverflow)?;
+          let expires_at_ms = now_ms
+              .checked_add(ttl_ms)
+              .ok_or(DeliveryStateError::CounterOverflow)?;
+          let token = LeaseToken {
+              run_key: run_key.to_owned(),
+              owner: owner.to_owned(),
+              fence: next_fence,
+              expires_at_ms,
+          };
+          self.next_fence = next_fence;
+          self.leases.insert(run_key.to_owned(), token.clone());
           ''',
+          )
+          source = replace_inclusive(
+              source,
+              "                record.attempts = record\n",
+              "                record.status = DeliveryStatus::Delivering;\n",
+              '''                // Preserve compare-and-set failure atomicity: calculate both
+                  // counters before changing either field.
+                  let attempts = record
+                      .attempts
+                      .checked_add(1)
+                      .ok_or(DeliveryStateError::CounterOverflow)?;
+                  let generation = record
+                      .generation
+                      .checked_add(1)
+                      .ok_or(DeliveryStateError::CounterOverflow)?;
+                  record.attempts = attempts;
+                  record.generation = generation;
+                  record.status = DeliveryStatus::Delivering;
+          ''',
+          )
+          source = replace_exclusive_end(
+              source,
+              "fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {\n",
+              "fn validate_error_summary(value: &str) -> Result<(), DeliveryStateError> {\n",
               '''fn contains_credential_prefix(value: &str, prefix: &str) -> bool {
               value
                   .split(|character| matches!(character, ':' | '/'))
@@ -185,16 +168,29 @@ jobs:
                   || lower.contains("secret=");
               let valid = !credential_shaped
                   && value.bytes().all(|byte| {
-                      byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
+                      byte.is_ascii_alphanumeric()
+                          || matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
                   });
+              if valid {
+                  Ok(())
+              } else {
+                  Err(DeliveryStateError::InvalidIdentifier)
+              }
+          }
+
           ''',
           )
-          replace_once(
-              "tests/daily_portfolio_delivery_state.rs",
-              '''#[test]
-          fn generation_compare_and_set_prevents_replayed_transitions() {
-          ''',
-              '''#[test]
+          Path(source_path).write_text("".join(source), encoding="utf-8")
+
+          tests_path = "tests/daily_portfolio_delivery_state.rs"
+          tests = read_lines(tests_path)
+          generation_function = unique_index(
+              tests,
+              "fn generation_compare_and_set_prevents_replayed_transitions() {\n",
+          )
+          if generation_function == 0 or tests[generation_function - 1] != "#[test]\n":
+              raise SystemExit("generation regression lost its #[test] anchor")
+          tests[generation_function - 1 : generation_function - 1] = '''#[test]
           fn failed_lease_claim_does_not_consume_a_fence() {
               let mut state = DeliveryState::default();
               let spec = plan_spec(
@@ -217,64 +213,79 @@ jobs:
               assert_eq!(first_valid.fence, 1);
           }
 
-          #[test]
-          fn generation_compare_and_set_prevents_replayed_transitions() {
-          ''',
-          )
-          replace_once(
-              "tests/daily_portfolio_delivery_state.rs",
-              '''    other_token_shape.destination = "gho_abcdefghijklmnopqrstuvwxyz1234567890".to_owned();
-          ''',
-              '''    other_token_shape.destination =
-                  "slack:gho_abcdefghijklmnopqrstuvwxyz1234567890".to_owned();
-          ''',
-          )
-          replace_once(
-              "tests/daily_portfolio_delivery_state.rs",
-              '''    let empty_recovery_identity = plan_spec(
-          ''',
-              '''    let mut oversized_identifier = plan_spec(
-                  RunMode::Scheduled,
-                  "daily-portfolio:scheduled:2026-08-05",
-                  "2026-08-05",
-                  'a',
-              );
-              oversized_identifier.destination = "x".repeat(257);
-              assert_eq!(
-                  state.plan(oversized_identifier),
-                  Err(DeliveryStateError::InvalidIdentifier)
-              );
+          '''.splitlines(keepends=True)
 
-              let empty_recovery_identity = plan_spec(
-          ''',
+          token_assignment = unique_index(
+              tests,
+              '    other_token_shape.destination = "gho_abcdefghijklmnopqrstuvwxyz1234567890".to_owned();\n',
           )
-          replace_once(
-              ".github/workflows/daily-portfolio-delivery-state.yml",
+          tests[token_assignment : token_assignment + 1] = [
+              '    other_token_shape.destination = ["slack:gho", "_test-marker"].concat();\n'
+          ]
+
+          empty_recovery = unique_index(
+              tests,
+              "    let empty_recovery_identity = plan_spec(\n",
+          )
+          tests[empty_recovery:empty_recovery] = '''    let mut oversized_identifier = plan_spec(
+              RunMode::Scheduled,
+              "daily-portfolio:scheduled:2026-08-05",
+              "2026-08-05",
+              'a',
+          );
+          oversized_identifier.destination = "x".repeat(257);
+          assert_eq!(
+              state.plan(oversized_identifier),
+              Err(DeliveryStateError::InvalidIdentifier)
+          );
+
+          '''.splitlines(keepends=True)
+          Path(tests_path).write_text("".join(tests), encoding="utf-8")
+
+          workflow_path = ".github/workflows/daily-portfolio-delivery-state.yml"
+          workflow = read_lines(workflow_path)
+          workflow = replace_inclusive(
+              workflow,
+              '              "crash-after-send",\n',
+              '              "scheduled-baseline-isolation"\n',
               '''              "crash-after-send",
-                        "ambiguous-receipt-reconciliation",
-                        "scheduled-baseline-isolation"
-          ''',
-              '''              "crash-after-send",
-                        "expired-in-flight-recovery",
-                        "ambiguous-receipt-reconciliation",
-                        "exact-receipt-replay",
-                        "failure-atomic-fencing",
-                        "credential-shaped-identifier-rejection",
-                        "scheduled-baseline-isolation"
+                "expired-in-flight-recovery",
+                "ambiguous-receipt-reconciliation",
+                "exact-receipt-replay",
+                "failure-atomic-fencing",
+                "credential-shaped-identifier-rejection",
+                "scheduled-baseline-isolation"
           ''',
           )
-          replace_once(
-              "docs/daily-portfolio-delivery-state.md",
-              "Identifiers are bounded ASCII-safe values and reject credential-shaped material. Digests are lowercase SHA-256 values.\n",
-              "Identifiers are bounded before normalization, use ASCII-safe values, and reject credential-shaped material both as a complete identifier and after namespace separators such as `slack:`. Digests are lowercase SHA-256 values.\n",
+          Path(workflow_path).write_text("".join(workflow), encoding="utf-8")
+
+          docs_path = "docs/daily-portfolio-delivery-state.md"
+          docs = Path(docs_path).read_text(encoding="utf-8")
+          old_identifier = (
+              "Identifiers are bounded ASCII-safe values and reject credential-shaped material. "
+              "Digests are lowercase SHA-256 values.\n"
           )
-          replace_once(
-              "docs/daily-portfolio-delivery-state.md",
-              "- Reacquisition after expiry advances the global fence, except an expired `delivering` run must first pass through explicit ambiguity recovery.\n",
-              "- Reacquisition after expiry advances the global fence, except an expired `delivering` run must first pass through explicit ambiguity recovery.\n- A failed claim computes its fence and expiry before mutation, so overflow or validation failure cannot consume a fencing value or leave a partial lease.\n",
+          new_identifier = (
+              "Identifiers are bounded before normalization, use ASCII-safe values, and reject "
+              "credential-shaped material both as a complete identifier and after namespace "
+              "separators such as `slack:`. Digests are lowercase SHA-256 values.\n"
           )
+          old_fence = (
+              "- Reacquisition after expiry advances the global fence, except an expired "
+              "`delivering` run must first pass through explicit ambiguity recovery.\n"
+          )
+          new_fence = old_fence + (
+              "- A failed claim computes its fence and expiry before mutation, so overflow or "
+              "validation failure cannot consume a fencing value or leave a partial lease.\n"
+          )
+          if docs.count(old_identifier) != 1 or docs.count(old_fence) != 1:
+              raise SystemExit("documentation anchors changed")
+          docs = docs.replace(old_identifier, new_identifier, 1)
+          docs = docs.replace(old_fence, new_fence, 1)
+          Path(docs_path).write_text(docs, encoding="utf-8")
           PY
           cargo fmt --all
+
       - name: Run focused validation
         shell: bash
         run: |
@@ -283,6 +294,7 @@ jobs:
           cargo test --locked --test daily_portfolio_delivery_state --no-run
           cargo test --locked --test daily_portfolio_delivery_state -- --nocapture
           cargo clippy --locked --lib --test daily_portfolio_delivery_state -- -D warnings
+
       - name: Commit only the reviewed final delta
         shell: bash
         run: |
