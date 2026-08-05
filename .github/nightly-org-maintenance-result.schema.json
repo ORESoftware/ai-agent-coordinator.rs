@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ORESoftware/ai-agent-coordinator.rs/.github/nightly-org-maintenance-result.schema.json",
+  "title": "Nightly organization maintenance implementation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "owner", "summary", "changes"],
+  "properties": {
+    "schema_version": {
+      "const": "nightly_org_result.v1"
+    },
+    "owner": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 3000
+    },
+    "changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "repository",
+          "branch",
+          "title",
+          "body",
+          "commit_message",
+          "requires_human_review",
+          "tests"
+        ],
+        "properties": {
+          "repository": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$"
+          },
+          "branch": {
+            "type": "string",
+            "pattern": "^agent/nightly-[a-z0-9][a-z0-9._/-]{4,180}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 120
+          },
+          "body": {
+            "type": "string",
+            "minLength": 40,
+            "maxLength": 12000
+          },
+          "commit_message": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 200
+          },
+          "requires_human_review": {
+            "type": "boolean"
+          },
+          "tests": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["command", "outcome", "evidence"],
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "maxLength": 500
+                },
+                "outcome": {
+                  "enum": ["passed", "failed", "not_run", "blocked"]
+                },
+                "evidence": {
+                  "type": "string",
+                  "maxLength": 1000
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
