@@ -1,0 +1,70 @@
+name: Broker private Shared Auth client artifact publication v2
+run-name: Publish Shared Auth client artifacts from an encrypted owner response v2
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+    paths:
+      - .github/shared-auth-client-artifact-publish-trigger-v2
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: shared-auth-client-artifact-owner-v2-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.user.login == 'ORESoftware' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'agent/shared-auth-client-artifact-carrier-v2-') &&
+      github.event.pull_request.title == 'DO NOT MERGE: publish Shared Auth client artifacts v2 with encrypted credential'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the trusted base revision only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+
+      - name: Install Dart
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+        with:
+          sdk: stable
+
+      - name: Install Erlang and Gleam
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93
+        with:
+          otp-version: "27"
+          gleam-version: "1.17.0"
+          rebar3-version: "3"
+
+      - name: Challenge, validate, build, publish, and verify privately
+        shell: bash
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CONTROL_REPOSITORY: ${{ github.repository }}
+          MARKER_PATH: .github/shared-auth-client-artifact-publish-trigger-v2
+          TARGET_REPOSITORY: shared-auth/shared-auth-clients
+          SOURCE_PR: "35"
+          WORKFLOW_TOKEN: ${{ github.token }}
+        run: bash scripts/publish_shared_auth_client_artifacts.sh
