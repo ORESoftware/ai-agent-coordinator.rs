@@ -12,6 +12,7 @@ import re
 import sys
 from typing import Any, Mapping, Sequence
 
+from validate_org_homepage import validate_text as validate_org_homepage_text
 from validate_org_project_registry import (
     RegistryError,
     canonical_sha256,
@@ -160,34 +161,92 @@ def _profile_readme(context: Mapping[str, Any]) -> str:
     linear = context["linear"]
     generated = context["generated_from"]
     mirrors = context["mirrors"]
-    route = context["runtime_route"]
-    route_text = (
-        f"The reviewed runtime entry defaults to "
-        f"[`{route['default_repository']}`](https://github.com/{route['default_repository']}) "
-        "within its explicit allowlist."
-        if route
-        else "No default repository is declared; agents must resolve the exact repository and fail closed on ambiguity."
-    )
+    route = context["runtime_route"] or {}
+    default_repository = route.get("default_repository")
+    allowlist = route.get("repository_allowlist", [])
+
+    if default_repository:
+        rendered_allowlist = ", ".join(
+            f"`{repository}`" for repository in allowlist
+        )
+        route_text = (
+            "For reviewed routed work, the default repository is "
+            f"[`{default_repository}`](https://github.com/{default_repository}). "
+            f"The runtime allowlist is {rendered_allowlist}. Exact repository "
+            "overrides take precedence. Ambiguous or unmapped work must stop "
+            "rather than be guessed."
+        )
+    elif allowlist:
+        rendered_allowlist = ", ".join(
+            f"`{repository}`" for repository in allowlist
+        )
+        route_text = (
+            "No default repository is declared. The reviewed runtime allowlist is "
+            f"{rendered_allowlist}; select one explicitly. Ambiguous or unmapped "
+            "work must stop rather than be guessed."
+        )
+    else:
+        route_text = (
+            "Resolve the exact repository explicitly. This organization has no "
+            "reviewed default runtime repository, so ambiguous or unmapped work "
+            "must stop rather than be guessed."
+        )
+
+    login = github["login"]
     project_name = _markdown_link_text(linear["project_name"])
-    return f"""# {github['login']}
+    profile = f"""# {login}
 
-This organization is mapped to the Linear project [{project_name}]({linear['project_url']}).
+The `{login}` GitHub organization hosts repositories and shared work mapped to the Linear project `{project_name}`. This public profile gives people and authorized AI agents a safe starting point without replacing repository-specific documentation.
 
-## AI agent context
+## Start here
 
-- GitHub owner ID: `{github['account_id']}`
-- Linear project ID: `{linear['project_id']}`
+### For people
+
+- Browse the [`{login}` organization repositories](https://github.com/{login}).
+- Use the [canonical Linear project]({linear['project_url']}) for planning, priorities, dependencies, and delivery context.
+- Read the organization [contribution guide](https://github.com/{login}/.github/blob/main/CONTRIBUTING.md), [governance notes](https://github.com/{login}/.github/blob/main/GOVERNANCE.md), [support guide](https://github.com/{login}/.github/blob/main/SUPPORT.md), and [security policy](https://github.com/{login}/.github/security/policy).
+- Start in the README and local instructions of the exact repository being changed; this profile is an index, not a substitute for repository documentation.
+
+### For AI agents
+
+1. Read [`project-context.yaml`]({mirrors['github_project_context_url']}) for the canonical GitHub owner, Linear project, and reviewed routing context.
+2. Read [`repository-relationships.json`](https://github.com/{login}/.github/blob/main/repository-relationships.json) before inferring dependencies, ownership, or repository selection.
+3. Read the organization [`AGENTS.md`](https://github.com/{login}/.github/blob/main/AGENTS.md), [`ORG_CONTEXT.md`](https://github.com/{login}/.github/blob/main/ORG_CONTEXT.md), and every applicable repository-local `AGENTS.md`, `agents.md`, provider instruction, and path-specific instruction.
+4. {route_text}
+5. Keep credentials, private repository content, customer information, incident details, and security-sensitive topology out of public outputs.
+
+## Canonical identity and authority
+
+- GitHub organization: [`{login}`](https://github.com/{login})
+- Immutable GitHub owner ID: `{github['account_id']}`
+- Linear project: [`{project_name}`]({linear['project_url']})
+- Immutable Linear project ID: `{linear['project_id']}`
 - Linear team: `{linear['team_key']}` (`{linear['team_id']}`)
-- Machine-readable context: [`project-context.yaml`]({mirrors['github_project_context_url']})
+- Organization defaults and public policies: [`{login}/.github`](https://github.com/{login}/.github)
 - Canonical registry: [`{generated['repository']}/{generated['path']}`]({generated['url']})
 
-{route_text}
+The reviewed central registry is authoritative for GitHub/Linear identity and routing. Repository-local instructions are authoritative for builds, tests, architecture, migrations, and implementation. Exact repository overrides take precedence over owner-level defaults. Missing, unmapped, ambiguous, or contradictory context must stop and be reported; it must not be invented.
 
-Repository-local `AGENTS.md`, `agents.md`, and tool instructions remain authoritative for build, test, and implementation details. The central registry remains authoritative for GitHub/Linear identity and routing. Unmapped or ambiguous work must be rejected rather than guessed.
+## Operating principles
+
+- Do not infer product scope, architecture, ownership, or repository relationships from names alone; use reviewed repository documentation and machine-readable context.
+- Preserve data and state non-destructively. Do not use history rewrites, blanket resets, destructive cleanup, or wholesale side selection to make a change appear simple.
+- Keep application code and infrastructure repositories separate. An `*-infra` repository does not belong under a monorepo `apps/` directory as a Git submodule.
+- Link substantial work to Linear and a GitHub issue or pull request so humans and agents can recover intent.
+- Resolve Git conflicts semantically: inspect the merge base, both sides, path-scoped history, and 3–10 relevant commits when available; read linked issues, pull requests, tests, schemas, migrations, architecture decisions, and relevant same-organization or external repositories. Never accept `ours`, `theirs`, current, or incoming wholesale without conceptual review.
+- Preserve compatible intent, APIs, schemas, tests, documentation, security controls, and operational safeguards from every relevant side, then scan the complete worktree for unresolved conflict markers and run all affected validation.
 
 {_semantic_conflict_markdown()}
-This public repository contains identifiers, links, and public operating guidance only. Do not place credentials, private customer data, or private operational details here.
+## Public context boundary
+
+This profile and the `.github` repository are intentionally public. They may contain public identifiers, links, policies, and operating guidance. They must not contain credentials, private customer or user data, private issue content, incident details, security-sensitive topology, or unpublished business information.
 """
+
+    errors = validate_org_homepage_text(profile, expect_org=login)
+    if errors:
+        details = "; ".join(errors)
+        raise RegistryError(f"generated organization homepage is invalid: {details}")
+    return profile
 
 
 def _repository_readme(context: Mapping[str, Any]) -> str:
@@ -301,6 +360,7 @@ jobs:
           for path in \\
             config/org-project-registry.yaml \\
             scripts/render_org_project_context.py \\
+            scripts/validate_org_homepage.py \\
             scripts/validate_org_project_registry.py \\
             scripts/verify_org_project_context.py; do
             curl --fail --silent --show-error --location \\
