@@ -16,13 +16,14 @@ FIXTURE = REPO_ROOT / "fixtures" / "prompt-intake" / "chatgpt-60-item-corpus.jso
 sys.path.insert(0, str(SCRIPT_DIR))
 
 import prompt_intake_corpus as corpus  # noqa: E402
+import expand_prompt_intake_fixture as expander  # noqa: E402
 
 
 class PromptIntakeCorpusTests(unittest.TestCase):
     maxDiff = None
 
     def setUp(self) -> None:
-        self.fixture = corpus.load_json(FIXTURE)
+        self.fixture = expander.load_compact(FIXTURE)
 
     def test_60_item_corpus_reproduces_canonical_disposition_without_creates(self) -> None:
         corpus.validate_corpus(self.fixture)
@@ -48,7 +49,7 @@ class PromptIntakeCorpusTests(unittest.TestCase):
 
     def test_fixture_is_deterministic_and_public_safe(self) -> None:
         first = corpus.summarize_corpus(self.fixture)
-        second = corpus.summarize_corpus(corpus.load_json(FIXTURE))
+        second = corpus.summarize_corpus(expander.load_compact(FIXTURE))
         self.assertEqual(first, second)
         self.assertEqual(corpus.corpus_digest(self.fixture), first["corpus_digest"])
         serialized = corpus.canonical_json(self.fixture)
@@ -246,13 +247,20 @@ class PromptIntakeCorpusTests(unittest.TestCase):
     def test_cli_validate_and_summary_are_machine_readable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             summary_path = Path(directory) / "summary.json"
-            self.assertEqual(0, corpus.main(["validate", str(FIXTURE)]))
+            expanded_path = Path(directory) / "expanded.json"
+            self.assertEqual(
+                0,
+                expander.main(
+                    [str(FIXTURE), "--output", str(expanded_path)]
+                ),
+            )
+            self.assertEqual(0, corpus.main(["validate", str(expanded_path)]))
             self.assertEqual(
                 0,
                 corpus.main(
                     [
                         "summarize",
-                        str(FIXTURE),
+                        str(expanded_path),
                         "--output",
                         str(summary_path),
                     ]
