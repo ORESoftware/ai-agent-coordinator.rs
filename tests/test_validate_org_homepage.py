@@ -94,6 +94,11 @@ class OrganizationHomepageValidatorTests(unittest.TestCase):
             errors,
         )
 
+    def test_expected_organization_is_case_insensitive(self) -> None:
+        mixed_case = self.valid.replace("example-org", "3FA-app")
+        self.assertEqual(self.validate(mixed_case, org="3FA-app"), [])
+        self.assertEqual(self.validate(mixed_case, org="3fa-APP"), [])
+
 
 if __name__ == "__main__":
     unittest.main()
