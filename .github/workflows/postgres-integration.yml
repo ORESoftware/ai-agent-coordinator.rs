@@ -68,7 +68,7 @@ jobs:
           schema="$GITHUB_WORKSPACE/tests/fixtures/ai_agent_coordinator.schema.sql"
           test -f "$schema"
           actual=$(sha256sum "$schema" | awk '{print $1}')
-          expected=bb6162034600fe7e3f3566375f96c4624214566bc63cdb9c060aa875727eac87
+          expected=fa987f49dfa0342103689dd8cadee69984ea5248a0b399cd456bbb62c7a25e00
           test "$actual" = "$expected"
       - name: Apply the canonical ai_agent_coordinator schema fixture
         shell: bash
@@ -101,7 +101,7 @@ jobs:
               --tuples-only \
               --no-align \
               --command "select table_name from information_schema.tables where table_schema = 'ai_agent_coordinator' order by table_name")
-          expected=$'jobs\nlinear_mutations\nmodel_usage'
+          expected=$'daily_portfolio_delivery_baseline\ndaily_portfolio_delivery_runs\njobs\nlinear_mutations\nmodel_usage'
           test "$tables" = "$expected"
           public_tables=$(docker run --rm \
             --network host \
@@ -115,6 +115,59 @@ jobs:
               --no-align \
               --command "select count(*) from information_schema.tables where table_schema = 'public'")
           test "$public_tables" = '0'
+          sequence_exists=$(docker run --rm \
+            --network host \
+            --env PGPASSWORD=postgres \
+            postgres:17 \
+            psql \
+              --host 127.0.0.1 \
+              --username postgres \
+              --dbname coordinator \
+              --tuples-only \
+              --no-align \
+              --command "select to_regclass('ai_agent_coordinator.daily_portfolio_delivery_fence_seq') is not null")
+          test "$sequence_exists" = 't'
+      - name: Exercise the durable briefing delivery SQL contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          contract="$GITHUB_WORKSPACE/tests/fixtures/daily-portfolio-delivery.schema.test.sql"
+          test -f "$contract"
+          docker run --rm \
+            --network host \
+            --env PGPASSWORD=postgres \
+            --volume "$contract:/contract.sql:ro" \
+            postgres:17 \
+            psql \
+              --host 127.0.0.1 \
+              --username postgres \
+              --dbname coordinator \
+              --set ON_ERROR_STOP=1 \
+              --file /contract.sql
+      - name: Verify exact durable-delivery constraints
+        shell: bash
+        run: |
+          set -euo pipefail
+          constraints=$(docker run --rm \
+            --network host \
+            --env PGPASSWORD=postgres \
+            postgres:17 \
+            psql \
+              --host 127.0.0.1 \
+              --username postgres \
+              --dbname coordinator \
+              --tuples-only \
+              --no-align \
+              --command "select conname from pg_constraint where connamespace = 'ai_agent_coordinator'::regnamespace and conrelid in ('ai_agent_coordinator.daily_portfolio_delivery_runs'::regclass, 'ai_agent_coordinator.daily_portfolio_delivery_baseline'::regclass) order by conname")
+          for name in \
+            daily_portfolio_delivery_runs_identity_chk \
+            daily_portfolio_delivery_runs_lease_chk \
+            daily_portfolio_delivery_runs_state_chk \
+            daily_portfolio_delivery_runs_receipt_chk \
+            daily_portfolio_delivery_baseline_singleton_chk
+          do
+            grep -qx "$name" <<<"$constraints"
+          done
       - name: Run the complete coordinator-schema test suite
         run: >-
           cargo test --locked --all --

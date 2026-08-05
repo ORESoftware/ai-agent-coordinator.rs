@@ -114,7 +114,7 @@ jobs:
           schema="$GITHUB_WORKSPACE/tests/fixtures/ai_agent_coordinator.schema.sql"
           test -f "$schema"
           actual="$(sha256sum "$schema" | awk '{print $1}')"
-          expected='bb6162034600fe7e3f3566375f96c4624214566bc63cdb9c060aa875727eac87'
+          expected='fa987f49dfa0342103689dd8cadee69984ea5248a0b399cd456bbb62c7a25e00'
           test "$actual" = "$expected"
           docker run --rm \
             --network host \
