@@ -1,4 +1,5 @@
 name: DEN-2334 format and validate delivery state
+# Temporary branch-only helper; remove before merge.
 
 on:
   push:
@@ -33,6 +34,157 @@ jobs:
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
       - name: Apply repository rustfmt
         run: cargo fmt --all
+      - name: Apply reviewed delivery-state regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/den-2334-tests.patch <<'PATCH'
+          --- a/tests/daily_portfolio_delivery_state.rs
+          +++ b/tests/daily_portfolio_delivery_state.rs
+          @@ -200,6 +200,48 @@
+           }
+ 
+           #[test]
+          +fn expired_in_flight_delivery_requires_recovery_before_reacquisition() {
+          +    let mut state = DeliveryState::default();
+          +    let spec = plan_spec(
+          +        RunMode::Scheduled,
+          +        "daily-portfolio:scheduled:2026-08-05",
+          +        "2026-08-05",
+          +        'a',
+          +    );
+          +    state.plan(spec.clone()).expect("plan");
+          +    let first = state
+          +        .acquire(&spec.run_key, "worker-a", 100, 20)
+          +        .expect("first lease");
+          +    state
+          +        .begin_delivery(&first, 101, 0)
+          +        .expect("send began");
+          +
+          +    assert_eq!(
+          +        state.acquire(&spec.run_key, "worker-b", 120, 20),
+          +        Err(DeliveryStateError::RecoveryRequired)
+          +    );
+          +    assert_eq!(
+          +        state.recover_expired_delivery(&spec.run_key, 120),
+          +        Ok(MutationOutcome::Applied)
+          +    );
+          +    let reconciliation = state
+          +        .acquire(&spec.run_key, "worker-b", 121, 20)
+          +        .expect("reconciliation lease");
+          +    assert_eq!(
+          +        state.begin_delivery(&reconciliation, 122, 2),
+          +        Err(DeliveryStateError::InvalidTransition)
+          +    );
+          +    state
+          +        .record_receipt(
+          +            &reconciliation,
+          +            122,
+          +            2,
+          +            receipt(&spec, "destination-confirmed", 119),
+          +        )
+          +        .expect("verified receipt closes ambiguity");
+          +}
+          +
+          +#[test]
+           fn crash_after_send_becomes_ambiguous_and_requires_receipt_reconciliation() {
+               let mut durable = DeliveryState::default();
+               let spec = plan_spec(
+          @@ -277,6 +319,42 @@
+           }
+ 
+           #[test]
+          +fn exact_receipt_replay_is_idempotent_but_receipt_or_generation_drift_conflicts() {
+          +    let mut state = DeliveryState::default();
+          +    let spec = plan_spec(
+          +        RunMode::Scheduled,
+          +        "daily-portfolio:scheduled:2026-08-05",
+          +        "2026-08-05",
+          +        'a',
+          +    );
+          +    state.plan(spec.clone()).expect("plan");
+          +    let lease = state
+          +        .acquire(&spec.run_key, "worker-a", 100, 100)
+          +        .expect("lease");
+          +    state.begin_delivery(&lease, 101, 0).expect("begin");
+          +    let confirmed = receipt(&spec, "receipt", 102);
+          +    assert_eq!(
+          +        state.record_receipt(&lease, 102, 1, confirmed.clone()),
+          +        Ok(MutationOutcome::Applied)
+          +    );
+          +    assert_eq!(
+          +        state.record_receipt(&lease, 103, 1, confirmed.clone()),
+          +        Ok(MutationOutcome::AlreadyApplied)
+          +    );
+          +    assert_eq!(
+          +        state.record_receipt(&lease, 103, 2, confirmed.clone()),
+          +        Err(DeliveryStateError::GenerationConflict)
+          +    );
+          +
+          +    let mut drifted = confirmed;
+          +    drifted.receipt_id = "different-receipt".to_owned();
+          +    assert_eq!(
+          +        state.record_receipt(&lease, 103, 1, drifted),
+          +        Err(DeliveryStateError::ReceiptConflict)
+          +    );
+          +}
+          +
+          +#[test]
+           fn mismatched_destination_or_body_receipt_does_not_commit() {
+               let mut state = DeliveryState::default();
+               let spec = plan_spec(
+          @@ -347,7 +425,7 @@
+                   RunMode::Recovery,
+                   "daily-portfolio:recovery:2026-08-06:attempt-1",
+                   "2026-08-06",
+          -        'g',
+          +        'b',
+               );
+               deliver(&mut state, recovery, "worker-c", 300, "receipt-06");
+               assert_eq!(
+          @@ -362,7 +440,7 @@
+                   RunMode::Scheduled,
+                   "daily-portfolio:scheduled:2026-08-04",
+                   "2026-08-04",
+          -        'j',
+          +        'c',
+               );
+               deliver(&mut state, older, "worker-d", 400, "receipt-04");
+               assert_eq!(
+          @@ -448,6 +526,29 @@
+                   Err(DeliveryStateError::InvalidIdentifier)
+               );
+ 
+          +    let mut other_token_shape = plan_spec(
+          +        RunMode::Scheduled,
+          +        "daily-portfolio:scheduled:2026-08-05",
+          +        "2026-08-05",
+          +        'a',
+          +    );
+          +    other_token_shape.destination = "gho_abcdefghijklmnopqrstuvwxyz1234567890".to_owned();
+          +    assert_eq!(
+          +        state.plan(other_token_shape),
+          +        Err(DeliveryStateError::InvalidIdentifier)
+          +    );
+          +
+          +    let empty_recovery_identity = plan_spec(
+          +        RunMode::Recovery,
+          +        "daily-portfolio:recovery:",
+          +        "2026-08-05",
+          +        'a',
+          +    );
+          +    assert_eq!(
+          +        state.plan(empty_recovery_identity),
+          +        Err(DeliveryStateError::InvalidRunIdentity)
+          +    );
+          +
+               let mut invalid_digest = plan_spec(
+                   RunMode::Scheduled,
+                   "daily-portfolio:scheduled:2026-08-05",
+          PATCH
+          git apply --check /tmp/den-2334-tests.patch
+          git apply /tmp/den-2334-tests.patch
+          cargo fmt --all
       - name: Compile and run focused regressions
         shell: bash
         run: |
@@ -54,8 +206,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then
-            echo 'rustfmt made no changes' >&2
-            exit 1
+            echo 'rustfmt made no changes'
+            exit 0
           fi
           git commit -m 'DEN-2334: format delivery state implementation'
           git push origin HEAD:agent/den-2334-daily-briefing-delivery-state

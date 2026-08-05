@@ -30,7 +30,8 @@ Identifiers are bounded ASCII-safe values and reject credential-shaped material.
 Every mutating transition requires a `LeaseToken` containing the run key, owner, monotonically increasing fencing token, and expiry.
 
 - An unexpired lease blocks another owner.
-- Reacquisition after expiry advances the global fence.
+- Reacquisition after expiry advances the global fence, except an expired `delivering` run must first pass through explicit ambiguity recovery.
+- A worker cannot reacquire an expired in-flight delivery and treat `begin` as an idempotent resend; `RecoveryRequired` forces `recover_expired_delivery` before a reconciliation lease can be issued.
 - An old owner cannot renew, release, begin, fail, mark ambiguous, or commit a receipt after a newer fence exists.
 - TTL is nonzero and at most one hour.
 - A sending lease cannot be voluntarily released; the worker must record a terminal attempt outcome or let expiry recovery mark it ambiguous.
@@ -47,7 +48,7 @@ planned --begin--> delivering --receipt--> delivered
                           |--ambiguous--> ambiguous --verified receipt--> delivered
 ```
 
-A repeated `begin` at the already-current delivering generation is an idempotent no-op. A stale generation is rejected. Ambiguous runs cannot resend until the destination is reconciled; a verified receipt may close ambiguity under a new fenced lease.
+A repeated `begin` at the already-current delivering generation is an idempotent no-op only for the current live fence. An expired in-flight lease cannot be reacquired until recovery advances the run to `ambiguous`. A stale generation is rejected. Ambiguous runs cannot resend until the destination is reconciled; a verified receipt may close ambiguity under a new fenced lease.
 
 Attempts increment only when entering `delivering`. Merely claiming a lease does not count an attempt.
 
@@ -56,9 +57,9 @@ Attempts increment only when entering `delivering`. Merely claiming a lease does
 The regression suite covers the required restart boundaries:
 
 1. **Before send:** a crashed owner leaves a planned run and an expiring lease. A later owner reacquires and records the first actual attempt.
-2. **After send, before receipt:** expiry recovery changes `delivering` to `ambiguous`. Resend is blocked until reconciliation.
+2. **After send, before receipt:** direct reacquisition returns `RecoveryRequired`; expiry recovery changes `delivering` to `ambiguous`, and resend remains blocked until reconciliation.
 3. **Destination confirmed, state not committed:** a new owner may record the externally verified receipt from `ambiguous` using the same logical and destination idempotency keys.
-4. **After committed receipt:** the run is delivered and no further lease can be acquired.
+4. **After committed receipt:** the run is delivered and no further lease can be acquired; an exact operation replay is acknowledged without mutating state.
 
 The storage adapter must perform each transition and its receipt/baseline update transactionally. An HTTP success observed only in process memory is not a committed delivery.
 
@@ -66,7 +67,7 @@ The storage adapter must perform each transition and its receipt/baseline update
 
 A `DestinationReceipt` contains a bounded receipt ID, exact destination identity, outbound body digest, and delivery timestamp.
 
-The state machine rejects receipts whose destination or body digest differs from the immutable plan. A successful receipt changes the run to delivered, clears the lease and error, and records the receipt exactly once.
+The state machine rejects receipts whose destination or body digest differs from the immutable plan. A successful receipt changes the run to delivered, clears the lease and error, and records the receipt exactly once. Replaying the exact same receipt with the original compare-and-set generation returns `AlreadyApplied` even though the lease has been cleared; receipt or generation drift fails closed.
 
 The future destination adapter must additionally enforce:
 

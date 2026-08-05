@@ -128,6 +128,7 @@ pub enum DeliveryStateError {
     LeaseHeld,
     LeaseUnavailable,
     LeaseExpired,
+    RecoveryRequired,
     StaleFence,
     GenerationConflict,
     InvalidTransition,
@@ -155,6 +156,9 @@ impl fmt::Display for DeliveryStateError {
             Self::LeaseHeld => "an unexpired delivery lease is already held",
             Self::LeaseUnavailable => "no delivery lease exists for this run",
             Self::LeaseExpired => "the delivery lease expired before the requested transition",
+            Self::RecoveryRequired => {
+                "an expired in-flight delivery must be recovered to ambiguous before reacquisition"
+            }
             Self::StaleFence => "the lease owner or fencing token is stale",
             Self::GenerationConflict => "the expected run generation does not match",
             Self::InvalidTransition => "the requested delivery-state transition is not allowed",
@@ -222,7 +226,10 @@ impl DeliveryState {
         validate_identifier(run_key)?;
         validate_identifier(owner)?;
         validate_ttl(ttl_ms)?;
-        let record = self.runs.get(run_key).ok_or(DeliveryStateError::RunNotFound)?;
+        let record = self
+            .runs
+            .get(run_key)
+            .ok_or(DeliveryStateError::RunNotFound)?;
         if record.status == DeliveryStatus::Delivered {
             return Err(DeliveryStateError::InvalidTransition);
         }
@@ -232,6 +239,9 @@ impl DeliveryState {
             .is_some_and(|lease| lease.expires_at_ms > now_ms)
         {
             return Err(DeliveryStateError::LeaseHeld);
+        }
+        if record.status == DeliveryStatus::Delivering {
+            return Err(DeliveryStateError::RecoveryRequired);
         }
         self.next_fence = self
             .next_fence
@@ -271,11 +281,7 @@ impl DeliveryState {
         Ok(renewed)
     }
 
-    pub fn release(
-        &mut self,
-        token: &LeaseToken,
-        now_ms: u64,
-    ) -> Result<(), DeliveryStateError> {
+    pub fn release(&mut self, token: &LeaseToken, now_ms: u64) -> Result<(), DeliveryStateError> {
         self.require_active(token, now_ms)?;
         let record = self
             .runs
@@ -404,7 +410,8 @@ impl DeliveryState {
             .checked_add(1)
             .ok_or(DeliveryStateError::CounterOverflow)?;
         record.status = DeliveryStatus::Ambiguous;
-        record.last_error = Some("delivery lease expired before a receipt was committed".to_owned());
+        record.last_error =
+            Some("delivery lease expired before a receipt was committed".to_owned());
         self.leases.remove(run_key);
         Ok(MutationOutcome::Applied)
     }
@@ -417,8 +424,27 @@ impl DeliveryState {
         receipt: DestinationReceipt,
     ) -> Result<MutationOutcome, DeliveryStateError> {
         validate_receipt(&receipt)?;
-        self.require_active(token, now_ms)?;
+        validate_identifier(&token.run_key)?;
+        validate_identifier(&token.owner)?;
 
+        let record = self
+            .runs
+            .get(&token.run_key)
+            .ok_or(DeliveryStateError::RunNotFound)?;
+        if record.status == DeliveryStatus::Delivered {
+            if record.receipt.as_ref() != Some(&receipt) {
+                return Err(DeliveryStateError::ReceiptConflict);
+            }
+            let committed_generation = expected_generation
+                .checked_add(1)
+                .ok_or(DeliveryStateError::CounterOverflow)?;
+            if record.generation != committed_generation {
+                return Err(DeliveryStateError::GenerationConflict);
+            }
+            return Ok(MutationOutcome::AlreadyApplied);
+        }
+
+        self.require_active(token, now_ms)?;
         let record = self
             .runs
             .get(&token.run_key)
@@ -495,11 +521,7 @@ impl DeliveryState {
         Err(DeliveryStateError::BaselineConflict)
     }
 
-    fn require_active(
-        &self,
-        token: &LeaseToken,
-        now_ms: u64,
-    ) -> Result<(), DeliveryStateError> {
+    fn require_active(&self, token: &LeaseToken, now_ms: u64) -> Result<(), DeliveryStateError> {
         let current = self
             .leases
             .get(&token.run_key)
@@ -540,10 +562,12 @@ fn validate_plan(spec: &PlanSpec) -> Result<(), DeliveryStateError> {
     let identity_matches = match spec.mode {
         RunMode::Scheduled => spec.run_key == spec.scheduled_run_key,
         RunMode::Recovery => {
-            spec.run_key.starts_with(RECOVERY_PREFIX) && spec.run_key != spec.scheduled_run_key
+            has_identity_suffix(&spec.run_key, RECOVERY_PREFIX)
+                && spec.run_key != spec.scheduled_run_key
         }
         RunMode::Manual => {
-            spec.run_key.starts_with(MANUAL_PREFIX) && spec.run_key != spec.scheduled_run_key
+            has_identity_suffix(&spec.run_key, MANUAL_PREFIX)
+                && spec.run_key != spec.scheduled_run_key
         }
     };
     if identity_matches {
@@ -551,6 +575,14 @@ fn validate_plan(spec: &PlanSpec) -> Result<(), DeliveryStateError> {
     } else {
         Err(DeliveryStateError::InvalidRunIdentity)
     }
+}
+
+fn has_identity_suffix(value: &str, prefix: &str) -> bool {
+    value.strip_prefix(prefix).is_some_and(|suffix| {
+        suffix
+            .bytes()
+            .any(|byte| byte.is_ascii_alphanumeric())
+    })
 }
 
 fn scheduled_date(value: &str) -> Result<NaiveDate, DeliveryStateError> {
@@ -586,9 +618,27 @@ fn validate_digest(value: &str) -> Result<(), DeliveryStateError> {
 
 fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {
     let lower = value.to_ascii_lowercase();
-    let credential_shaped = lower.starts_with("ghp_")
-        || lower.starts_with("github_pat_")
-        || lower.starts_with("sk-")
+    let credential_shaped = [
+        "ghp_",
+        "gho_",
+        "ghu_",
+        "ghs_",
+        "ghr_",
+        "github_pat_",
+        "sk-",
+        "xoxb-",
+        "xoxa-",
+        "xoxp-",
+        "xoxr-",
+        "xoxs-",
+    ]
+    .iter()
+    .any(|prefix| lower.starts_with(prefix))
+        || lower.contains("api_key=")
+        || lower.contains("apikey=")
+        || lower.contains("access_token=")
+        || lower.contains("auth_token=")
+        || lower.contains("bearer=")
         || lower.contains("token=")
         || lower.contains("password=")
         || lower.contains("secret=");
@@ -606,10 +656,7 @@ fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {
 }
 
 fn validate_error_summary(value: &str) -> Result<(), DeliveryStateError> {
-    if !value.is_empty()
-        && value.len() <= MAX_ERROR_BYTES
-        && !value.chars().any(char::is_control)
-    {
+    if !value.is_empty() && value.len() <= MAX_ERROR_BYTES && !value.chars().any(char::is_control) {
         Ok(())
     } else {
         Err(DeliveryStateError::InvalidErrorSummary)
