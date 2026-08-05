@@ -30,8 +30,8 @@ from zoneinfo import ZoneInfo
 
 TIME_ZONE_NAME = "America/Lima"
 TIME_ZONE = ZoneInfo(TIME_ZONE_NAME)
-TARGET_HOUR = 0
-TARGET_MINUTE = 30
+TARGET_HOUR = 1
+TARGET_MINUTE = 0
 DEFAULT_REGISTRY = Path("config/org-project-registry.yaml")
 DEFAULT_POLICY = Path("config/nightly-org-maintenance-policy.json")
 DEFAULT_GITHUB_API = "https://api.github.com"
