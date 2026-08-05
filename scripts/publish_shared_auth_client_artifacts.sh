@@ -212,9 +212,11 @@ test -n "$owner_token"
 [[ "$owner_token" == ghp_* || "$owner_token" == github_pat_* ]]
 echo "::add-mask::$owner_token"
 
-stage='validate-owner-identity'
+stage='validate-owner-login'
 owner_login="$(GH_TOKEN="$owner_token" gh api user --jq '.login' 2>/dev/null)"
 test "$owner_login" = "$expected_owner"
+
+stage='validate-shared-auth-membership'
 membership="$(
   GH_TOKEN="$owner_token" gh api "/user/memberships/orgs/shared-auth" \
     --jq '.role + ":" + .state' 2>/dev/null
