@@ -178,8 +178,8 @@ test("repository relationship rollout overview exposes every mapped owner safely
   await expect(
     page.getByRole("main", { name: "Repository relationship rollout" }),
   ).toBeVisible();
-  await expect(page.getByText("Mapped owners: 30")).toBeVisible();
-  await expect(page.getByRole("listitem")).toHaveCount(30);
+  await expect(page.getByText("Mapped owners: 31")).toBeVisible();
+  await expect(page.getByRole("listitem")).toHaveCount(31);
   expect(await page.locator("script").count()).toBe(0);
   expect(consoleErrors).toEqual([]);
 });
@@ -192,10 +192,10 @@ test("repository relationship rollout audit remains dry-run and fail-closed", as
   const audit = await response.json();
   expect(audit.summary).toEqual({
     complete: false,
-    eligible_organizations: 29,
+    eligible_organizations: 30,
     excluded_unmapped: 7,
     existing_public: 3,
-    missing: 26,
+    missing: 27,
     unsupported_account_type: 1,
     visibility_mismatch: 0,
   });
@@ -205,7 +205,7 @@ test("repository relationship rollout audit remains dry-run and fail-closed", as
   const requests = audit.owners
     .map((owner) => owner.bootstrap_dry_run?.body)
     .filter(Boolean);
-  expect(requests).toHaveLength(26);
+  expect(requests).toHaveLength(27);
   for (const body of requests) {
     expect(body.dry_run).toBe(true);
     expect(body.name).toBe(".github");
@@ -227,8 +227,8 @@ test("repository relationship manifests preserve identity and semantic conflict 
   );
   expect(indexResponse.ok()).toBe(true);
   const remoteIndex = await indexResponse.json();
-  expect(remoteIndex.owner_count).toBe(30);
-  expect(Object.keys(remoteIndex.files)).toHaveLength(30);
+  expect(remoteIndex.owner_count).toBe(31);
+  expect(Object.keys(remoteIndex.files)).toHaveLength(31);
   for (const path of Object.keys(remoteIndex.files)) {
     const owner = path.split("/", 1)[0];
     const response = await request.get(
