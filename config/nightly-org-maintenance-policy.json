@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "timezone": "America/Lima",
-  "local_hour": 1,
-  "local_minute": 0,
+  "local_hour": 0,
+  "local_minute": 30,
   "max_parallel_organizations": 3,
   "min_new_prs_per_org": 1,
   "max_new_prs_per_org": 3,
