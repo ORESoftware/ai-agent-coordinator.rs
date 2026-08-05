@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use serde::Deserialize;
 use serde_json::Value;
@@ -11,6 +11,10 @@ const MAX_PROMPT_BYTES: usize = 100_000;
 const MAX_CONTEXT_MESSAGES: usize = 20;
 const MAX_CONTEXT_MESSAGE_BYTES: usize = 4_000;
 const MAX_CONTEXT_TOTAL_BYTES: usize = 32_000;
+const MAX_OBSERVABLE_EVENT_BYTES: usize = 65_536;
+const MAX_OBSERVABLE_PAYLOAD_BYTES: usize = 32_768;
+const MAX_OBSERVABLE_METADATA_ENTRIES: usize = 32;
+const MAX_OBSERVABLE_METADATA_VALUE_BYTES: usize = 512;
 const EXPECTED_BROADCAST_TARGETS: [&str; 5] = [
     "ai_agent_bridge_workflow",
     "ai_agent_coordinator_job",
@@ -31,6 +35,8 @@ pub struct SlackAgentRunPayload {
     pub origin: Origin,
     pub context: ContextEnvelope,
     pub routing: Routing,
+    #[serde(default)]
+    pub observable_event: Option<Value>,
     pub broadcast_targets: Vec<String>,
 }
 
@@ -65,6 +71,9 @@ impl SlackAgentRunPayload {
         self.origin.validate()?;
         self.context.validate()?;
         self.routing.validate()?;
+        if let Some(event) = &self.observable_event {
+            validate_observable_event(event, self)?;
+        }
         validate_broadcast_targets(&self.broadcast_targets)
     }
 }
@@ -190,6 +199,257 @@ pub enum WritePolicy {
     DraftPullRequest,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservableEvent {
+    schema_version: String,
+    event_id: String,
+    idempotency_key: String,
+    occurred_at: String,
+    source: ObservableSource,
+    correlation: ObservableCorrelation,
+    kind: String,
+    payload_classification: String,
+    redaction_state: String,
+    evidence_references: Vec<Value>,
+    delivery: ObservableDelivery,
+    payload: ObservablePayload,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservableSource {
+    agent_id: String,
+    provider: String,
+    model: String,
+    instance_id: Option<String>,
+    metadata: BTreeMap<String, String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservableCorrelation {
+    correlation_id: String,
+    causation_id: Option<String>,
+    parent_event_id: Option<String>,
+    server_id: Option<String>,
+    session_id: Option<String>,
+    run_id: Option<String>,
+    goal_id: Option<String>,
+    task_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservableDelivery {
+    transport: String,
+    delivery_id: String,
+    attempt: u64,
+    ack_requested: bool,
+    sequence: Option<u64>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ObservablePayload {
+    repository: String,
+    linear_project_id: String,
+    linear_run_project_id: String,
+    linear_issue: Option<String>,
+    bridge_workflow_id: String,
+    requested_capability: String,
+}
+
+fn validate_observable_event(event: &Value, run: &SlackAgentRunPayload) -> Result<(), String> {
+    let encoded = serde_json::to_vec(event)
+        .map_err(|_| "slack_agent_run observable_event is not serializable".to_owned())?;
+    if encoded.len() > MAX_OBSERVABLE_EVENT_BYTES {
+        return Err("slack_agent_run observable_event exceeds byte limit".to_owned());
+    }
+    let payload_size = serde_json::to_vec(
+        event
+            .get("payload")
+            .ok_or_else(|| "slack_agent_run observable_event payload is missing".to_owned())?,
+    )
+    .map_err(|_| "slack_agent_run observable_event payload is not serializable".to_owned())?
+    .len();
+    if payload_size > MAX_OBSERVABLE_PAYLOAD_BYTES {
+        return Err("slack_agent_run observable_event payload exceeds byte limit".to_owned());
+    }
+    reject_sensitive_event_keys(event)?;
+
+    let event = serde_json::from_value::<ObservableEvent>(event.clone())
+        .map_err(|_| "slack_agent_run observable_event does not match schema v1".to_owned())?;
+
+    if event.schema_version != "1.0"
+        || event.kind != "task_created"
+        || event.payload_classification != "internal"
+        || event.redaction_state != "sanitized"
+    {
+        return Err("slack_agent_run observable_event policy is invalid".to_owned());
+    }
+    if !valid_uuid(&event.event_id)
+        || !valid_uuid(&event.correlation.correlation_id)
+        || event
+            .correlation
+            .causation_id
+            .as_deref()
+            .is_some_and(|value| !valid_uuid(value))
+        || event
+            .correlation
+            .parent_event_id
+            .as_deref()
+            .is_some_and(|value| !valid_uuid(value))
+    {
+        return Err("slack_agent_run observable_event UUID is invalid".to_owned());
+    }
+    if chrono::DateTime::parse_from_rfc3339(&event.occurred_at).is_err() {
+        return Err("slack_agent_run observable_event occurred_at is invalid".to_owned());
+    }
+    if event.idempotency_key != format!("slack-task-created:{}", run.run_id) {
+        return Err("slack_agent_run observable_event idempotency_key is invalid".to_owned());
+    }
+
+    let expected_provider = match run.provider {
+        Provider::Claude => "anthropic",
+        Provider::Chatgpt => "openai",
+    };
+    validate_identifier("observable_event.source.agent_id", &event.source.agent_id)?;
+    validate_identifier("observable_event.source.model", &event.source.model)?;
+    if let Some(instance_id) = &event.source.instance_id {
+        validate_identifier("observable_event.source.instance_id", instance_id)?;
+    }
+    if event.source.agent_id != event.source.model || event.source.provider != expected_provider {
+        return Err("slack_agent_run observable_event source is inconsistent".to_owned());
+    }
+    if event.source.metadata.len() > MAX_OBSERVABLE_METADATA_ENTRIES
+        || event.source.metadata.iter().any(|(key, value)| {
+            validate_identifier("observable_event.source.metadata key", key).is_err()
+                || value.len() > MAX_OBSERVABLE_METADATA_VALUE_BYTES
+                || value.contains('\0')
+        })
+        || event.source.metadata.get("surface").map(String::as_str) != Some("slack_slash_command")
+        || event.source.metadata.get("action").map(String::as_str) != Some(run.action.as_str())
+        || event
+            .source
+            .metadata
+            .get("write_policy")
+            .map(String::as_str)
+            != Some(write_policy_name(run.routing.write_policy))
+    {
+        return Err("slack_agent_run observable_event source metadata is invalid".to_owned());
+    }
+
+    for (field, value) in [
+        ("server_id", event.correlation.server_id.as_deref()),
+        ("session_id", event.correlation.session_id.as_deref()),
+        ("run_id", event.correlation.run_id.as_deref()),
+        ("goal_id", event.correlation.goal_id.as_deref()),
+        ("task_id", event.correlation.task_id.as_deref()),
+    ] {
+        if let Some(value) = value {
+            validate_identifier(&format!("observable_event.correlation.{field}"), value)?;
+        }
+    }
+    if event.correlation.server_id.as_deref() != Some("ai-agent-coordinator")
+        || event.correlation.session_id.as_deref() != Some(run.run_id.as_str())
+        || event.correlation.run_id.as_deref() != Some(run.run_id.as_str())
+        || event.correlation.task_id.as_deref() != Some(run.run_id.as_str())
+    {
+        return Err("slack_agent_run observable_event correlation is inconsistent".to_owned());
+    }
+
+    let _sequence = event.delivery.sequence;
+    if !event.evidence_references.is_empty()
+        || event.delivery.transport != "http"
+        || event.delivery.delivery_id != format!("coordinator-job:{}", run.run_id)
+        || event.delivery.attempt != 1
+        || !event.delivery.ack_requested
+    {
+        return Err("slack_agent_run observable_event delivery is invalid".to_owned());
+    }
+
+    if event.payload.repository != run.routing.repository
+        || event.payload.linear_project_id != run.routing.linear_project_id
+        || event.payload.linear_run_project_id != run.routing.linear_run_project_id
+        || event.payload.linear_issue != run.routing.linear_issue
+        || event.payload.bridge_workflow_id != run.bridge_workflow_id
+        || !matches!(
+            event.payload.requested_capability.as_str(),
+            "read_only" | "linear_write" | "repository_write"
+        )
+    {
+        return Err("slack_agent_run observable_event payload is inconsistent".to_owned());
+    }
+    Ok(())
+}
+
+fn reject_sensitive_event_keys(value: &Value) -> Result<(), String> {
+    const FORBIDDEN: [&str; 7] = [
+        "chain_of_thought",
+        "hidden_reasoning",
+        "private_reasoning",
+        "raw_reasoning",
+        "reasoning_tokens",
+        "scratchpad",
+        "internal_monologue",
+    ];
+    const SECRET_FRAGMENTS: [&str; 8] = [
+        "authorization",
+        "api_key",
+        "access_token",
+        "refresh_token",
+        "password",
+        "private_key",
+        "cookie",
+        "secret",
+    ];
+    match value {
+        Value::Object(object) => {
+            for (key, child) in object {
+                let normalized = key.to_ascii_lowercase();
+                if FORBIDDEN.contains(&normalized.as_str())
+                    || SECRET_FRAGMENTS
+                        .iter()
+                        .any(|fragment| normalized.contains(fragment))
+                {
+                    return Err(
+                        "slack_agent_run observable_event contains a forbidden field".to_owned(),
+                    );
+                }
+                reject_sensitive_event_keys(child)?;
+            }
+        }
+        Value::Array(values) => {
+            for child in values {
+                reject_sensitive_event_keys(child)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+fn write_policy_name(policy: WritePolicy) -> &'static str {
+    match policy {
+        WritePolicy::ReadOnly => "read_only",
+        WritePolicy::LinearOnly => "linear_only",
+        WritePolicy::DraftPullRequest => "draft_pull_request",
+    }
+}
+
+fn valid_uuid(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() == 36
+        && [8, 13, 18, 23]
+            .into_iter()
+            .all(|index| bytes.get(index) == Some(&b'-'))
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| [8, 13, 18, 23].contains(&index) || byte.is_ascii_hexdigit())
+}
+
 fn validate_broadcast_targets(targets: &[String]) -> Result<(), String> {
     let actual = targets.iter().map(String::as_str).collect::<BTreeSet<_>>();
     let expected = EXPECTED_BROADCAST_TARGETS
@@ -274,6 +534,51 @@ mod tests {
 
     use super::*;
 
+    fn valid_observable_event() -> Value {
+        json!({
+            "schema_version": "1.0",
+            "event_id": "01234567-89ab-5def-8123-456789abcdef",
+            "idempotency_key": "slack-task-created:ores-00112233445566778899aabb",
+            "occurred_at": "2026-08-04T11:20:00Z",
+            "source": {
+                "agent_id": "gpt-5.6-sol",
+                "provider": "openai",
+                "model": "gpt-5.6-sol",
+                "instance_id": "alex-main-agent",
+                "metadata": {
+                    "surface": "slack_slash_command",
+                    "action": "implement",
+                    "write_policy": "draft_pull_request"
+                }
+            },
+            "correlation": {
+                "correlation_id": "fedcba98-7654-5abc-9123-456789abcdef",
+                "server_id": "ai-agent-coordinator",
+                "session_id": "ores-00112233445566778899aabb",
+                "run_id": "ores-00112233445566778899aabb",
+                "task_id": "ores-00112233445566778899aabb"
+            },
+            "kind": "task_created",
+            "payload_classification": "internal",
+            "redaction_state": "sanitized",
+            "evidence_references": [],
+            "delivery": {
+                "transport": "http",
+                "delivery_id": "coordinator-job:ores-00112233445566778899aabb",
+                "attempt": 1,
+                "ack_requested": true
+            },
+            "payload": {
+                "repository": "ORESoftware/ai-agent-coordinator.rs",
+                "linear_project_id": "project-uuid",
+                "linear_run_project_id": "run-project-uuid",
+                "linear_issue": "DEN-1231",
+                "bridge_workflow_id": "workflow-123",
+                "requested_capability": "repository_write"
+            }
+        })
+    }
+
     fn valid_payload() -> Value {
         json!({
             "schema_version": 1,
@@ -303,6 +608,7 @@ mod tests {
                 "linear_issue": "DEN-1231",
                 "write_policy": "draft_pull_request"
             },
+            "observable_event": valid_observable_event(),
             "broadcast_targets": [
                 "slack_run_thread",
                 "ai_agent_coordinator_job",
@@ -318,6 +624,14 @@ mod tests {
         let payload = SlackAgentRunPayload::from_value(&valid_payload()).unwrap();
         assert_eq!(payload.provider, Provider::Chatgpt);
         assert_eq!(payload.context.messages.len(), 2);
+        assert!(payload.observable_event.is_some());
+    }
+
+    #[test]
+    fn preserves_backward_compatibility_without_observable_event() {
+        let mut value = valid_payload();
+        value.as_object_mut().unwrap().remove("observable_event");
+        assert!(SlackAgentRunPayload::from_value(&value).is_ok());
     }
 
     #[test]
@@ -356,5 +670,56 @@ mod tests {
         let mut value = valid_payload();
         value["context"]["trust"] = json!("trusted");
         assert!(SlackAgentRunPayload::from_value(&value).is_err());
+    }
+
+    #[test]
+    fn rejects_observable_event_with_private_or_unknown_payload_fields() {
+        for key in ["prompt", "secret_token"] {
+            let mut value = valid_payload();
+            value["observable_event"]["payload"][key] = json!("must not enter observability");
+            assert!(
+                SlackAgentRunPayload::from_value(&value).is_err(),
+                "{key} must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_observable_event_cross_field_drift() {
+        for (path, replacement) in [
+            (
+                &["observable_event", "correlation", "run_id"][..],
+                json!("ores-ffffffffffffffffffffffff"),
+            ),
+            (
+                &["observable_event", "payload", "repository"][..],
+                json!("ORESoftware/other.rs"),
+            ),
+            (
+                &["observable_event", "payload", "bridge_workflow_id"][..],
+                json!("workflow-other"),
+            ),
+        ] {
+            let mut value = valid_payload();
+            let mut current = &mut value;
+            for segment in &path[..path.len() - 1] {
+                current = &mut current[*segment];
+            }
+            current[path[path.len() - 1]] = replacement;
+            assert!(SlackAgentRunPayload::from_value(&value).is_err());
+        }
+    }
+
+    #[test]
+    fn rejects_observable_event_policy_drift() {
+        for (field, replacement) in [
+            ("kind", json!("task_progressed")),
+            ("payload_classification", json!("restricted")),
+            ("redaction_state", json!("raw")),
+        ] {
+            let mut value = valid_payload();
+            value["observable_event"][field] = replacement;
+            assert!(SlackAgentRunPayload::from_value(&value).is_err());
+        }
     }
 }

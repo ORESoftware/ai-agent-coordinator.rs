@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "organization": "hacker-house-medellin",
+  "tracking_issue": "DEN-1950",
+  "default_branch": "main",
+  "initialization": "readme",
+  "live_creation_enabled": false,
+  "deferred_repositories": [
+    ".github"
+  ],
+  "forbidden_repositories": [],
+  "repositories": [
+    {
+      "order": 1,
+      "name": "hhm-interfaces",
+      "visibility": "public",
+      "description": "Canonical Hacker House Medellin OpenAPI, AsyncAPI, JSON Schema, member, stay, room, event, and project contracts."
+    },
+    {
+      "order": 2,
+      "name": "hhm-api",
+      "visibility": "public",
+      "description": "Rust Axum, SeaORM, and WebSocket API for applications, residents, stays, rooms, events, and projects."
+    },
+    {
+      "order": 3,
+      "name": "hhm-mash-web",
+      "visibility": "public",
+      "description": "Maud, Axum, SeaORM, Supabase, HTMX, and WebSocket Hacker House Medellin web server."
+    },
+    {
+      "order": 4,
+      "name": "hhm-leptos-web",
+      "visibility": "public",
+      "description": "Leptos Hacker House Medellin web server using shared interfaces and authorization contracts."
+    },
+    {
+      "order": 5,
+      "name": "hhm-dioxus-web",
+      "visibility": "public",
+      "description": "Dioxus Hacker House Medellin web server using shared interfaces and authorization contracts."
+    },
+    {
+      "order": 6,
+      "name": "hhm-sync",
+      "visibility": "public",
+      "description": "Offline-first member, application, stay, room, event, and project synchronization built with opto-sync contracts."
+    },
+    {
+      "order": 7,
+      "name": "hhm-cli",
+      "visibility": "public",
+      "description": "Rust Hacker House Medellin CLI integrated through flags-2-env for safe operations workflows."
+    },
+    {
+      "order": 8,
+      "name": "hhm-infra",
+      "visibility": "public",
+      "description": "Kubernetes, Argo CD, observability, and bounded Cloudflare Worker edge code for Hacker House Medellin."
+    },
+    {
+      "order": 9,
+      "name": "hacker-house-medellin-clients",
+      "visibility": "public",
+      "description": "Generated and hand-written Hacker House Medellin clients for supported application runtimes."
+    },
+    {
+      "order": 10,
+      "name": "hacker-house-medellin-libs",
+      "visibility": "public",
+      "description": "Reusable community, application, stay, room, event, project, and authorization libraries."
+    },
+    {
+      "order": 11,
+      "name": "hacker-house-medellin.github.io",
+      "visibility": "public",
+      "description": "Marketing, documentation, privacy, support, and public community guidance for Hacker House Medellin."
+    },
+    {
+      "order": 12,
+      "name": "hacker-house-medellin-monorepo",
+      "visibility": "public",
+      "description": "Cross-repository orchestration, pinned revisions, release manifests, and integration validation for Hacker House Medellin."
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+name: Organization homepage standard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/org-homepage-standard.yml
+      - docs/org-homepage-standard.md
+      - templates/org-profile-readme.md
+      - scripts/render_org_homepage.py
+      - scripts/render_org_project_context.py
+      - scripts/validate_org_homepage.py
+      - tests/fixtures/org-homepage.valid.md
+      - tests/test_render_org_homepage.py
+      - tests/test_validate_org_homepage.py
+  pull_request:
+    paths:
+      - .github/workflows/org-homepage-standard.yml
+      - docs/org-homepage-standard.md
+      - templates/org-profile-readme.md
+      - scripts/render_org_homepage.py
+      - scripts/render_org_project_context.py
+      - scripts/validate_org_homepage.py
+      - tests/fixtures/org-homepage.valid.md
+      - tests/test_render_org_homepage.py
+      - tests/test_validate_org_homepage.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/org-homepage-standard.yml
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Compile dependency-free renderer, validator, and tests
+        run: >-
+          python3 -m py_compile
+          scripts/render_org_homepage.py
+          scripts/render_org_project_context.py
+          scripts/validate_org_homepage.py
+          tests/test_render_org_homepage.py
+          tests/test_validate_org_homepage.py
+
+      - name: Run organization homepage renderer and mutation tests
+        run: >-
+          python3 -m unittest -v
+          tests/test_render_org_homepage.py
+          tests/test_validate_org_homepage.py
+
+      - name: Validate the rendered example profile
+        run: >-
+          python3 scripts/validate_org_homepage.py
+          tests/fixtures/org-homepage.valid.md
+          --expect-org example-org

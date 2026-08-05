@@ -1,0 +1,232 @@
+{
+  "generated_at": "2026-07-31T12:35:00Z",
+  "lanes": {
+    "ai_technology": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [],
+      "source_issue": null,
+      "status": "ok"
+    },
+    "business_growth": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [],
+      "source_issue": null,
+      "status": "ok"
+    },
+    "career": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [
+        {
+          "confidence": "medium",
+          "disposition": "monitor",
+          "identity": "career:role-1",
+          "material": {
+            "coverage_state": "covered",
+            "deadline": "2026-07-31",
+            "evidence": "normalized child output",
+            "owner": "portfolio owner",
+            "recommended_action": "Review and act on Platform engineering role.",
+            "status": "open",
+            "urgency": "medium"
+          },
+          "next_action": "Review and act on Platform engineering role.",
+          "rank": {
+            "blocking_impact": 1,
+            "deadline_risk": 2,
+            "expected_value": 5,
+            "project_priority": 3,
+            "reversibility": 3
+          },
+          "relevant_date": "2026-07-31",
+          "source_status": "confirmed",
+          "sources": [
+            {
+              "label": "Linear",
+              "url": "https://linear.app/denman/issue/CAREER-ROLE-1?utm_source=test"
+            }
+          ],
+          "title": "Platform engineering role",
+          "what_changed": "Platform engineering role changed in the normalized source output.",
+          "why_it_matters": "Platform engineering role affects the daily portfolio decision."
+        }
+      ],
+      "source_issue": "DEN-826",
+      "status": "ok"
+    },
+    "engineering_research": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [
+        {
+          "confidence": "medium",
+          "disposition": "monitor",
+          "identity": "research:paper-1",
+          "material": {
+            "coverage_state": "covered",
+            "deadline": "2026-07-31",
+            "evidence": "normalized child output",
+            "owner": "portfolio owner",
+            "recommended_action": "Review and act on Distributed lease paper.",
+            "status": "open",
+            "urgency": "medium"
+          },
+          "next_action": "Review and act on Distributed lease paper.",
+          "rank": {
+            "blocking_impact": 2,
+            "deadline_risk": 1,
+            "expected_value": 4,
+            "project_priority": 3,
+            "reversibility": 5
+          },
+          "relevant_date": "2026-07-31",
+          "source_status": "inference",
+          "sources": [
+            {
+              "label": "Linear",
+              "url": "https://linear.app/denman/issue/RESEARCH-PAPER-1?utm_source=test"
+            }
+          ],
+          "title": "Distributed lease paper",
+          "what_changed": "Distributed lease paper changed in the normalized source output.",
+          "why_it_matters": "Distributed lease paper affects the daily portfolio decision."
+        }
+      ],
+      "source_issue": "DEN-828",
+      "status": "ok"
+    },
+    "github_linear": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [
+        {
+          "confidence": "high",
+          "disposition": "do_today",
+          "identity": "github:coordinator:pr-31",
+          "material": {
+            "coverage_state": "covered",
+            "deadline": "2026-07-31",
+            "evidence": "normalized child output",
+            "owner": "portfolio owner",
+            "recommended_action": "Review and act on Prompt intake pull request.",
+            "status": "open",
+            "urgency": "medium"
+          },
+          "next_action": "Review and act on Prompt intake pull request.",
+          "rank": {
+            "blocking_impact": 4,
+            "deadline_risk": 4,
+            "expected_value": 4,
+            "project_priority": 5,
+            "reversibility": 2
+          },
+          "relevant_date": "2026-07-31",
+          "source_status": "confirmed",
+          "sources": [
+            {
+              "label": "Linear",
+              "url": "https://linear.app/denman/issue/GITHUB-COORDINATOR-PR-31?utm_source=test"
+            }
+          ],
+          "title": "Prompt intake pull request",
+          "what_changed": "Prompt intake pull request changed in the normalized source output.",
+          "why_it_matters": "Prompt intake pull request affects the daily portfolio decision."
+        }
+      ],
+      "source_issue": null,
+      "status": "ok"
+    },
+    "inbox_relationships": {
+      "error_summary": "One connected mailbox was unavailable; other normalized accounts completed.",
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [
+        {
+          "confidence": "high",
+          "disposition": "do_today",
+          "identity": "inbox:thread-1",
+          "material": {
+            "coverage_state": "covered",
+            "deadline": "2026-07-31",
+            "evidence": "normalized child output",
+            "owner": "portfolio owner",
+            "recommended_action": "Review and act on Reply-needed recruiter thread.",
+            "status": "open",
+            "urgency": "medium"
+          },
+          "next_action": "Review and act on Reply-needed recruiter thread.",
+          "rank": {
+            "blocking_impact": 3,
+            "deadline_risk": 4,
+            "expected_value": 4,
+            "project_priority": 3,
+            "reversibility": 2
+          },
+          "relevant_date": "2026-07-31",
+          "source_status": "confirmed",
+          "sources": [
+            {
+              "label": "Linear",
+              "url": "https://linear.app/denman/issue/INBOX-THREAD-1?utm_source=test"
+            }
+          ],
+          "title": "Reply-needed recruiter thread",
+          "what_changed": "Reply-needed recruiter thread changed in the normalized source output.",
+          "why_it_matters": "Reply-needed recruiter thread affects the daily portfolio decision."
+        }
+      ],
+      "source_issue": "DEN-830",
+      "status": "degraded"
+    },
+    "must_act_today": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [
+        {
+          "confidence": "high",
+          "disposition": "do_today",
+          "identity": "linear:DEN-1073",
+          "material": {
+            "coverage_state": "covered",
+            "deadline": "2026-07-31",
+            "evidence": "normalized child output",
+            "owner": "portfolio owner",
+            "recommended_action": "Review and act on PostgreSQL cutover prerequisite.",
+            "status": "open",
+            "urgency": "medium"
+          },
+          "next_action": "Review and act on PostgreSQL cutover prerequisite.",
+          "rank": {
+            "blocking_impact": 5,
+            "deadline_risk": 5,
+            "expected_value": 4,
+            "project_priority": 5,
+            "reversibility": 1
+          },
+          "relevant_date": "2026-07-31",
+          "source_status": "confirmed",
+          "sources": [
+            {
+              "label": "Linear",
+              "url": "https://linear.app/denman/issue/LINEAR-DEN-1073?utm_source=test"
+            }
+          ],
+          "title": "PostgreSQL cutover prerequisite",
+          "what_changed": "PostgreSQL cutover prerequisite changed in the normalized source output.",
+          "why_it_matters": "PostgreSQL cutover prerequisite affects the daily portfolio decision."
+        }
+      ],
+      "source_issue": null,
+      "status": "ok"
+    },
+    "prompt_coverage": {
+      "error_summary": null,
+      "generated_at": "2026-07-31T12:30:00Z",
+      "items": [],
+      "source_issue": "DEN-834",
+      "status": "ok"
+    }
+  },
+  "schema_version": "portfolio_briefing_input.v1"
+}

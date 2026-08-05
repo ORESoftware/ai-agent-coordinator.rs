@@ -1,0 +1,81 @@
+name: Prompt-intake acceptance corpus
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/prompt-intake-corpus.yml
+      - docs/prompt-intake-corpus.md
+      - fixtures/prompt-intake/chatgpt-60-item-corpus.json
+      - scripts/expand_prompt_intake_fixture.py
+      - scripts/prompt_intake_corpus.py
+      - scripts/test_prompt_intake_corpus.py
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/prompt-intake-corpus.yml
+      - docs/prompt-intake-corpus.md
+      - fixtures/prompt-intake/chatgpt-60-item-corpus.json
+      - scripts/expand_prompt_intake_fixture.py
+      - scripts/prompt_intake_corpus.py
+      - scripts/test_prompt_intake_corpus.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/prompt-intake-corpus.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Compile acceptance tooling
+        run: >-
+          python -m py_compile
+          scripts/expand_prompt_intake_fixture.py
+          scripts/prompt_intake_corpus.py
+          scripts/test_prompt_intake_corpus.py
+      - name: Run corpus regressions
+        run: python scripts/test_prompt_intake_corpus.py -v
+      - name: Emit deterministic validation evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results/prompt-intake
+          python scripts/expand_prompt_intake_fixture.py \
+            fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+            --output test-results/prompt-intake/expanded.json
+          python scripts/prompt_intake_corpus.py validate \
+            test-results/prompt-intake/expanded.json \
+            > test-results/prompt-intake/validation.json
+          python scripts/prompt_intake_corpus.py summarize \
+            test-results/prompt-intake/expanded.json \
+            --output test-results/prompt-intake/summary.json
+          python scripts/prompt_intake_corpus.py purge \
+            test-results/prompt-intake/expanded.json \
+            --now 2026-09-15T00:00:00Z \
+            --output test-results/prompt-intake/retention.json
+          python scripts/prompt_intake_corpus.py summarize \
+            test-results/prompt-intake/expanded.json \
+            --output "$RUNNER_TEMP/summary-second-run.json"
+          cmp test-results/prompt-intake/summary.json "$RUNNER_TEMP/summary-second-run.json"
+      - name: Upload acceptance evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: prompt-intake-corpus-${{ github.sha }}
+          path: test-results/prompt-intake
+          retention-days: 14
+          if-no-files-found: error

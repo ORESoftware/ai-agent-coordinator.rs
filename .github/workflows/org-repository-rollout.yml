@@ -1,0 +1,183 @@
+name: Organization repository relationship rollout
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/org-repository-rollout.yml
+      - config/org-context-rollout-inventory.json
+      - config/org-project-registry.yaml
+      - docs/org-repository-relationships-rollout.md
+      - scripts/audit_org_context_rollout.py
+      - scripts/render_org_project_context.py
+      - scripts/render_org_repository_relationships.py
+      - scripts/validate_org_project_registry.py
+      - tests/e2e/browser/org-repository-relationships.spec.mjs
+      - tests/e2e/browser/playwright.relationships.config.mjs
+      - tests/test_org_repository_relationships.py
+  pull_request:
+    paths:
+      - .github/workflows/org-repository-rollout.yml
+      - config/org-context-rollout-inventory.json
+      - config/org-project-registry.yaml
+      - docs/org-repository-relationships-rollout.md
+      - scripts/audit_org_context_rollout.py
+      - scripts/render_org_project_context.py
+      - scripts/render_org_repository_relationships.py
+      - scripts/validate_org_project_registry.py
+      - tests/e2e/browser/org-repository-relationships.spec.mjs
+      - tests/e2e/browser/playwright.relationships.config.mjs
+      - tests/test_org_repository_relationships.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ORG_CONTEXT_REGISTRY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/org-repository-rollout.yml
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Compile dependency-free rollout tools
+        run: >-
+          python3 -m py_compile
+          scripts/validate_org_project_registry.py
+          scripts/render_org_project_context.py
+          scripts/render_org_repository_relationships.py
+          scripts/audit_org_context_rollout.py
+          tests/test_org_repository_relationships.py
+
+      - name: Run relationship and rollout mutation tests
+        run: python3 -m unittest -v tests/test_org_repository_relationships.py
+
+      - name: Render all mapped owner relationship declarations
+        run: |
+          set -euo pipefail
+          artifact_root=".artifacts/org-repository-rollout"
+          mkdir -p "$artifact_root"
+          python3 scripts/render_org_repository_relationships.py \
+            --all \
+            --registry-ref "$ORG_CONTEXT_REGISTRY_REF" \
+            --output-dir "$artifact_root/relationships"
+          python3 scripts/audit_org_context_rollout.py \
+            --registry-ref "$ORG_CONTEXT_REGISTRY_REF" \
+            --output "$artifact_root/rollout-audit.json"
+
+      - name: Parse and cross-check generated evidence
+        shell: python
+        run: |
+          import hashlib
+          import json
+          from pathlib import Path
+
+          root = Path(".artifacts/org-repository-rollout")
+          relationship_root = root / "relationships"
+          index = json.loads(
+              (relationship_root / "repository-relationships-index.json").read_text(
+                  encoding="utf-8"
+              )
+          )
+          audit = json.loads((root / "rollout-audit.json").read_text(encoding="utf-8"))
+          assert index["owner_count"] == audit["registry"]["mapped_owners"] == 30
+          assert len(index["files"]) == 30
+          assert audit["summary"]["eligible_organizations"] == 29
+          assert audit["summary"]["existing_public"] == 3
+          assert audit["summary"]["missing"] == 26
+          assert audit["summary"]["unsupported_account_type"] == 1
+          assert audit["summary"]["excluded_unmapped"] == 7
+          for relative, expected in index["files"].items():
+              content = (relationship_root / relative).read_bytes()
+              assert hashlib.sha256(content).hexdigest() == expected
+              json.loads(content)
+          requests = [
+              owner["bootstrap_dry_run"]["body"]
+              for owner in audit["owners"]
+              if owner["bootstrap_dry_run"] is not None
+          ]
+          assert len(requests) == 26
+          assert all(request["dry_run"] is True for request in requests)
+          assert all("confirm_repository" not in request for request in requests)
+          assert audit["bootstrap_contract"]["live_creation_authorized_by_this_artifact"] is False
+
+      - name: Prove incomplete rollout fails closed when completion is required
+        run: |
+          set +e
+          python3 scripts/audit_org_context_rollout.py \
+            --registry-ref "$ORG_CONTEXT_REGISTRY_REF" \
+            --output .artifacts/org-repository-rollout/required-complete-audit.json \
+            --require-complete
+          status=$?
+          set -e
+          test "$status" -eq 2
+
+      - name: Upload public rollout evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: org-repository-relationship-rollout
+          path: .artifacts/org-repository-rollout
+          include-hidden-files: true
+          retention-days: 3
+          if-no-files-found: error
+
+  browser-e2e:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      ORG_CONTEXT_REGISTRY_REF: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.1"
+          cache: npm
+          cache-dependency-path: tests/e2e/browser/package-lock.json
+
+      - name: Install locked browser test dependencies
+        working-directory: tests/e2e/browser
+        run: npm ci --ignore-scripts
+
+      - name: Install Chromium for Playwright
+        working-directory: tests/e2e/browser
+        run: npm exec -- playwright install --with-deps chromium
+
+      - name: Exercise relationship manifests and rollout audit in Chromium
+        working-directory: tests/e2e/browser
+        run: npm exec -- playwright test --config=playwright.relationships.config.mjs
+
+      - name: Upload failing browser evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: org-repository-relationship-playwright-report
+          path: tests/e2e/browser/playwright-report
+          retention-days: 3
+          if-no-files-found: ignore

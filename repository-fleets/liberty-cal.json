@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "organization": "liberty-cal",
+  "tracking_issue": "DEN-1948",
+  "default_branch": "main",
+  "initialization": "readme",
+  "live_creation_enabled": false,
+  "deferred_repositories": [
+    ".github"
+  ],
+  "forbidden_repositories": [],
+  "repositories": [
+    {
+      "order": 1,
+      "name": "liberty-cal",
+      "visibility": null,
+      "description": "Initial Liberty Cal events-platform foundation, architecture decisions, CI, and reviewed domain contracts."
+    }
+  ]
+}
