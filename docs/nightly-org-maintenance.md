@@ -22,6 +22,23 @@ matrix entry. A base organization records a paired `<owner>-test` organization
 only when that test organization is also present in the canonical registry.
 Unmapped test organizations are never inferred or mutated.
 
+## Delivery priority
+
+The overnight job is an execution system, not a backlog-only reconciler. Its
+priority order is:
+
+1. freshly revalidate and merge eligible existing pull requests;
+2. write and test executable slices of active Linear work;
+3. commit and push those changes and create one to three draft pull requests;
+4. repair correctness and test coverage when no higher-priority feature slice is
+   safely bounded;
+5. update documentation as supporting delivery or as an explicitly tracked task;
+6. mirror publication evidence to Linear and the organization's GitHub Project.
+
+A ticket, TODO, plan, status note, or documentation-only edit must not replace a
+feasible code change. Documentation-only work requires a mapped Linear issue and
+must be present in both Linear and the GitHub Project after publication.
+
 ## Per-organization behavior
 
 For each organization, the workflow:
@@ -35,15 +52,39 @@ For each organization, the workflow:
 6. runs Codex offline with workspace-only write access;
 7. validates changed paths, size, metadata, conflict markers, credential-shaped
    content, tests, and protected-area review flags;
-8. pushes feature branches and opens **draft** PRs labeled `agent:nightly`;
+8. commits and pushes feature branches and opens **draft** PRs labeled
+   `agent:nightly`;
 9. freshly re-reads existing merge candidates and merges only those satisfying
    every deterministic gate;
-10. uploads a redacted per-organization ledger.
+10. adds every created or merged PR to the organization's GitHub Project;
+11. comments publication evidence on every mapped Linear issue;
+12. uploads a redacted per-organization ledger containing GitHub, Linear, and
+   GitHub Project synchronization results.
 
 If an organization has no eligible repository, the job records a blocked ledger
 rather than fabricating work. New draft PRs are not merged in the same run. A
 later run may merge them after they are non-draft, labeled, current, mergeable,
 review-compliant, and green.
+
+## Linear and GitHub Project synchronization
+
+The publisher completes source-control delivery before tracking synchronization.
+For each newly created PR with a mapped Linear issue, it posts an idempotent
+Linear comment containing the PR, branch, head SHA, run key, and whether
+repository documentation changed. The comment marker prevents duplicate updates
+when a run is retried.
+
+The publisher resolves the organization's open GitHub Project deterministically:
+an exact title matching the organization login or `github.com/<owner>` wins; a
+single open project is accepted; multiple unmatched projects fail closed. When
+no open project exists, the workflow creates `github.com/<owner>` when
+`create_missing_github_projects` is enabled. Every created PR and every existing
+PR merged by the run is added idempotently to that project.
+
+A documentation change without a mapped Linear issue is blocked. Any required
+Linear or GitHub Project synchronization failure is written into the ledger and
+fails the organization job after the code/PR evidence has been retained, so the
+drift cannot be silently ignored.
 
 ## Merge and conflict policy
 
@@ -66,12 +107,12 @@ the original PR number and head SHA recorded as evidence.
 ## Credential boundary
 
 Codex never receives GitHub or Linear credentials. Deterministic controller steps
-perform snapshots and publication. Snapshot and workspace GitHub App tokens are
-explicitly revoked before each model invocation. Linear credentials and the App
-private key exist only on controller steps. Codex runs as a dedicated unprivileged
-OS user against sanitized files and isolated checkouts; the planner is read-only
-and the implementer can write only inside its workspace, with network access
-disabled by their permission profiles.
+perform snapshots, publication, merging, and tracking synchronization. Snapshot
+and workspace GitHub App tokens are explicitly revoked before each model
+invocation. Linear credentials and the App private key exist only on controller
+steps. Codex runs as a dedicated unprivileged OS user against sanitized files and
+isolated checkouts; the planner is read-only and the implementer can write only
+inside its workspace, with network access disabled by their permission profiles.
 
 Configure the protected GitHub Actions environment `nightly-org-maintenance` with
 the following values. The workflow requests environment secrets without creating
@@ -86,7 +127,9 @@ a deployment record:
 
 The GitHub App installation needs access to the registry organizations and the
 minimum repository permissions required to read metadata/checks and create
-branches, labels, pull requests, and merges. Do not use a personal access token.
+branches, labels, pull requests, and merges. It also needs **Projects: write** as
+an organization permission so the publication token can list/create projects and
+add PR items. Do not use a personal access token.
 
 ## Manual operation
 
@@ -97,5 +140,6 @@ registry logins for a canary run.
 
 The workflow is active only after its implementation PR is merged and the listed
 Actions environment configuration exists. A missing installation, repository,
-secret, environment variable, Linear project, or permission fails closed and is
-reported; it is never interpreted as permission to broaden access.
+secret, environment variable, Linear project, GitHub Project permission, or
+repository permission fails closed and is reported; it is never interpreted as
+permission to broaden access.
