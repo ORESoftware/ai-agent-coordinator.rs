@@ -33,13 +33,7 @@ fn receipt(spec: &PlanSpec, receipt_id: &str, delivered_at_ms: u64) -> Destinati
     }
 }
 
-fn deliver(
-    state: &mut DeliveryState,
-    spec: PlanSpec,
-    owner: &str,
-    now_ms: u64,
-    receipt_id: &str,
-) {
+fn deliver(state: &mut DeliveryState, spec: PlanSpec, owner: &str, now_ms: u64, receipt_id: &str) {
     let run_key = spec.run_key.clone();
     let destination_receipt = receipt(&spec, receipt_id, now_ms + 2);
     assert_eq!(state.plan(spec), Ok(PlanOutcome::Planned));
@@ -202,10 +196,47 @@ fn crash_before_send_can_reacquire_without_counting_an_attempt() {
     restarted
         .begin_delivery(&replacement, 121, 0)
         .expect("first actual send attempt");
-    assert_eq!(
-        restarted.run(&spec.run_key).expect("record").attempts(),
-        1
+    assert_eq!(restarted.run(&spec.run_key).expect("record").attempts(), 1);
+}
+
+#[test]
+fn expired_in_flight_delivery_requires_recovery_before_reacquisition() {
+    let mut state = DeliveryState::default();
+    let spec = plan_spec(
+        RunMode::Scheduled,
+        "daily-portfolio:scheduled:2026-08-05",
+        "2026-08-05",
+        'a',
     );
+    state.plan(spec.clone()).expect("plan");
+    let first = state
+        .acquire(&spec.run_key, "worker-a", 100, 20)
+        .expect("first lease");
+    state.begin_delivery(&first, 101, 0).expect("send began");
+
+    assert_eq!(
+        state.acquire(&spec.run_key, "worker-b", 120, 20),
+        Err(DeliveryStateError::RecoveryRequired)
+    );
+    assert_eq!(
+        state.recover_expired_delivery(&spec.run_key, 120),
+        Ok(MutationOutcome::Applied)
+    );
+    let reconciliation = state
+        .acquire(&spec.run_key, "worker-b", 121, 20)
+        .expect("reconciliation lease");
+    assert_eq!(
+        state.begin_delivery(&reconciliation, 122, 2),
+        Err(DeliveryStateError::InvalidTransition)
+    );
+    state
+        .record_receipt(
+            &reconciliation,
+            122,
+            2,
+            receipt(&spec, "destination-confirmed", 119),
+        )
+        .expect("verified receipt closes ambiguity");
 }
 
 #[test]
@@ -286,6 +317,42 @@ fn stale_owner_cannot_commit_a_receipt_after_reacquisition() {
 }
 
 #[test]
+fn exact_receipt_replay_is_idempotent_but_receipt_or_generation_drift_conflicts() {
+    let mut state = DeliveryState::default();
+    let spec = plan_spec(
+        RunMode::Scheduled,
+        "daily-portfolio:scheduled:2026-08-05",
+        "2026-08-05",
+        'a',
+    );
+    state.plan(spec.clone()).expect("plan");
+    let lease = state
+        .acquire(&spec.run_key, "worker-a", 100, 100)
+        .expect("lease");
+    state.begin_delivery(&lease, 101, 0).expect("begin");
+    let confirmed = receipt(&spec, "receipt", 102);
+    assert_eq!(
+        state.record_receipt(&lease, 102, 1, confirmed.clone()),
+        Ok(MutationOutcome::Applied)
+    );
+    assert_eq!(
+        state.record_receipt(&lease, 103, 1, confirmed.clone()),
+        Ok(MutationOutcome::AlreadyApplied)
+    );
+    assert_eq!(
+        state.record_receipt(&lease, 103, 2, confirmed.clone()),
+        Err(DeliveryStateError::GenerationConflict)
+    );
+
+    let mut drifted = confirmed;
+    drifted.receipt_id = "different-receipt".to_owned();
+    assert_eq!(
+        state.record_receipt(&lease, 103, 1, drifted),
+        Err(DeliveryStateError::ReceiptConflict)
+    );
+}
+
+#[test]
 fn mismatched_destination_or_body_receipt_does_not_commit() {
     let mut state = DeliveryState::default();
     let spec = plan_spec(
@@ -356,7 +423,7 @@ fn scheduled_and_recovery_deliveries_advance_baseline_but_manual_does_not() {
         RunMode::Recovery,
         "daily-portfolio:recovery:2026-08-06:attempt-1",
         "2026-08-06",
-        'g',
+        'b',
     );
     deliver(&mut state, recovery, "worker-c", 300, "receipt-06");
     assert_eq!(
@@ -371,7 +438,7 @@ fn scheduled_and_recovery_deliveries_advance_baseline_but_manual_does_not() {
         RunMode::Scheduled,
         "daily-portfolio:scheduled:2026-08-04",
         "2026-08-04",
-        'j',
+        'c',
     );
     deliver(&mut state, older, "worker-d", 400, "receipt-04");
     assert_eq!(
@@ -455,6 +522,29 @@ fn invalid_identity_digest_receipt_and_error_summary_fail_closed() {
     assert_eq!(
         state.plan(invalid),
         Err(DeliveryStateError::InvalidIdentifier)
+    );
+
+    let mut other_token_shape = plan_spec(
+        RunMode::Scheduled,
+        "daily-portfolio:scheduled:2026-08-05",
+        "2026-08-05",
+        'a',
+    );
+    other_token_shape.destination = "gho_abcdefghijklmnopqrstuvwxyz1234567890".to_owned();
+    assert_eq!(
+        state.plan(other_token_shape),
+        Err(DeliveryStateError::InvalidIdentifier)
+    );
+
+    let empty_recovery_identity = plan_spec(
+        RunMode::Recovery,
+        "daily-portfolio:recovery:",
+        "2026-08-05",
+        'a',
+    );
+    assert_eq!(
+        state.plan(empty_recovery_identity),
+        Err(DeliveryStateError::InvalidRunIdentity)
     );
 
     let mut invalid_digest = plan_spec(

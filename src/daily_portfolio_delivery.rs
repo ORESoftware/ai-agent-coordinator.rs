@@ -578,11 +578,9 @@ fn validate_plan(spec: &PlanSpec) -> Result<(), DeliveryStateError> {
 }
 
 fn has_identity_suffix(value: &str, prefix: &str) -> bool {
-    value.strip_prefix(prefix).is_some_and(|suffix| {
-        suffix
-            .bytes()
-            .any(|byte| byte.is_ascii_alphanumeric())
-    })
+    value
+        .strip_prefix(prefix)
+        .is_some_and(|suffix| suffix.bytes().any(|byte| byte.is_ascii_alphanumeric()))
 }
 
 fn scheduled_date(value: &str) -> Result<NaiveDate, DeliveryStateError> {
