@@ -8,6 +8,7 @@ on:
       - 'tools/collect_daily_portfolio_results.py'
       - 'tools/compose_daily_portfolio_briefing.py'
       - 'tests/test_daily_portfolio_result_collector.py'
+      - 'tests/test_daily_portfolio_result_collector_openat.py'
       - 'tests/fixtures/daily_portfolio_briefing_input.json'
       - 'tests/fixtures/daily_portfolio_briefing_state.json'
   push:
@@ -18,6 +19,7 @@ on:
       - 'tools/collect_daily_portfolio_results.py'
       - 'tools/compose_daily_portfolio_briefing.py'
       - 'tests/test_daily_portfolio_result_collector.py'
+      - 'tests/test_daily_portfolio_result_collector_openat.py'
       - 'tests/fixtures/daily_portfolio_briefing_input.json'
       - 'tests/fixtures/daily_portfolio_briefing_state.json'
   workflow_dispatch:
@@ -50,12 +52,15 @@ jobs:
           tools/collect_daily_portfolio_results.py
           tools/compose_daily_portfolio_briefing.py
           tests/test_daily_portfolio_result_collector.py
+          tests/test_daily_portfolio_result_collector_openat.py
       - name: Run integrity, freshness, and path-safety regressions
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p test-results/daily-portfolio-collector
-          python -m unittest -v tests/test_daily_portfolio_result_collector.py \
+          python -m unittest -v \
+            tests/test_daily_portfolio_result_collector.py \
+            tests/test_daily_portfolio_result_collector_openat.py \
             2>&1 | tee test-results/daily-portfolio-collector/tests.txt
       - name: Emit deterministic collector evidence twice
         shell: bash

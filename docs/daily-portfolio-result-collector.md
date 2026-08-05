@@ -98,9 +98,11 @@ The generated provenance distinguishes `collected`, `stale`, and `missing`. It r
 The result root must be a real directory, not a symbolic link. The collector:
 
 - accepts only relative POSIX result paths;
-- verifies every existing path component is not a symbolic link;
-- rejects paths resolving outside the approved root;
-- opens final files with `O_NOFOLLOW` where the platform provides it;
+- pins the approved root as a directory descriptor and verifies its device/inode identity after open;
+- opens every parent component relative to the pinned descriptor with `O_DIRECTORY | O_NOFOLLOW`;
+- opens the final file relative to the pinned parent with `O_NOFOLLOW`;
+- fails closed when descriptor-relative `open`, `O_NOFOLLOW`, or `O_DIRECTORY` is unavailable;
+- prevents normalized paths from escaping the approved root;
 - accepts regular files only, not directories, sockets, devices, or FIFOs;
 - enforces the size cap before and during the read;
 - compares device, inode, size, modification time, and change time before and after the read;
@@ -130,9 +132,12 @@ It deliberately excludes result paths, item titles, item bodies, source URLs, ra
 python3 -m py_compile \
   tools/compose_daily_portfolio_briefing.py \
   tools/collect_daily_portfolio_results.py \
-  tests/test_daily_portfolio_result_collector.py
+  tests/test_daily_portfolio_result_collector.py \
+  tests/test_daily_portfolio_result_collector_openat.py
 
-python3 -m unittest -v tests/test_daily_portfolio_result_collector.py
+python3 -m unittest -v \
+  tests/test_daily_portfolio_result_collector.py \
+  tests/test_daily_portfolio_result_collector_openat.py
 
 python3 tools/collect_daily_portfolio_results.py \
   --manifest /var/lib/ai-agent-coordinator/briefing/manifest.json \
