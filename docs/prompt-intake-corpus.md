@@ -6,24 +6,25 @@ The oracle captures the disposition of the audited 60-item window without copyin
 
 ## Files
 
-- `fixtures/prompt-intake/chatgpt-60-item-corpus.json` — synthetic, redacted acceptance data.
-- `scripts/prompt_intake_corpus.py` — strict loader, validator, summarizer, retention controller, telemetry builder, and post-cutoff simulator.
+- `fixtures/prompt-intake/chatgpt-60-item-corpus.json` — compact, synthetic, redacted acceptance data.
+- `scripts/expand_prompt_intake_fixture.py` — strict compact-fixture expander.
+- `scripts/prompt_intake_corpus.py` — strict validator, summarizer, retention controller, telemetry builder, and post-cutoff simulator.
 - `scripts/test_prompt_intake_corpus.py` — positive and negative regression coverage.
 - `.github/workflows/prompt-intake-corpus.yml` — exact-head CI and retained machine-readable evidence.
 
 ## Safety boundary
 
-The fixture contains only:
+The checked-in fixture uses a compact row format. The expander deterministically derives synthetic source metadata and acceptance-oracle receipts before validation. The fixture contains only:
 
-- synthetic fixture identifiers and synthetic SHA-256 source fingerprints;
-- canonical Linear issue identifiers, project keys, priority, status, classification, and decision enums;
+- synthetic fixture identifiers and deterministic SHA-256 source fingerprints;
+- canonical Linear issue identifiers, project keys, priority, status, classification, and duplicate-target enums;
 - known duplicate relations and one bounded material-refinement relation;
 - acceptance-oracle receipts derived from nonsecret fixture fields;
 - fixed, synthetic latency samples for telemetry-contract tests.
 
 It deliberately excludes prompt bodies, chat titles, thread or message identifiers, user or account identifiers, email addresses, credentials, private channel history, model responses, and hidden reasoning.
 
-The validator rejects duplicate JSON keys, unknown schema fields, unbounded strings, credential-shaped values, email-shaped values, sensitive record keys, relation drift, count drift, and high-cardinality telemetry labels.
+The compact loader and expanded-corpus validator reject duplicate JSON keys, unknown schema fields, unbounded strings, credential-shaped values, email-shaped values, sensitive record keys, relation drift, count drift, and high-cardinality telemetry labels.
 
 ## Acceptance invariants
 
@@ -46,13 +47,17 @@ From the repository root:
 
 ```bash
 python3 -m py_compile \
+  scripts/expand_prompt_intake_fixture.py \
   scripts/prompt_intake_corpus.py \
   scripts/test_prompt_intake_corpus.py
 python3 scripts/test_prompt_intake_corpus.py -v
-python3 scripts/prompt_intake_corpus.py validate \
-  fixtures/prompt-intake/chatgpt-60-item-corpus.json
-python3 scripts/prompt_intake_corpus.py summarize \
+python3 scripts/expand_prompt_intake_fixture.py \
   fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+  --output /tmp/prompt-intake-expanded.json
+python3 scripts/prompt_intake_corpus.py validate \
+  /tmp/prompt-intake-expanded.json
+python3 scripts/prompt_intake_corpus.py summarize \
+  /tmp/prompt-intake-expanded.json \
   --output /tmp/prompt-intake-summary.json
 ```
 
@@ -60,7 +65,7 @@ The summary is compatible with the daily portfolio briefing contract: it emits s
 
 ## Post-cutoff detection
 
-`simulate-post-cutoff` accepts one synthetic record whose observation time is later than the corpus cutoff. It does not mutate the base fixture. The output records only the new decision and the expected counter delta, and verifies that planned creates remain zero.
+`simulate-post-cutoff` accepts one synthetic expanded record whose observation time is later than the corpus cutoff. It does not mutate the base fixture. The output records only the new decision and the expected counter delta, and verifies that planned creates remain zero.
 
 The regression test uses `DEN-1613` as the new canonical destination. The item is distinct from the historical 60-row corpus but is still an existing Linear issue, so the expected action is `amend_existing`, not `create_new`.
 
@@ -79,7 +84,7 @@ Example:
 
 ```bash
 python3 scripts/prompt_intake_corpus.py purge \
-  fixtures/prompt-intake/chatgpt-60-item-corpus.json \
+  /tmp/prompt-intake-expanded.json \
   --now 2026-09-15T00:00:00Z \
   --output /tmp/prompt-intake-retention.json
 ```
@@ -107,8 +112,8 @@ This corpus is an acceptance oracle, not production telemetry. Runtime adapters 
 
 1. Complete a new audited reconciliation window.
 2. Update canonical issue states and real duplicate relations in Linear first.
-3. Generate new synthetic source and receipt fingerprints; never paste source text.
+3. Edit only compact, nonsecret row fields and bounded relation cases; never paste source text.
 4. Update `snapshot_at`, `cutoff_at`, expected counts, briefing buckets, and relation cases.
-5. Run the full focused suite twice and verify identical summaries and digest.
-6. Inspect the diff for prompt text, personal data, credential-shaped strings, URLs, and unexpected schema growth.
+5. Expand the fixture and run the full focused suite twice, verifying identical summaries and digest.
+6. Inspect the compact and expanded diffs for prompt text, personal data, credential-shaped strings, URLs, and unexpected schema growth.
 7. Land the change through a feature branch and pull request linked to the owning Linear issue.
