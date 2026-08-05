@@ -44,9 +44,9 @@ impl fmt::Display for GuardError {
             Self::ReceiptConflict => formatter.write_str(
                 "an existing operation receipt conflicts with the requested canonical result",
             ),
-            Self::ReceiptLocked => formatter.write_str(
-                "the receipt ledger is locked by another local apply process",
-            ),
+            Self::ReceiptLocked => {
+                formatter.write_str("the receipt ledger is locked by another local apply process")
+            }
         }
     }
 }
@@ -287,9 +287,7 @@ fn record_receipt(path: &Path, receipt: AppliedReceipt) -> Result<ReceiptOutcome
         .generation
         .checked_add(1)
         .ok_or(GuardError::Io("receipt generation overflowed"))?;
-    ledger
-        .records
-        .insert(receipt.operation_id.clone(), receipt);
+    ledger.records.insert(receipt.operation_id.clone(), receipt);
     persist_ledger(path, &ledger)?;
     Ok(ReceiptOutcome::Recorded)
 }
@@ -311,7 +309,10 @@ fn load_ledger(path: &Path) -> Result<ReceiptLedger, GuardError> {
 }
 
 fn persist_ledger(path: &Path, ledger: &ReceiptLedger) -> Result<(), GuardError> {
-    if let Some(parent) = path.parent().filter(|parent| !parent.as_os_str().is_empty()) {
+    if let Some(parent) = path
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+    {
         fs::create_dir_all(parent)
             .map_err(|_| GuardError::Io("could not create receipt directory"))?;
     }
@@ -449,15 +450,7 @@ mod tests {
             CONFIRMATION_PHRASE
         )
         .is_err());
-        assert!(authorize(
-            true,
-            "account-1",
-            &digest,
-            "account-1",
-            &digest,
-            "apply"
-        )
-        .is_err());
+        assert!(authorize(true, "account-1", &digest, "account-1", &digest, "apply").is_err());
     }
 
     #[test]
