@@ -1,0 +1,9 @@
+{
+  "deliveries": {},
+  "scheduled_baseline": {
+    "items": {},
+    "lanes": {},
+    "run_key": null
+  },
+  "schema_version": "portfolio_briefing_state.v1"
+}
