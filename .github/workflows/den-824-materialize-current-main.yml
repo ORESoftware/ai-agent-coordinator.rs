@@ -30,12 +30,19 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Verify current-main ancestry and carrier boundary
+      - name: Verify current-main ancestry and repair-only diff
         shell: bash
         run: |
           set -euo pipefail
+          base=64b3430126bd4180edfff3289a0713b20f5445e0
           test "$(git branch --show-current)" = 'agent/den-824-materialize-current-main-20260805'
-          test "$(git rev-parse HEAD^)" = '64b3430126bd4180edfff3289a0713b20f5445e0'
+          git merge-base --is-ancestor "$base" HEAD
+          git diff --name-only "$base"...HEAD | sort > /tmp/repair-paths
+          cat > /tmp/expected-repair-paths <<'EOF'
+          .github/workflows/den-824-materialize-current-main.yml
+          .github/workflows/den-824-payload-diagnostics.yml
+          EOF
+          diff -u /tmp/expected-repair-paths /tmp/repair-paths
           test -f .github/den-824-briefing-payload.tar.xz.b64
           test -f .github/workflows/den-824-briefing-bootstrap.yml
           for path in \
@@ -49,14 +56,38 @@ jobs:
           do
             test ! -e "$path"
           done
-      - name: Verify and extract the reviewed payload
+      - name: Fetch immutable reviewed payload source
         shell: bash
         run: |
           set -euo pipefail
-          payload=.github/den-824-briefing-payload.tar.xz.b64
-          base64 --decode "$payload" > /tmp/den-824-briefing.tar.xz
+          source_commit=265688f9d106eb185d3e1f3530e9fd3af683a2fa
+          reviewed_pr_head=1f503b660b6c567c49f4a2ab6968b19700def271
+          git fetch --no-tags origin \
+            refs/heads/agent/den-824-daily-portfolio-briefing-core:refs/remotes/origin/den-824-reviewed-source
+          test "$(git rev-parse refs/remotes/origin/den-824-reviewed-source)" = "$source_commit"
+          git merge-base --is-ancestor "$reviewed_pr_head" "$source_commit"
+          cat > /tmp/chunks <<'EOF'
+          .github/den-824-briefing-payload.part-00 7310d8a5390e7f438f8a13286948ec3e98281af5
+          .github/den-824-briefing-payload.part-01 f36ea8649202aa51095732c0de0c38583b2b225d
+          .github/den-824-briefing-payload.part-02 54300f5f2c100a5ef78904138f3a595423b0f05d
+          .github/den-824-briefing-payload.part-03 1224e7311b574ede2c10c8970801bfe6eb19296b
+          .github/den-824-briefing-payload.part-04 ccc98dbe07b905f6163a9c204004ad21e5d075fd
+          .github/den-824-briefing-payload.part-05 b2197eada639ec33cb611b346314dc409465d80a
+          EOF
+          : > /tmp/den-824-briefing.b64
+          while read -r path expected_blob; do
+            actual_blob=$(git rev-parse "$source_commit:$path")
+            test "$actual_blob" = "$expected_blob"
+            git show "$source_commit:$path" >> /tmp/den-824-briefing.b64
+          done < /tmp/chunks
+          test "$(wc -c < /tmp/den-824-briefing.b64 | tr -d ' ')" = 25760
+      - name: Verify and extract the reviewed archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          base64 --decode /tmp/den-824-briefing.b64 > /tmp/den-824-briefing.tar.xz
           printf '%s  %s\n' \
-            '64535765c2e4e2ad13f868f918aff552127e2ec1c6fc49b7c273865d3b759841' \
+            '6b4716484ae348685d896d79844ccc22d2581dbc88e76ba27d30f660f452dd92' \
             /tmp/den-824-briefing.tar.xz | sha256sum --check --strict
           tar --list --xz --file /tmp/den-824-briefing.tar.xz | sort > /tmp/actual-paths
           cat > /tmp/expected-paths <<'EOF'
@@ -68,7 +99,6 @@ jobs:
           tools/compose_daily_portfolio_briefing.py
           tools/enqueue_daily_portfolio_briefing.py
           EOF
-          sort -o /tmp/expected-paths /tmp/expected-paths
           diff -u /tmp/expected-paths /tmp/actual-paths
           if grep -Eq '(^/|(^|/)\.\.(/|$))' /tmp/actual-paths; then
             echo 'unsafe archive path' >&2
@@ -138,7 +168,7 @@ jobs:
           PY
       - name: Validate repository agent instructions
         run: python scripts/validate_agents_md.py --repo-root . --start-dir tools
-      - name: Package materialized evidence
+      - name: Package materialized implementation and evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -163,20 +193,22 @@ jobs:
           path: /tmp/den-824-artifact
           retention-days: 14
           if-no-files-found: error
-      - name: Replace carriers with the reviewed product files
+      - name: Replace all carriers with the reviewed product files
         shell: bash
         run: |
           set -euo pipefail
           rm -f \
             .github/den-824-briefing-payload.tar.xz.b64 \
             .github/workflows/den-824-briefing-bootstrap.yml \
-            .github/workflows/den-824-materialize-current-main.yml
+            .github/workflows/den-824-materialize-current-main.yml \
+            .github/workflows/den-824-payload-diagnostics.yml
           git status --porcelain=v1 | cut -c4- | sort > /tmp/actual-changed
           cat > /tmp/expected-changed <<'EOF'
           .github/den-824-briefing-payload.tar.xz.b64
           .github/workflows/daily-portfolio-briefing.yml
           .github/workflows/den-824-briefing-bootstrap.yml
           .github/workflows/den-824-materialize-current-main.yml
+          .github/workflows/den-824-payload-diagnostics.yml
           docs/daily-portfolio-briefing.md
           tests/fixtures/daily_portfolio_briefing_input.json
           tests/fixtures/daily_portfolio_briefing_state.json
@@ -184,7 +216,6 @@ jobs:
           tools/compose_daily_portfolio_briefing.py
           tools/enqueue_daily_portfolio_briefing.py
           EOF
-          sort -o /tmp/expected-changed /tmp/expected-changed
           diff -u /tmp/expected-changed /tmp/actual-changed
           git add -A
           git diff --cached --check
