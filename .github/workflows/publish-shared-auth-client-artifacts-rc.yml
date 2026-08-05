@@ -1,0 +1,479 @@
+name: Broker private Shared Auth client artifact publication
+run-name: Publish Shared Auth client artifacts from an encrypted owner response
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+    branches: [main]
+    paths:
+      - .github/shared-auth-client-artifact-publish-trigger
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: shared-auth-client-artifact-owner-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    if: >-
+      github.event.pull_request.draft == true &&
+      github.event.pull_request.user.login == 'ORESoftware' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'agent/shared-auth-client-artifact-carrier-') &&
+      github.event.pull_request.title == 'DO NOT MERGE: publish Shared Auth client artifacts with encrypted credential'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      CONTROL_REPOSITORY: ${{ github.repository }}
+      MARKER_PATH: .github/shared-auth-client-artifact-publish-trigger
+      TARGET_REPOSITORY: shared-auth/shared-auth-clients
+      SOURCE_PR: "35"
+      PACKAGE_VERSION: "0.1.0"
+
+    steps:
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@4cda84d5c5c54efe2404f9d843567869ab1699d4
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+
+      - name: Install Dart
+        uses: dart-lang/setup-dart@65eb853c7ba17dde3be364c3d2858773e7144260 # v1.7.2
+        with:
+          sdk: stable
+
+      - name: Install Erlang and Gleam
+        uses: erlef/setup-beam@fc68ffb90438ef2936bbb3251622353b3dcb2f93
+        with:
+          otp-version: "27"
+          gleam-version: "1.17.0"
+          rebar3-version: "3"
+
+      - name: Validate carrier against current trusted main
+        id: carrier
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -Eeuo pipefail
+          pull="$(gh api "repos/${CONTROL_REPOSITORY}/pulls/${PR_NUMBER}")"
+          head_sha="$(jq -er '.head.sha' <<<"$pull")"
+          main_sha="$(gh api "repos/${CONTROL_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          [[ "$head_sha" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$main_sha" =~ ^[0-9a-f]{40}$ ]]
+
+          jq -e '
+            .draft == true and
+            .user.login == "ORESoftware" and
+            .base.ref == "main" and
+            .head.repo.full_name == "ORESoftware/ai-agent-coordinator.rs" and
+            (.head.ref | startswith("agent/shared-auth-client-artifact-carrier-")) and
+            .title == "DO NOT MERGE: publish Shared Auth client artifacts with encrypted credential" and
+            .commits == 1 and
+            .changed_files == 1 and
+            .additions == 7 and
+            .deletions == 0
+          ' <<<"$pull" >/dev/null
+
+          commits="$(gh api "repos/${CONTROL_REPOSITORY}/pulls/${PR_NUMBER}/commits?per_page=100")"
+          test "$(jq 'length' <<<"$commits")" -eq 1
+          parent_sha="$(jq -er '.[0].parents[0].sha' <<<"$commits")"
+          [[ "$parent_sha" =~ ^[0-9a-f]{40}$ ]]
+
+          files="$(gh api "repos/${CONTROL_REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100")"
+          jq -e --arg path "$MARKER_PATH" '
+            length == 1 and
+            .[0].filename == $path and
+            .[0].status == "added" and
+            .[0].changes == 7
+          ' <<<"$files" >/dev/null
+
+          encoded="$(
+            gh api \
+              "repos/${CONTROL_REPOSITORY}/contents/${MARKER_PATH}?ref=${head_sha}" \
+              --jq '.content'
+          )"
+          marker="$(printf '%s' "$encoded" | tr -d '\n' | base64 --decode)"
+          test "$(wc -l <<<"$marker" | tr -d ' ')" -eq 7
+
+          target_repository="$(sed -n 's/^target-repository=//p' <<<"$marker")"
+          source_pr="$(sed -n 's/^source-pr=//p' <<<"$marker")"
+          source_sha="$(sed -n 's/^source-sha=//p' <<<"$marker")"
+          release_tag="$(sed -n 's/^release-tag=//p' <<<"$marker")"
+          release_channel="$(sed -n 's/^release-channel=//p' <<<"$marker")"
+          trusted_main="$(sed -n 's/^trusted-main=//p' <<<"$marker")"
+          protocol="$(sed -n 's/^protocol=//p' <<<"$marker")"
+
+          test "$target_repository" = "$TARGET_REPOSITORY"
+          test "$source_pr" = "$SOURCE_PR"
+          [[ "$source_sha" =~ ^[0-9a-f]{40}$ ]]
+          test "$trusted_main" = "$parent_sha"
+          test "$protocol" = rsa-oaep-sha256-v1
+          case "$release_channel:$release_tag" in
+            rc:v0.1.0-rc.1|final:v0.1.0) ;;
+            *) echo '::error::invalid release channel/tag tuple'; exit 1 ;;
+          esac
+
+          comparison="$(gh api "repos/${CONTROL_REPOSITORY}/compare/${parent_sha}...${main_sha}")"
+          jq -e '(.status == "ahead" or .status == "identical") and .behind_by == 0' \
+            <<<"$comparison" >/dev/null
+
+          printf 'head_sha=%s\n' "$head_sha" >> "$GITHUB_OUTPUT"
+          printf 'source_sha=%s\n' "$source_sha" >> "$GITHUB_OUTPUT"
+          printf 'release_tag=%s\n' "$release_tag" >> "$GITHUB_OUTPUT"
+          printf 'release_channel=%s\n' "$release_channel" >> "$GITHUB_OUTPUT"
+          printf 'trusted_sha=%s\n' "$main_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Challenge, validate, build, publish, and verify in one ephemeral scope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CARRIER_HEAD_SHA: ${{ steps.carrier.outputs.head_sha }}
+          SOURCE_SHA: ${{ steps.carrier.outputs.source_sha }}
+          RELEASE_TAG: ${{ steps.carrier.outputs.release_tag }}
+          RELEASE_CHANNEL: ${{ steps.carrier.outputs.release_channel }}
+          TRUSTED_SHA: ${{ steps.carrier.outputs.trusted_sha }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          stage=challenge-bootstrap
+          workflow_token="$GH_TOKEN"
+          work="$(mktemp -d "$RUNNER_TEMP/shared-auth-client-artifact-broker.XXXXXX")"
+          owner_token=''
+          challenge_id=''
+          response_id=''
+
+          cleanup() {
+            unset owner_token GH_TOKEN GITHUB_TOKEN
+            rm -rf "$work"
+          }
+          report_failure() {
+            status=$?
+            trap - ERR
+            GH_TOKEN="$workflow_token" gh pr comment "$PR_NUMBER" --repo "$CONTROL_REPOSITORY" \
+              --body "Shared Auth client artifact publication failed at bounded stage \`${stage}\`. Private source, compiler output, and the owner credential were not uploaded to this public repository." >/dev/null || true
+            exit "$status"
+          }
+          trap cleanup EXIT
+          trap report_failure ERR
+
+          mkdir -p "$work/source" "$work/artifacts" "$work/logs"
+          private_key="$work/private.pem"
+          public_key="$work/public.pem"
+          ciphertext_file="$work/ciphertext.bin"
+          openssl genpkey -quiet -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$private_key"
+          chmod 600 "$private_key"
+          openssl pkey -in "$private_key" -pubout -out "$public_key"
+          nonce="$(openssl rand -hex 24)"
+          [[ "$nonce" =~ ^[0-9a-f]{48}$ ]]
+
+          challenge_body="$work/challenge.md"
+          {
+            printf '<!-- shared-auth-client-artifact-credential-challenge:%s -->\n' "$nonce"
+            printf "One-time RSA-OAEP-SHA256 challenge for private release \`%s\` at source revision \`%s\`. The private key exists only in this runner and is destroyed on exit. Reply with the matching encrypted ciphertext marker.\n\n" "$RELEASE_TAG" "$SOURCE_SHA"
+            printf '%s\n' "\`\`\`pem"
+            cat "$public_key"
+            printf '%s\n' "\`\`\`"
+          } > "$challenge_body"
+          challenge_json="$(
+            jq -n --rawfile body "$challenge_body" '{body:$body}' \
+              | gh api --method POST "repos/${CONTROL_REPOSITORY}/issues/${PR_NUMBER}/comments" --input -
+          )"
+          challenge_id="$(jq -er '.id | select(type == "number" and . > 0)' <<<"$challenge_json")"
+          response_marker="<!-- shared-auth-client-artifact-credential-response:${nonce} -->"
+
+          stage=await-encrypted-response
+          response_body=''
+          for _ in $(seq 1 240); do
+            comments="$(gh api --paginate "repos/${CONTROL_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" --slurp)"
+            response_json="$(
+              jq -c \
+                --arg marker "$response_marker" \
+                --argjson challenge_id "$challenge_id" '
+                [
+                  .[][]
+                  | select(.id > $challenge_id)
+                  | select(.user.login == "ORESoftware")
+                  | select(.body | startswith($marker + "\n"))
+                ]
+                | sort_by(.id)
+                | last // empty
+              ' <<<"$comments"
+            )"
+            if [[ -n "$response_json" ]]; then
+              response_id="$(jq -er '.id' <<<"$response_json")"
+              response_body="$(jq -er '.body' <<<"$response_json")"
+              break
+            fi
+            sleep 5
+          done
+          test -n "$response_body"
+          test "$(grep -c '^ciphertext-base64=' <<<"$response_body")" -eq 1
+          ciphertext="$(sed -n 's/^ciphertext-base64=//p' <<<"$response_body")"
+          [[ "$ciphertext" =~ ^[A-Za-z0-9+/=]+$ ]]
+          test "${#ciphertext}" -le 8192
+          printf '%s' "$ciphertext" | base64 --decode > "$ciphertext_file"
+          test -s "$ciphertext_file"
+
+          stage=decrypt-ciphertext
+          owner_token="$(
+            openssl pkeyutl -decrypt \
+              -inkey "$private_key" \
+              -in "$ciphertext_file" \
+              -pkeyopt rsa_padding_mode:oaep \
+              -pkeyopt rsa_oaep_md:sha256 \
+              -pkeyopt rsa_mgf1_md:sha256 \
+              2>/dev/null
+          )"
+
+          stage=validate-owner-token-shape
+          test -n "$owner_token"
+          [[ "$owner_token" != *$'\n'* && "$owner_token" != *$'\r'* && "$owner_token" != *$'\t'* && "$owner_token" != *' '* ]]
+          [[ "$owner_token" == ghp_* || "$owner_token" == github_pat_* ]]
+          echo "::add-mask::$owner_token"
+
+          stage=validate-owner-identity
+          owner_login="$(GH_TOKEN="$owner_token" gh api user --jq '.login' 2>/dev/null)"
+          test "$owner_login" = ORESoftware
+          membership="$(
+            GH_TOKEN="$owner_token" gh api "/user/memberships/orgs/shared-auth" \
+              --jq '.role + ":" + .state' \
+              2>/dev/null
+          )"
+          test "$membership" = admin:active
+
+          stage=validate-source-revision
+          commit_json="$(GH_TOKEN="$owner_token" gh api "repos/${TARGET_REPOSITORY}/commits/${SOURCE_SHA}")"
+          test "$(jq -er '.sha' <<<"$commit_json")" = "$SOURCE_SHA"
+          source_date="$(jq -er '.commit.committer.date' <<<"$commit_json")"
+          source_epoch="$(date --date="$source_date" +%s)"
+          case "$RELEASE_CHANNEL" in
+            rc)
+              pull="$(GH_TOKEN="$owner_token" gh api "repos/${TARGET_REPOSITORY}/pulls/${SOURCE_PR}")"
+              test "$(jq -er '.state' <<<"$pull")" = open
+              test "$(jq -er '.head.sha' <<<"$pull")" = "$SOURCE_SHA"
+              ;;
+            final)
+              main_sha="$(GH_TOKEN="$owner_token" gh api "repos/${TARGET_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+              test "$main_sha" = "$SOURCE_SHA"
+              ;;
+          esac
+
+          stage=download-exact-private-source
+          GH_TOKEN="$owner_token" gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "repos/${TARGET_REPOSITORY}/tarball/${SOURCE_SHA}" \
+            > "$work/source.tar.gz"
+          test -s "$work/source.tar.gz"
+          tar -xzf "$work/source.tar.gz" --strip-components=1 -C "$work/source"
+          test -f "$work/source/Cargo.toml"
+          test -f "$work/source/clients/ts/package.json"
+          test -f "$work/source/clients/dart/pubspec.yaml"
+          test -f "$work/source/clients/gleam/gleam.toml"
+
+          stage=validate-and-package-rust
+          (
+            cd "$work/source"
+            cargo fmt --all --check
+            cargo clippy --workspace --all-targets --all-features -- -D warnings
+            cargo test --workspace --all-features --exclude shared-auth-client-wasm
+            cargo package --manifest-path clients/rust/Cargo.toml --allow-dirty --no-verify
+          ) >"$work/logs/rust.log" 2>&1
+          rust_crate="$(find "$work/source/target" "$work/source/clients/rust/target" -type f -path '*/package/shared-auth-client-0.1.0.crate' -print -quit 2>/dev/null || true)"
+          test -n "$rust_crate"
+          install -m 0644 "$rust_crate" "$work/artifacts/shared-auth-client-rust-0.1.0.crate"
+
+          stage=validate-and-package-typescript
+          (
+            cd "$work/source/clients/ts"
+            npm install --ignore-scripts --no-audit --no-fund
+            npm run check
+            npm test
+            npm run package:check
+            npm pack --ignore-scripts --pack-destination "$work/artifacts"
+          ) >"$work/logs/typescript.log" 2>&1
+          packed="$(find "$work/artifacts" -maxdepth 1 -type f -name '*.tgz' -print -quit)"
+          test -n "$packed"
+          mv "$packed" "$work/artifacts/shared-auth-client-typescript-0.1.0.tgz"
+
+          stage=validate-and-package-dart
+          (
+            cd "$work/source/clients/dart"
+            dart pub get
+            dart analyze
+            dart test
+            files=(pubspec.yaml lib)
+            for optional in README.md LICENSE LICENSE.md CHANGELOG.md; do
+              [[ -e "$optional" ]] && files+=("$optional")
+            done
+            tar \
+              --sort=name \
+              --mtime="@${source_epoch}" \
+              --owner=0 --group=0 --numeric-owner \
+              -czf "$work/artifacts/shared_auth_client-dart-0.1.0.tar.gz" \
+              "${files[@]}"
+          ) >"$work/logs/dart.log" 2>&1
+
+          stage=validate-and-package-gleam
+          (
+            cd "$work/source/clients/gleam"
+            gleam deps download
+            gleam format --check
+            gleam check
+            gleam test
+            files=(gleam.toml src)
+            for optional in manifest.toml README.md LICENSE LICENSE.md CHANGELOG.md; do
+              [[ -e "$optional" ]] && files+=("$optional")
+            done
+            tar \
+              --sort=name \
+              --mtime="@${source_epoch}" \
+              --owner=0 --group=0 --numeric-owner \
+              -czf "$work/artifacts/shared_auth_client-gleam-0.1.0.tar.gz" \
+              "${files[@]}"
+          ) >"$work/logs/gleam.log" 2>&1
+
+          stage=generate-private-provenance
+          CONTROL_SHA="$TRUSTED_SHA" \
+          CONTROL_RUN_ID="$GITHUB_RUN_ID" \
+          CONTROL_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+          SOURCE_SHA="$SOURCE_SHA" \
+          RELEASE_TAG="$RELEASE_TAG" \
+          RELEASE_CHANNEL="$RELEASE_CHANNEL" \
+          TARGET_REPOSITORY="$TARGET_REPOSITORY" \
+          ARTIFACT_DIR="$work/artifacts" \
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["ARTIFACT_DIR"])
+          packages = sorted(path for path in root.iterdir() if path.is_file())
+          if len(packages) != 4:
+              raise SystemExit(f"expected four package artifacts, found {[p.name for p in packages]}")
+          entries = []
+          checksums = []
+          for path in packages:
+              digest = hashlib.sha256(path.read_bytes()).hexdigest()
+              checksums.append(f"{digest}  {path.name}")
+              entries.append({"name": path.name, "bytes": path.stat().st_size, "sha256": digest})
+          (root / "SHA256SUMS").write_text("\n".join(checksums) + "\n")
+          provenance = {
+              "schema_version": 1,
+              "source_repository": os.environ["TARGET_REPOSITORY"],
+              "source_commit": os.environ["SOURCE_SHA"],
+              "release_tag": os.environ["RELEASE_TAG"],
+              "release_channel": os.environ["RELEASE_CHANNEL"],
+              "control_repository": "ORESoftware/ai-agent-coordinator.rs",
+              "control_commit": os.environ["CONTROL_SHA"],
+              "control_run_id": os.environ["CONTROL_RUN_ID"],
+              "control_run_attempt": os.environ["CONTROL_RUN_ATTEMPT"],
+              "packages": entries,
+              "validation": {
+                  "rust": ["fmt", "clippy", "native tests", "cargo package"],
+                  "typescript": ["strict check", "node tests", "package surface", "npm pack"],
+                  "dart": ["analyze", "tests", "deterministic source archive"],
+                  "gleam": ["format", "check", "tests", "deterministic source archive"],
+              },
+              "public_log_policy": "compiler and test output suppressed; private logs destroyed on exit",
+          }
+          (root / "PROVENANCE.json").write_text(json.dumps(provenance, indent=2, sort_keys=True) + "\n")
+          PY
+
+          if [[ "$RELEASE_CHANNEL" == rc ]]; then
+            release_heading='Shared Auth clients v0.1.0 release candidate 1'
+            release_flag=(--prerelease)
+            channel_text='This prerelease validates the exact pull-request head before canonical merge publication.'
+          else
+            release_heading='Shared Auth clients v0.1.0'
+            release_flag=()
+            channel_text='This is the canonical merge-revision package release.'
+          fi
+          cat > "$work/release-notes.md" <<EOF
+          # ${release_heading}
+
+          Revision-scoped package artifacts for Rust, TypeScript, Dart, and Gleam.
+
+          - Source repository: \`${TARGET_REPOSITORY}\`
+          - Exact source commit: \`${SOURCE_SHA}\`
+          - Packaging PR: https://github.com/shared-auth/shared-auth-clients/pull/35
+          - Linear: https://linear.app/denman/issue/DEN-2422/shared-auth-clients-publish-revision-scoped-rust-typescript-dart-and
+          - Trusted broker run: https://github.com/${CONTROL_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+
+          The release contains four package files plus \`SHA256SUMS\` and \`PROVENANCE.json\`.
+
+          \`\`\`bash
+          sha256sum --check SHA256SUMS
+          \`\`\`
+
+          ${channel_text} The private source, compiler logs, and owner credential were never uploaded to the public control repository.
+          EOF
+
+          stage=publish-private-release
+          if GH_TOKEN="$owner_token" gh release view "$RELEASE_TAG" --repo "$TARGET_REPOSITORY" >/dev/null 2>&1; then
+            existing_sha="$(GH_TOKEN="$owner_token" gh api "repos/${TARGET_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" --jq '.object.sha')"
+            test "$existing_sha" = "$SOURCE_SHA"
+            GH_TOKEN="$owner_token" gh release delete "$RELEASE_TAG" \
+              --repo "$TARGET_REPOSITORY" --cleanup-tag --yes >/dev/null
+          fi
+          GH_TOKEN="$owner_token" gh release create "$RELEASE_TAG" \
+            --repo "$TARGET_REPOSITORY" \
+            --target "$SOURCE_SHA" \
+            --title "$release_heading" \
+            --notes-file "$work/release-notes.md" \
+            "${release_flag[@]}" \
+            "$work/artifacts"/* >/dev/null
+
+          stage=verify-private-release
+          release_json="$(GH_TOKEN="$owner_token" gh api "repos/${TARGET_REPOSITORY}/releases/tags/${RELEASE_TAG}")"
+          release_url="$(jq -er '.html_url' <<<"$release_json")"
+          test "$(jq '.assets | length' <<<"$release_json")" -eq 6
+          jq -e '
+            [.assets[].name] | sort == [
+              "PROVENANCE.json",
+              "SHA256SUMS",
+              "shared-auth-client-rust-0.1.0.crate",
+              "shared-auth-client-typescript-0.1.0.tgz",
+              "shared_auth_client-dart-0.1.0.tar.gz",
+              "shared_auth_client-gleam-0.1.0.tar.gz"
+            ]
+          ' <<<"$release_json" >/dev/null
+          tag_sha="$(GH_TOKEN="$owner_token" gh api "repos/${TARGET_REPOSITORY}/git/ref/tags/${RELEASE_TAG}" --jq '.object.sha')"
+          test "$tag_sha" = "$SOURCE_SHA"
+
+          stage=record-success
+          success_body="Published and verified private release [\`${RELEASE_TAG}\`](${release_url}) for exact source commit \`${SOURCE_SHA}\`. The release contains four package artifacts, \`SHA256SUMS\`, and \`PROVENANCE.json\`. Public compiler/test output was suppressed and private workspace data was destroyed on runner exit."
+          GH_TOKEN="$workflow_token" gh pr comment "$PR_NUMBER" --repo "$CONTROL_REPOSITORY" --body "$success_body" >/dev/null
+          GH_TOKEN="$workflow_token" gh pr close "$PR_NUMBER" --repo "$CONTROL_REPOSITORY" >/dev/null
+
+          if [[ -n "$response_id" ]]; then
+            GH_TOKEN="$workflow_token" gh api --method DELETE \
+              "repos/${CONTROL_REPOSITORY}/issues/comments/${response_id}" >/dev/null || true
+          fi
+          if [[ -n "$challenge_id" ]]; then
+            GH_TOKEN="$workflow_token" gh api --method DELETE \
+              "repos/${CONTROL_REPOSITORY}/issues/comments/${challenge_id}" >/dev/null || true
+          fi
+
+          {
+            echo '## Private Shared Auth client release published'
+            echo
+            echo "- Release: $release_url"
+            echo "- Tag: \`$RELEASE_TAG\`"
+            echo "- Source commit: \`$SOURCE_SHA\`"
+            echo '- Assets: four packages, SHA256SUMS, PROVENANCE.json'
+            echo '- Public source/compiler output: none'
+          } >> "$GITHUB_STEP_SUMMARY"
