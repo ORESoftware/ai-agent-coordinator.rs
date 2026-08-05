@@ -174,24 +174,31 @@ def valid_plan() -> dict:
 
 
 class ScheduleTests(unittest.TestCase):
-    def test_lima_one_am_is_due(self) -> None:
+    def test_lima_midnight_thirty_is_due(self) -> None:
         decision = maintenance.schedule_decision(
-            datetime(2026, 8, 5, 6, 0, tzinfo=timezone.utc)
+            datetime(2026, 8, 5, 5, 30, tzinfo=timezone.utc)
         )
         self.assertTrue(decision.due)
-        self.assertEqual(decision.local_time.hour, 1)
+        self.assertEqual(decision.local_time.hour, 0)
+        self.assertEqual(decision.local_time.minute, 30)
         self.assertEqual(decision.run_key, "nightly-org-maintenance:2026-08-05")
 
     def test_other_minute_is_not_due_without_force(self) -> None:
         decision = maintenance.schedule_decision(
-            datetime(2026, 8, 5, 6, 1, tzinfo=timezone.utc)
+            datetime(2026, 8, 5, 5, 31, tzinfo=timezone.utc)
         )
         self.assertFalse(decision.due)
         self.assertTrue(
             maintenance.schedule_decision(
-                datetime(2026, 8, 5, 6, 1, tzinfo=timezone.utc), force=True
+                datetime(2026, 8, 5, 5, 31, tzinfo=timezone.utc), force=True
             ).due
         )
+
+    def test_lima_one_am_is_not_due(self) -> None:
+        decision = maintenance.schedule_decision(
+            datetime(2026, 8, 5, 6, 0, tzinfo=timezone.utc)
+        )
+        self.assertFalse(decision.due)
 
 
 class MatrixTests(unittest.TestCase):
