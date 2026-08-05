@@ -13,11 +13,13 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import render_org_homepage as renderer
+import render_org_project_context as context_renderer
 import validate_org_homepage as validator
 
 TEMPLATE = (ROOT / "templates" / "org-profile-readme.md").read_text(
     encoding="utf-8"
 )
+REGISTRY = ROOT / "config" / "org-project-registry.yaml"
 
 BASE_CONTEXT = {
     "github": {
@@ -146,6 +148,23 @@ class OrganizationHomepageRendererTests(unittest.TestCase):
                 validator.validate_text(self.render(loaded), expect_org="example-org"),
                 [],
             )
+
+    def test_canonical_context_bundle_uses_homepage_contract(self) -> None:
+        registry = context_renderer.load_registry(REGISTRY)
+        bundle = context_renderer.render_bundle(
+            registry,
+            "fiducia-cloud",
+            "0" * 40,
+        )
+        profile = bundle["profile/README.md"]
+        self.assertEqual(
+            validator.validate_text(profile, expect_org="fiducia-cloud"),
+            [],
+        )
+        self.assertIn("### For people", profile)
+        self.assertIn("### For AI agents", profile)
+        self.assertIn("repository-relationships.json", profile)
+        self.assertIn("Immutable GitHub owner ID", profile)
 
 
 if __name__ == "__main__":
