@@ -4,6 +4,7 @@ from .common import *
 from .plan import *
 from .workspace import *
 
+
 def _git_changed_files(repository_path: Path) -> list[str]:
     result = run_command(
         ["git", "status", "--porcelain=v1", "-z", "--untracked-files=all"], cwd=repository_path
@@ -57,6 +58,20 @@ def _scan_changed_content(repository_path: Path, changed_files: Sequence[str]) -
 def _matches_any(path: str, patterns: Sequence[str]) -> bool:
     normalized = path.replace("\\", "/")
     return any(fnmatch.fnmatch(normalized, pattern) for pattern in patterns)
+
+
+def _documentation_changed(changed_files: Sequence[str]) -> bool:
+    for raw in changed_files:
+        path = str(raw).replace("\\", "/").strip("/")
+        lowered = path.casefold()
+        name = Path(path).name.casefold()
+        if lowered.startswith(("docs/", "doc/")):
+            return True
+        if name.startswith(("readme", "contributing", "changelog", "security", "code_of_conduct")):
+            return True
+        if Path(name).suffix in {".md", ".mdx", ".rst", ".adoc"}:
+            return True
+    return False
 
 
 def validate_result(
@@ -140,6 +155,11 @@ def validate_result(
         _scan_changed_content(repository_path, changed_files)
         protected = any(_matches_any(path, protected_patterns) for path in changed_files)
         task = tasks_by_repository[key]
+        if _documentation_changed(changed_files) and not task["linear_issue"]:
+            raise MaintenanceError(
+                f"{repository} changes documentation without a mapped Linear issue; "
+                "dual Linear/GitHub Project tracking is required"
+            )
         if protected and not (bool(change.get("requires_human_review")) and task["protected_area"]):
             raise MaintenanceError(
                 f"{repository} changed a protected path without an explicit human-review gate"
@@ -181,5 +201,6 @@ def command_validate_result(args: argparse.Namespace) -> dict[str, Any]:
         "change_count": len(normalized["changes"]),
         "output": str(args.output),
     }
+
 
 __all__ = [name for name in globals() if not name.startswith("__")]
