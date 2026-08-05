@@ -89,6 +89,21 @@ Profiles should summarize, and policy files should preserve, the mandatory seman
 
 At minimum, contributors and agents must inspect the merge base and both sides; review 3–10 relevant commits when available; use path-scoped history; consult linked issues, pull requests, architecture decisions, tests, schemas, migrations, documentation, same-organization repositories, and relevant external repositories; reject wholesale `ours`, `theirs`, current, or incoming selection; and preserve compatible intent and safeguards.
 
+## Deterministic rendering
+
+The renderer consumes the public JSON-formatted `project-context.yaml`, injects only explicitly reviewed human-facing text, renders the shared template, validates the result, and writes it atomically. It rejects duplicate JSON keys, user accounts, missing public-context declarations, invalid owner or Linear identity, inconsistent default-repository allowlists, unknown placeholders, and any rendered profile that fails the homepage contract.
+
+```bash
+python3 scripts/render_org_homepage.py path/to/project-context.yaml \
+  --display-name "Example Organization" \
+  --summary "Example Organization builds dependable public services and reusable components for its product portfolio." \
+  --public-starting-point "the [public application](https://github.com/example-org/example-app)" \
+  --operating-principle "Preserve reviewed privacy, compatibility, and data-integrity constraints." \
+  --output path/to/profile/README.md
+```
+
+`--public-starting-point` and `--operating-principle` may be repeated. Mission, repository-map, and product-safety claims remain explicit review inputs; the renderer does not infer or fabricate them from repository names.
+
 ## Validation
 
 Validate a rendered profile before publication:
