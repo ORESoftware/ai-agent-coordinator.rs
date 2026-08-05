@@ -8,6 +8,7 @@ on:
       - docs/org-homepage-standard.md
       - templates/org-profile-readme.md
       - scripts/render_org_homepage.py
+      - scripts/render_org_project_context.py
       - scripts/validate_org_homepage.py
       - tests/fixtures/org-homepage.valid.md
       - tests/test_render_org_homepage.py
@@ -18,6 +19,7 @@ on:
       - docs/org-homepage-standard.md
       - templates/org-profile-readme.md
       - scripts/render_org_homepage.py
+      - scripts/render_org_project_context.py
       - scripts/validate_org_homepage.py
       - tests/fixtures/org-homepage.valid.md
       - tests/test_render_org_homepage.py
@@ -53,6 +55,7 @@ jobs:
         run: >-
           python3 -m py_compile
           scripts/render_org_homepage.py
+          scripts/render_org_project_context.py
           scripts/validate_org_homepage.py
           tests/test_render_org_homepage.py
           tests/test_validate_org_homepage.py
