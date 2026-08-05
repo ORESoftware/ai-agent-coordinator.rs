@@ -53,21 +53,22 @@ jobs:
           cargo test --locked --test daily_portfolio_delivery_state -- --nocapture
           cargo clippy --locked --lib --test daily_portfolio_delivery_state -- -D warnings
 
-      - name: Commit only the four reviewed product files
+      - name: Commit validated Rust, regressions, and documentation
         shell: bash
         run: |
           set -euo pipefail
+          # The workflow file is published separately through the installed GitHub
+          # App because Actions' repository token cannot update workflow paths.
+          git restore .github/workflows/daily-portfolio-delivery-state.yml
           git diff --check
           actual="$(git diff --name-only | LC_ALL=C sort)"
           expected="$(printf '%s\n' \
-            .github/workflows/daily-portfolio-delivery-state.yml \
             docs/daily-portfolio-delivery-state.md \
             src/daily_portfolio_delivery.rs \
             tests/daily_portfolio_delivery_state.rs \
             | LC_ALL=C sort)"
           test "$actual" = "$expected"
           git add \
-            .github/workflows/daily-portfolio-delivery-state.yml \
             docs/daily-portfolio-delivery-state.md \
             src/daily_portfolio_delivery.rs \
             tests/daily_portfolio_delivery_state.rs
