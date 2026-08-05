@@ -1,0 +1,32 @@
+name: Temporary split Shared Auth owner identity stages
+
+on:
+  push:
+    branches:
+      - agent/split-shared-auth-owner-identity-stages
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/split-shared-auth-owner-identity-stages
+          fetch-depth: 1
+      - name: Apply reviewed identity-stage split
+        run: python3 scripts/patch_shared_auth_owner_identity_stages.py
+      - name: Commit exact broker patch and remove temporary files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/publish_shared_auth_client_artifacts.sh
+          git add -u scripts/patch_shared_auth_owner_identity_stages.py
+          git add -u .github/workflows/patch-shared-auth-owner-identity-stages.yml
+          git commit -m 'fix: distinguish owner login and organization membership'
+          git push origin HEAD:agent/split-shared-auth-owner-identity-stages
