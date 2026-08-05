@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "organization": "evento-globolo",
+  "tracking_issue": "DEN-1889",
+  "default_branch": "main",
+  "initialization": "readme",
+  "live_creation_enabled": false,
+  "deferred_repositories": [
+    ".github"
+  ],
+  "forbidden_repositories": [],
+  "repositories": [
+    {
+      "order": 1,
+      "name": "evgl-interfaces",
+      "visibility": "public",
+      "description": "Canonical Evento Globolo OpenAPI, AsyncAPI, JSON Schema, event, and provider contracts."
+    },
+    {
+      "order": 2,
+      "name": "evgl-api",
+      "visibility": "public",
+      "description": "Rust Axum, SeaORM, and WebSocket API for global event management and cross-posting."
+    },
+    {
+      "order": 3,
+      "name": "evgl-mash-web",
+      "visibility": "public",
+      "description": "Maud, Axum, SeaORM, Supabase, HTMX, and WebSocket event-management web server."
+    },
+    {
+      "order": 4,
+      "name": "evgl-leptos-web",
+      "visibility": "public",
+      "description": "Leptos event-management web server using shared Evento Globolo interfaces and domain contracts."
+    },
+    {
+      "order": 5,
+      "name": "evgl-dioxus-web",
+      "visibility": "public",
+      "description": "Dioxus event-management web server using shared Evento Globolo interfaces and domain contracts."
+    },
+    {
+      "order": 6,
+      "name": "evgl-sync",
+      "visibility": "public",
+      "description": "Offline-first event draft, attendee, venue, and publication synchronization built with opto-sync contracts."
+    },
+    {
+      "order": 7,
+      "name": "evgl-cli",
+      "visibility": "public",
+      "description": "Rust Evento Globolo CLI integrated through flags-2-env for safe import, publish, and operations workflows."
+    },
+    {
+      "order": 8,
+      "name": "evgl-infra",
+      "visibility": "public",
+      "description": "Kubernetes, Argo CD, observability, and bounded Cloudflare Worker edge code for Evento Globolo."
+    },
+    {
+      "order": 9,
+      "name": "evento-globolo-clients",
+      "visibility": "public",
+      "description": "Generated and hand-written Evento Globolo clients for supported application runtimes."
+    },
+    {
+      "order": 10,
+      "name": "evento-globolo-libs",
+      "visibility": "public",
+      "description": "Reusable event, venue, attendee, provider, cross-posting, and policy libraries."
+    },
+    {
+      "order": 11,
+      "name": "evento-globolo.github.io",
+      "visibility": "public",
+      "description": "Marketing, documentation, privacy, support, and public integration guidance for Evento Globolo."
+    },
+    {
+      "order": 12,
+      "name": "evento-globolo-monorepo",
+      "visibility": "public",
+      "description": "Cross-repository orchestration, pinned revisions, release manifests, and integration validation for Evento Globolo."
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "organization": "apostille-me",
+  "tracking_issue": "DEN-1951",
+  "default_branch": "main",
+  "initialization": "readme",
+  "live_creation_enabled": false,
+  "deferred_repositories": [
+    ".github"
+  ],
+  "forbidden_repositories": [],
+  "repositories": [
+    {
+      "order": 1,
+      "name": "apostille-me-libs",
+      "visibility": "public",
+      "description": "Reusable apostille domain, document-status, provider, and API contract libraries."
+    },
+    {
+      "order": 2,
+      "name": "apostille-me-clients",
+      "visibility": "public",
+      "description": "Generated and hand-written clients for apostille workflows, status checks, uploads, and typed errors."
+    },
+    {
+      "order": 3,
+      "name": "apostille-me-infra",
+      "visibility": "public",
+      "description": "Kubernetes, Argo CD, observability, and bounded Cloudflare Worker edge code for Apostille.me."
+    },
+    {
+      "order": 4,
+      "name": "apostille-me.github.io",
+      "visibility": "public",
+      "description": "Marketing, documentation, privacy, support, and public service-status content for Apostille.me."
+    },
+    {
+      "order": 5,
+      "name": "apostille-me-monorepo",
+      "visibility": "public",
+      "description": "Cross-repository orchestration, pinned revisions, release manifests, and integration validation for Apostille.me."
+    }
+  ]
+}
