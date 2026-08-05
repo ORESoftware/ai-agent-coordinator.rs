@@ -7,16 +7,20 @@ on:
       - .github/workflows/org-homepage-standard.yml
       - docs/org-homepage-standard.md
       - templates/org-profile-readme.md
+      - scripts/render_org_homepage.py
       - scripts/validate_org_homepage.py
       - tests/fixtures/org-homepage.valid.md
+      - tests/test_render_org_homepage.py
       - tests/test_validate_org_homepage.py
   pull_request:
     paths:
       - .github/workflows/org-homepage-standard.yml
       - docs/org-homepage-standard.md
       - templates/org-profile-readme.md
+      - scripts/render_org_homepage.py
       - scripts/validate_org_homepage.py
       - tests/fixtures/org-homepage.valid.md
+      - tests/test_render_org_homepage.py
       - tests/test_validate_org_homepage.py
   workflow_dispatch:
 
@@ -45,14 +49,19 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile dependency-free validator and tests
+      - name: Compile dependency-free renderer, validator, and tests
         run: >-
           python3 -m py_compile
+          scripts/render_org_homepage.py
           scripts/validate_org_homepage.py
+          tests/test_render_org_homepage.py
           tests/test_validate_org_homepage.py
 
-      - name: Run organization homepage mutation tests
-        run: python3 -m unittest -v tests/test_validate_org_homepage.py
+      - name: Run organization homepage renderer and mutation tests
+        run: >-
+          python3 -m unittest -v
+          tests/test_render_org_homepage.py
+          tests/test_validate_org_homepage.py
 
       - name: Validate the rendered example profile
         run: >-
