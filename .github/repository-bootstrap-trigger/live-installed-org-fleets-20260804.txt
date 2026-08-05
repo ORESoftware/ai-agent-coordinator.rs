@@ -1,0 +1,4 @@
+run=2026-08-04
+issue=87
+scope=41-public-repositories
+organizations=apostille-me,evento-globolo,embedded-alerts,hacker-house-medellin
