@@ -189,7 +189,7 @@ def load_records(manifest: Mapping[str, Any]) -> list[RepoRecord]:
             expected_head=str(by_name[name]["expected_head"]),
             tracked_entries=int(by_name[name]["tracked_entries"]),
             role=str(by_name[name]["role"]),
-            description=str(by_name[name]["description"]),
+            description=str(by_name[name].get("description") or by_name[name]["role"]),
         )
         for name in EXPECTED_REPOSITORIES
     ]
