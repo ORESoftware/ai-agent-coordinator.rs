@@ -1,0 +1,7 @@
+target-repository=shared-auth/shared-auth-clients
+source-pr=35
+source-sha=c183b238fc682c122d02d4b475ae979a29629e73
+release-tag=v0.1.0
+release-channel=final
+trusted-main=5918f46d24df0350059dc39e948fee8f8da9241c
+protocol=rsa-oaep-sha256-v2
