@@ -43,30 +43,22 @@ jobs:
           toolchain: '1.97.0'
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Apply canonical Rust formatting for validation
+      - name: Verify canonical Rust formatting
         id: format
-        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
-          cargo fmt --all 2>&1 | tee rustfmt-command.log
-          if ! git diff --quiet -- src tests; then
-            echo 'changed=true' >> "$GITHUB_OUTPUT"
-          fi
+          cargo fmt --all --check 2>&1 | tee rustfmt-command.log
       - name: Upload formatter diagnostics
-        if: steps.format.outputs.changed == 'true' || steps.format.outcome == 'failure'
+        if: always() && steps.format.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rustfmt-output
-          path: |
-            rustfmt-command.log
-            src/**/*.rs
-            tests/**/*.rs
+          path: rustfmt-command.log
           retention-days: 1
           if-no-files-found: error
       - name: Clippy
         id: clippy
-        continue-on-error: true
         shell: bash
         run: |
           set -o pipefail
