@@ -106,13 +106,14 @@ jobs:
           RELEASE_OUTCOME: ${{ steps.release.outcome }}
         shell: bash
         run: |
+          set -euo pipefail
           test "$ACTIONLINT_OUTCOME" = success
           test "$FORMAT_OUTCOME" = success
           test "$CLIPPY_OUTCOME" = success
           test "$TEST_OUTCOME" = success
           test "$DOCS_OUTCOME" = success
           test "$RELEASE_OUTCOME" = success
-          git diff --exit-code -- src tests
+          git diff --exit-code
 
   flags-contract:
     runs-on: ubuntu-latest
