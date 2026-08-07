@@ -87,12 +87,14 @@ jobs:
           if-no-files-found: error
       - name: Documentation
         id: docs
-        continue-on-error: true
         run: cargo doc --locked --no-deps
       - name: Release build
         id: release
-        continue-on-error: true
         run: cargo build --locked --release
+      # Defence in depth: every gate above already fails the job directly. This
+      # step additionally fails if a gate was skipped, cancelled, or silently
+      # loses its enforcement (e.g. a future `continue-on-error`), and asserts
+      # that no step mutated the tracked worktree.
       - name: Require all validation gates
         if: always()
         env:
