@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shutil
 import sys
 import tempfile
 from datetime import datetime, timezone
@@ -43,18 +42,9 @@ def publish_provenance_pr(
     work: Path,
     wait_seconds: int,
 ) -> dict[str, Any]:
+    del source_local  # Provenance must always be based on the current live main branch.
     local = work / f"pr-{record.name}"
-    if record.name == ".github":
-        clone_live(record, local, git_env)
-    else:
-        shutil.copytree(source_local, local)
-        run(["git", "remote", "remove", "origin"], local, git_env, check=False)
-        run(
-            ["git", "remote", "add", "origin", f"https://github.com/{record.full_name}.git"],
-            local,
-            git_env,
-        )
-        run(["git", "checkout", "main"], local, git_env)
+    clone_live(record, local, git_env)
     run(["git", "config", "user.name", "github-actions[bot]"], local)
     run(
         [
