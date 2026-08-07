@@ -21,6 +21,18 @@ from .model import (
     run,
 )
 
+E2E_SEMANTIC_RECOVERY_BASE = "2716409315ad30c7a01d05f448b6085e881356ee"
+E2E_RECOVERY_AUDIT_BRANCH = "recovery/source-v2-20260803"
+E2E_REQUIRED_RECOVERY_PATHS = (
+    "Cargo.toml",
+    "src/lib.rs",
+    "scripts/agent-check.sh",
+    "docs/matrix.md",
+    "docs/recovery-provenance.md",
+    "package.json",
+    "tests/process.e2e.test.mjs",
+)
+
 
 def load_validator(repository: Path):
     path = repository / "repository-fleets" / "validate_memebank_source_v2.py"
@@ -128,6 +140,101 @@ def commit_reachable(gh: GitHub, record: RepoRecord, sha: str) -> bool:
     return status == 200
 
 
+def attach_e2e_source_history(
+    gh: GitHub,
+    record: RepoRecord,
+    local: Path,
+    git_env: Mapping[str, str],
+) -> str:
+    if record.name != "memebank-e2e":
+        raise PublicationError("semantic history attachment is restricted to memebank-e2e")
+    run(["git", "remote", "remove", "origin"], local, git_env, check=False)
+    run(
+        ["git", "remote", "add", "origin", f"https://github.com/{record.full_name}.git"],
+        local,
+        git_env,
+    )
+    run(["git", "fetch", "--quiet", "origin", "main"], local, git_env)
+    if (
+        run(
+            [
+                "git",
+                "merge-base",
+                "--is-ancestor",
+                E2E_SEMANTIC_RECOVERY_BASE,
+                "origin/main",
+            ],
+            local,
+            git_env,
+            check=False,
+        ).returncode
+        != 0
+    ):
+        raise PublicationError(
+            "memebank-e2e live main no longer contains the reviewed semantic recovery base"
+        )
+    for path in E2E_REQUIRED_RECOVERY_PATHS:
+        if (
+            run(
+                ["git", "cat-file", "-e", f"origin/main:{path}"],
+                local,
+                git_env,
+                check=False,
+            ).returncode
+            != 0
+        ):
+            raise PublicationError(f"memebank-e2e semantic recovery is missing {path}")
+
+    run(
+        [
+            "git",
+            "push",
+            "origin",
+            f"{record.expected_head}:refs/heads/{E2E_RECOVERY_AUDIT_BRANCH}",
+        ],
+        local,
+        git_env,
+    )
+    live_head = run(["git", "rev-parse", "origin/main"], local, git_env).stdout.strip()
+    live_tree = run(["git", "rev-parse", "origin/main^{tree}"], local, git_env).stdout.strip()
+    commit_env = dict(git_env)
+    commit_env.update(
+        {
+            "GIT_AUTHOR_NAME": "ORESoftware publication automation",
+            "GIT_AUTHOR_EMAIL": "bot@oresoftware.dev",
+            "GIT_COMMITTER_NAME": "ORESoftware publication automation",
+            "GIT_COMMITTER_EMAIL": "bot@oresoftware.dev",
+        }
+    )
+    merge_sha = run(
+        [
+            "git",
+            "commit-tree",
+            live_tree,
+            "-p",
+            live_head,
+            "-p",
+            record.expected_head,
+            "-m",
+            "chore(DEN-1043): attach sealed source-v2 ancestry",
+        ],
+        local,
+        commit_env,
+    ).stdout.strip()
+    attached_tree = run(["git", "rev-parse", f"{merge_sha}^{{tree}}"], local, git_env).stdout.strip()
+    if attached_tree != live_tree:
+        raise PublicationError("memebank-e2e history attachment changed the reconciled tree")
+    run(["git", "push", "origin", f"{merge_sha}:refs/heads/main"], local, git_env)
+    current = main_ref(gh, record)
+    if current != merge_sha:
+        raise PublicationError(
+            f"memebank-e2e main {current} != attached recovery commit {merge_sha}"
+        )
+    if not commit_reachable(gh, record, record.expected_head):
+        raise PublicationError("memebank-e2e source-v2 commit is still unreachable after attachment")
+    return current
+
+
 def push_initial(
     gh: GitHub,
     record: RepoRecord,
@@ -152,6 +259,8 @@ def push_initial(
             )
         return current, True
     if not reachable:
+        if record.name == "memebank-e2e":
+            return attach_e2e_source_history(gh, record, local, git_env), True
         raise PublicationError(
             f"{record.full_name}: nonempty repository does not contain approved source-v2 head; refusing overwrite"
         )
