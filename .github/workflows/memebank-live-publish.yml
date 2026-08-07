@@ -6,6 +6,12 @@ name: MemeBank source-v2 live publication
       - agent/den-1005-memebank-live-publication-20260805
     paths:
       - .github/workflows/memebank-live-publish.yml
+      - scripts/publish_memebank_source_v2_live.py
+      - scripts/test_publish_memebank_source_v2_live.py
+      - tools/memebank_live/**
+      - repository-fleets/memebank-source-v2.json
+      - repository-fleets/validate_memebank_source_v2.py
+      - repository-fleets/test_validate_memebank_source_v2.py
   workflow_dispatch:
 
 permissions:
@@ -115,7 +121,7 @@ jobs:
             envelope_comment_id="$(jq -r \
               --arg run_id "$GITHUB_RUN_ID" \
               --arg nonce "$HANDOFF_NONCE" \
-              '[.[] | select(.body | startswith("MEMEBANK_ENVELOPE_V1\\n")) | select(.body | contains("run_id=" + $run_id)) | select(.body | contains("nonce=" + $nonce))] | last | .id // empty' \
+              '[.[] | select(.body | startswith("MEMEBANK_ENVELOPE_V1\n")) | select(.body | contains("run_id=" + $run_id)) | select(.body | contains("nonce=" + $nonce))] | last | .id // empty' \
               <<<"$comments")"
             if [[ -n "$envelope_comment_id" ]]; then
               envelope_body="$(jq -r \
