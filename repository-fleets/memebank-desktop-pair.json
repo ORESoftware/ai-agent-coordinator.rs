@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "organization": "memebank",
+  "linear_project": {
+    "name": "memebank",
+    "id": "aa7e93aa-0921-4e60-8ec3-a0e4da1e9572"
+  },
+  "github_project": {
+    "number": 1,
+    "title": "memebank-project",
+    "url": "https://github.com/orgs/memebank/projects/1"
+  },
+  "decision_date": "2026-08-06",
+  "flutter": {
+    "source_repository": "memebank/memebank-flutter",
+    "target_repository": "memebank/mbk-flutter",
+    "migration": "rename-preserving-id-and-history",
+    "required_source_commit": "e7ac96de358bdf9c6f3daaa2fa7c08e8955cdd35"
+  },
+  "rust": {
+    "repository": "memebank/mbk-desktop.rs",
+    "ui": "gpui",
+    "rendering": "native-no-webview",
+    "status": "bootstrap-required"
+  },
+  "monorepo": "memebank/memebank-monorepo",
+  "shared_contracts": [
+    "memebank/mb-interfaces",
+    "memebank/mb-clients",
+    "ClipTown deep-link and clipboard contracts"
+  ],
+  "safety": {
+    "rename_instead_of_copy": true,
+    "preserve_flutter_repository_id": true,
+    "preserve_all_git_history": true,
+    "private_repositories": true,
+    "no_force_push": true,
+    "credential_persistence": false
+  }
+}
