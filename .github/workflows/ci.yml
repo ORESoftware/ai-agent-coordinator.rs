@@ -78,7 +78,7 @@ jobs:
           set -o pipefail
           cargo test --locked --all 2>&1 | tee test-output.log
       - name: Upload failing test output
-        if: steps.test.outcome == 'failure'
+        if: always() && steps.test.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: rust-test-output
