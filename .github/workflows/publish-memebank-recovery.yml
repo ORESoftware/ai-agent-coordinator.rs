@@ -49,7 +49,14 @@ jobs:
             .artifacts/memebank-recovery/payload.part-01 \
             .artifacts/memebank-recovery/payload.part-02 \
             .artifacts/memebank-recovery/payload.part-03a \
-            .artifacts/memebank-recovery/payload.part-03b \
+            .artifacts/memebank-recovery/payload.part-03b00 \
+            .artifacts/memebank-recovery/payload.part-03b01 \
+            .artifacts/memebank-recovery/payload.part-03b02 \
+            .artifacts/memebank-recovery/payload.part-03b03 \
+            .artifacts/memebank-recovery/payload.part-03b04 \
+            .artifacts/memebank-recovery/payload.part-03b05 \
+            .artifacts/memebank-recovery/payload.part-03b06 \
+            .artifacts/memebank-recovery/payload.part-03b07 \
             .artifacts/memebank-recovery/payload.part-04 \
             .artifacts/memebank-recovery/payload.part-05 \
             .artifacts/memebank-recovery/payload.part-07 \
