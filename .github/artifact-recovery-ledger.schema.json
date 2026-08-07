@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ORESoftware/ai-agent-coordinator.rs/blob/main/.github/artifact-recovery-ledger.schema.json",
+  "title": "Artifact recovery ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "created_at",
+    "updated_at",
+    "last_batch",
+    "entries",
+    "summary"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "artifact_recovery_ledger.v1"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "last_batch": {
+      "type": ["object", "null"]
+    },
+    "entries": {
+      "type": "object",
+      "maxProperties": 10000,
+      "additionalProperties": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "summary": {
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ledger_key",
+        "first_seen",
+        "last_seen",
+        "attempts",
+        "observation_digest",
+        "evidence_digest",
+        "observation",
+        "classification",
+        "evidence_links"
+      ],
+      "properties": {
+        "ledger_key": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512
+        },
+        "first_seen": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "last_seen": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observation_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_digest": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observation": {
+          "type": "object"
+        },
+        "classification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "findings", "next_action", "reason"],
+          "properties": {
+            "status": {
+              "enum": ["complete", "actionable", "blocked", "excluded"]
+            },
+            "findings": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "type": "string"
+              }
+            },
+            "next_action": {
+              "enum": [
+                "none",
+                "manual_review",
+                "cli_create_repository",
+                "cli_recover_local_artifact",
+                "open_draft_pull_request"
+              ]
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          }
+        },
+        "evidence_links": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^https://github\\.com/"
+          }
+        }
+      }
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

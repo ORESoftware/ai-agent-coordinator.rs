@@ -1,0 +1,232 @@
+name: Nightly artifact recovery
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/nightly-artifact-recovery.yml'
+      - '.github/artifact-recovery-ledger.schema.json'
+      - 'config/artifact-recovery-policy.json'
+      - 'docs/nightly-artifact-recovery.md'
+      - 'docs/artifact-recovery-initial-backfill.md'
+      - 'tools/artifact_recovery_ledger.py'
+      - 'tools/artifact_recovery/**'
+      - 'tools/enqueue_artifact_recovery.py'
+      - 'tests/test_artifact_recovery_ledger.py'
+      - 'tests/test_enqueue_artifact_recovery.py'
+      - 'scripts/build_artifact_recovery_backfill.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/nightly-artifact-recovery.yml'
+      - '.github/artifact-recovery-ledger.schema.json'
+      - 'config/artifact-recovery-policy.json'
+      - 'docs/nightly-artifact-recovery.md'
+      - 'docs/artifact-recovery-initial-backfill.md'
+      - 'tools/artifact_recovery_ledger.py'
+      - 'tools/artifact_recovery/**'
+      - 'tools/enqueue_artifact_recovery.py'
+      - 'tests/test_artifact_recovery_ledger.py'
+      - 'tests/test_enqueue_artifact_recovery.py'
+      - 'scripts/build_artifact_recovery_backfill.py'
+  schedule:
+    - cron: '0 2 * * *'
+      timezone: 'America/Chicago'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate only, or enqueue one explicitly identified recovery run.
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - enqueue
+      manual_id:
+        description: Required for an enqueued manual run; ignored for dry-run validation.
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-artifact-recovery-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the reviewed control-plane source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/nightly-artifact-recovery.yml
+
+      - name: Compile implementation and tests
+        run: >-
+          python3 -m py_compile
+          tools/artifact_recovery_ledger.py
+          tools/artifact_recovery/*.py
+          tools/enqueue_artifact_recovery.py
+          scripts/build_artifact_recovery_backfill.py
+          tests/test_artifact_recovery_ledger.py
+          tests/test_enqueue_artifact_recovery.py
+
+      - name: Run positive and adversarial tests
+        run: >-
+          python3 -m unittest -v
+          tests/test_artifact_recovery_ledger.py
+          tests/test_enqueue_artifact_recovery.py
+
+      - name: Validate policy, schema, and initial bounded backfill
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m json.tool config/artifact-recovery-policy.json >/dev/null
+          python3 -m json.tool .github/artifact-recovery-ledger.schema.json >/dev/null
+          python3 scripts/build_artifact_recovery_backfill.py \
+            --output "$RUNNER_TEMP/artifact-recovery-backfill.json"
+          python3 tools/artifact_recovery_ledger.py validate \
+            "$RUNNER_TEMP/artifact-recovery-backfill.json"
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          policy = json.loads(Path('config/artifact-recovery-policy.json').read_text())
+          assert policy['schedule'] == {
+              'timezone': 'America/Chicago',
+              'local_hour': 2,
+              'local_minute': 0,
+              'recovery_minutes': 60,
+          }
+          assert policy['batch']['maximum_items'] == 50
+          assert policy['ledger']['default_new_repository_visibility'] == 'private'
+          assert policy['delivery']['cli_task_id'] == '019fd526-f34d-7f72-94fa-2da6185f2d74'
+          assert policy['delivery']['linear_issue'] == 'DEN-2797'
+          assert 'reuse_chat_pasted_credentials' in policy['forbidden']
+          assert 'automatic_merge' in policy['forbidden']
+          PY
+
+      - name: Prove deterministic first-batch reconciliation and rerun
+        shell: bash
+        run: |
+          set -euo pipefail
+          evidence="$RUNNER_TEMP/artifact-recovery-evidence"
+          mkdir -p "$evidence"
+          python3 tools/artifact_recovery_ledger.py reconcile \
+            --input "$RUNNER_TEMP/artifact-recovery-backfill.json" \
+            --output "$evidence/ledger-first.json" \
+            --cli-queue "$evidence/cli-queue-first.json" \
+            --batch-size 50 \
+            --now 2026-08-07T19:00:00Z
+          python3 tools/artifact_recovery_ledger.py reconcile \
+            --input "$RUNNER_TEMP/artifact-recovery-backfill.json" \
+            --ledger "$evidence/ledger-first.json" \
+            --output "$evidence/ledger-second.json" \
+            --cli-queue "$evidence/cli-queue-second.json" \
+            --batch-size 50 \
+            --now 2026-08-07T19:00:00Z
+          cmp "$evidence/ledger-first.json" "$evidence/ledger-second.json"
+          cmp "$evidence/cli-queue-first.json" "$evidence/cli-queue-second.json"
+          python3 tools/artifact_recovery_ledger.py summarize \
+            --ledger "$evidence/ledger-second.json" \
+            --output "$evidence/summary.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          evidence = Path(os.environ['RUNNER_TEMP']) / 'artifact-recovery-evidence'
+          ledger = json.loads((evidence / 'ledger-second.json').read_text())
+          queue = json.loads((evidence / 'cli-queue-second.json').read_text())
+          assert ledger['summary']['entries'] == 17
+          assert ledger['summary']['complete'] == 4
+          assert ledger['summary']['actionable'] == 13
+          assert queue['summary'] == {
+              'items': 13,
+              'create_repository': 8,
+              'recover_local': 5,
+          }
+          PY
+
+      - name: Render the redacted scheduled enqueue plan
+        run: >-
+          python3 tools/enqueue_artifact_recovery.py
+          --endpoint https://coordinator.example.invalid
+          --now 2026-08-07T07:00:00Z
+          --dry-run
+          > "$RUNNER_TEMP/artifact-recovery-enqueue-plan.json"
+
+      - name: Upload bounded validation evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: artifact-recovery-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/artifact-recovery-evidence
+            ${{ runner.temp }}/artifact-recovery-enqueue-plan.json
+          retention-days: 14
+          if-no-files-found: error
+
+  enqueue:
+    needs: validate
+    if: >-
+      (github.event_name == 'schedule' && vars.ARTIFACT_RECOVERY_ENQUEUE_ENABLED == 'true') ||
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'enqueue')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment:
+      name: nightly-artifact-recovery
+      deployment: false
+    env:
+      AI_AGENT_COORDINATOR_URL: ${{ vars.AI_AGENT_COORDINATOR_URL }}
+      AI_AGENT_COORDINATOR_API_TOKEN: ${{ secrets.AI_AGENT_COORDINATOR_API_TOKEN }}
+      ARTIFACT_RECOVERY_TIMEZONE: America/Chicago
+      ARTIFACT_RECOVERY_LOCAL_TIME: '02:00'
+      ARTIFACT_RECOVERY_RECOVERY_MINUTES: '60'
+      ARTIFACT_RECOVERY_CLI_TASK_ID: 019fd526-f34d-7f72-94fa-2da6185f2d74
+    steps:
+      - name: Check out the exact reviewed scheduler
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Require protected coordinator configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$AI_AGENT_COORDINATOR_URL"
+          test -n "$AI_AGENT_COORDINATOR_API_TOKEN"
+
+      - name: Enqueue one idempotent scheduled or manual recovery run
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_ID: ${{ inputs.manual_id }}
+        run: |
+          set -euo pipefail
+          args=()
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            test -n "$MANUAL_ID" || {
+              echo 'manual_id is required for an enqueued workflow_dispatch run' >&2
+              exit 64
+            }
+            args+=(--force --manual-id "$MANUAL_ID")
+          fi
+          python3 tools/enqueue_artifact_recovery.py "${args[@]}"
