@@ -243,7 +243,9 @@ impl DeliveryState {
         if record.status == DeliveryStatus::Delivering {
             return Err(DeliveryStateError::RecoveryRequired);
         }
-        self.next_fence = self
+        // Compute every fallible value before mutating durable state. An invalid
+        // caller timestamp must not consume a fence or partially claim a lease.
+        let next_fence = self
             .next_fence
             .checked_add(1)
             .ok_or(DeliveryStateError::CounterOverflow)?;
@@ -253,9 +255,10 @@ impl DeliveryState {
         let token = LeaseToken {
             run_key: run_key.to_owned(),
             owner: owner.to_owned(),
-            fence: self.next_fence,
+            fence: next_fence,
             expires_at_ms,
         };
+        self.next_fence = next_fence;
         self.leases.insert(run_key.to_owned(), token.clone());
         Ok(token)
     }
@@ -308,14 +311,18 @@ impl DeliveryState {
         require_generation(record, expected_generation)?;
         match record.status {
             DeliveryStatus::Planned | DeliveryStatus::Failed => {
-                record.attempts = record
+                // Preserve compare-and-set failure atomicity: calculate both
+                // counters before changing either field.
+                let attempts = record
                     .attempts
                     .checked_add(1)
                     .ok_or(DeliveryStateError::CounterOverflow)?;
-                record.generation = record
+                let generation = record
                     .generation
                     .checked_add(1)
                     .ok_or(DeliveryStateError::CounterOverflow)?;
+                record.attempts = attempts;
+                record.generation = generation;
                 record.status = DeliveryStatus::Delivering;
                 record.last_error = None;
                 Ok(MutationOutcome::Applied)
@@ -614,7 +621,18 @@ fn validate_digest(value: &str) -> Result<(), DeliveryStateError> {
     }
 }
 
+fn contains_credential_prefix(value: &str, prefix: &str) -> bool {
+    value
+        .split([':', '/'])
+        .any(|segment| segment.starts_with(prefix))
+}
+
 fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {
+    // Enforce the bound before allocating the lowercase inspection copy.
+    if value.is_empty() || value.len() > MAX_IDENTIFIER_BYTES {
+        return Err(DeliveryStateError::InvalidIdentifier);
+    }
+
     let lower = value.to_ascii_lowercase();
     let credential_shaped = [
         "ghp_",
@@ -631,7 +649,7 @@ fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {
         "xoxs-",
     ]
     .iter()
-    .any(|prefix| lower.starts_with(prefix))
+    .any(|prefix| contains_credential_prefix(&lower, prefix))
         || lower.contains("api_key=")
         || lower.contains("apikey=")
         || lower.contains("access_token=")
@@ -640,9 +658,7 @@ fn validate_identifier(value: &str) -> Result<(), DeliveryStateError> {
         || lower.contains("token=")
         || lower.contains("password=")
         || lower.contains("secret=");
-    let valid = !value.is_empty()
-        && value.len() <= MAX_IDENTIFIER_BYTES
-        && !credential_shaped
+    let valid = !credential_shaped
         && value.bytes().all(|byte| {
             byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.' | b':' | b'/')
         });

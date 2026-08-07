@@ -99,6 +99,29 @@ fn active_lease_blocks_concurrency_and_expiry_advances_the_fence() {
 }
 
 #[test]
+fn failed_lease_claim_does_not_consume_a_fence() {
+    let mut state = DeliveryState::default();
+    let spec = plan_spec(
+        RunMode::Scheduled,
+        "daily-portfolio:scheduled:2026-08-05",
+        "2026-08-05",
+        'a',
+    );
+    state.plan(spec.clone()).expect("plan");
+
+    assert_eq!(
+        state.acquire(&spec.run_key, "worker-a", u64::MAX, 1),
+        Err(DeliveryStateError::CounterOverflow)
+    );
+    assert!(state.lease(&spec.run_key).is_none());
+
+    let first_valid = state
+        .acquire(&spec.run_key, "worker-b", 100, 20)
+        .expect("first successful lease");
+    assert_eq!(first_valid.fence, 1);
+}
+
+#[test]
 fn generation_compare_and_set_prevents_replayed_transitions() {
     let mut state = DeliveryState::default();
     let spec = plan_spec(
@@ -532,9 +555,21 @@ fn invalid_identity_digest_receipt_and_error_summary_fail_closed() {
         "2026-08-05",
         'a',
     );
-    other_token_shape.destination = "gho_abcdefghijklmnopqrstuvwxyz1234567890".to_owned();
+    other_token_shape.destination = ["slack:gho", "_test-marker"].concat();
     assert_eq!(
         state.plan(other_token_shape),
+        Err(DeliveryStateError::InvalidIdentifier)
+    );
+
+    let mut oversized_identifier = plan_spec(
+        RunMode::Scheduled,
+        "daily-portfolio:scheduled:2026-08-05",
+        "2026-08-05",
+        'a',
+    );
+    oversized_identifier.destination = "x".repeat(257);
+    assert_eq!(
+        state.plan(oversized_identifier),
         Err(DeliveryStateError::InvalidIdentifier)
     );
 

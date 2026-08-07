@@ -23,7 +23,7 @@ Run identities are mode-specific:
 - recovery: `run_key` begins `daily-portfolio:recovery:` and points at one canonical scheduled key;
 - manual: `run_key` begins `daily-portfolio:manual:` and never replaces the scheduled comparison baseline.
 
-Identifiers are bounded ASCII-safe values and reject credential-shaped material. Digests are lowercase SHA-256 values.
+Identifiers are bounded before normalization, use ASCII-safe values, and reject credential-shaped material both as a complete identifier and after namespace separators such as `slack:`. Digests are lowercase SHA-256 values.
 
 ## Lease and fencing contract
 
@@ -31,6 +31,7 @@ Every mutating transition requires a `LeaseToken` containing the run key, owner,
 
 - An unexpired lease blocks another owner.
 - Reacquisition after expiry advances the global fence, except an expired `delivering` run must first pass through explicit ambiguity recovery.
+- A failed claim computes its fence and expiry before mutation, so overflow or validation failure cannot consume a fencing value or leave a partial lease.
 - A worker cannot reacquire an expired in-flight delivery and treat `begin` as an idempotent resend; `RecoveryRequired` forces `recover_expired_delivery` before a reconciliation lease can be issued.
 - An old owner cannot renew, release, begin, fail, mark ambiguous, or commit a receipt after a newer fence exists.
 - TTL is nonzero and at most one hour.
