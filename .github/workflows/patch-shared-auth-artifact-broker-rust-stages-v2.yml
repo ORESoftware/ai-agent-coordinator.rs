@@ -1,0 +1,105 @@
+name: Temporary patch Shared Auth artifact broker Rust stages v2
+
+on:
+  push:
+    branches:
+      - agent/fix-shared-auth-artifact-broker-rust-stages
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-shared-auth-artifact-broker-rust-stages-v2
+  cancel-in-progress: true
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/fix-shared-auth-artifact-broker-rust-stages
+          fetch-depth: 1
+      - name: Apply exact bounded patch and remove both temporary workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          broker = Path('.github/workflows/publish-shared-auth-client-artifacts-rc.yml')
+          text = broker.read_text()
+
+          old_flags = '          set -Eeuo pipefail\n          umask 077\n'
+          new_flags = '          set -euo pipefail\n          umask 077\n'
+          if text.count(old_flags) != 1:
+              raise SystemExit(f'expected one challenge-step flags sequence, found {text.count(old_flags)}')
+          text = text.replace(old_flags, new_flags, 1)
+
+          old_rust = '''          stage=validate-and-package-rust
+          (
+            cd "$work/source"
+            cargo fmt --all --check
+            cargo clippy --workspace --all-targets --all-features -- -D warnings
+            cargo test --workspace --all-features --exclude shared-auth-client-wasm
+            cargo package --manifest-path clients/rust/Cargo.toml --allow-dirty --no-verify
+          ) >"$work/logs/rust.log" 2>&1
+          rust_crate="$(find "$work/source/target" "$work/source/clients/rust/target" -type f -path '*/package/shared-auth-client-0.1.0.crate' -print -quit 2>/dev/null || true)"
+          test -n "$rust_crate"
+          install -m 0644 "$rust_crate" "$work/artifacts/shared-auth-client-rust-0.1.0.crate"
+'''
+          new_rust = '''          stage=rust-format
+          (
+            cd "$work/source"
+            cargo fmt --all --check
+          ) >"$work/logs/rust.log" 2>&1
+
+          stage=rust-clippy
+          (
+            cd "$work/source"
+            cargo clippy --workspace --all-targets --all-features -- -D warnings
+          ) >>"$work/logs/rust.log" 2>&1
+
+          stage=rust-tests
+          (
+            cd "$work/source"
+            cargo test --workspace --all-features --exclude shared-auth-client-wasm
+          ) >>"$work/logs/rust.log" 2>&1
+
+          stage=rust-package
+          (
+            cd "$work/source"
+            cargo package \
+              --manifest-path clients/rust/Cargo.toml \
+              --allow-dirty \
+              --no-verify \
+              --no-metadata
+          ) >>"$work/logs/rust.log" 2>&1
+
+          stage=rust-package-locate
+          rust_crate="$(find "$work/source/target" "$work/source/clients/rust/target" -type f -path '*/package/shared-auth-client-0.1.0.crate' -print -quit 2>/dev/null || true)"
+          test -n "$rust_crate"
+          install -m 0644 "$rust_crate" "$work/artifacts/shared-auth-client-rust-0.1.0.crate"
+'''
+          if text.count(old_rust) != 1:
+              raise SystemExit(f'expected one Rust packaging block, found {text.count(old_rust)}')
+          text = text.replace(old_rust, new_rust, 1)
+          broker.write_text(text)
+
+          for path in [
+              '.github/workflows/patch-shared-auth-artifact-broker-rust-stages.yml',
+              '.github/workflows/patch-shared-auth-artifact-broker-rust-stages-v2.yml',
+          ]:
+              candidate = Path(path)
+              if candidate.exists():
+                  candidate.unlink()
+          PY
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add .github/workflows/publish-shared-auth-client-artifacts-rc.yml
+          git add -u .github/workflows/patch-shared-auth-artifact-broker-rust-stages.yml
+          git add -u .github/workflows/patch-shared-auth-artifact-broker-rust-stages-v2.yml
+          git commit -m 'fix: split private Rust artifact validation stages'
+          git push origin HEAD:agent/fix-shared-auth-artifact-broker-rust-stages
