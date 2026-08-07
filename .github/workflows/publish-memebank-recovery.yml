@@ -44,7 +44,20 @@ jobs:
         run: |
           set -euo pipefail
           payload="$RUNNER_TEMP/memebank-one-shot-payload.tar.gz"
-          cat .artifacts/memebank-recovery/payload.part-* | base64 --decode > "$payload"
+          cat \
+            .artifacts/memebank-recovery/payload.part-00 \
+            .artifacts/memebank-recovery/payload.part-01 \
+            .artifacts/memebank-recovery/payload.part-02 \
+            .artifacts/memebank-recovery/payload.part-03a \
+            .artifacts/memebank-recovery/payload.part-03b \
+            .artifacts/memebank-recovery/payload.part-04 \
+            .artifacts/memebank-recovery/payload.part-05 \
+            .artifacts/memebank-recovery/payload.part-07 \
+            .artifacts/memebank-recovery/payload.part-09 \
+            .artifacts/memebank-recovery/payload.part-11 \
+            .artifacts/memebank-recovery/payload.part-13 \
+            .artifacts/memebank-recovery/payload.part-15 \
+            | base64 --decode > "$payload"
           printf '%s  %s\n' \
             'c061c341c288ef69f402e56ccd9a1fff20008c549a2ae21317db15d7541b8610' \
             "$payload" | sha256sum --check --status
