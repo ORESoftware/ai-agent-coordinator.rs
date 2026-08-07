@@ -1,0 +1,94 @@
+name: Publish recovered MemeBank repository histories
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/publish-memebank-recovery.yml'
+      - '.artifacts/memebank-recovery/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-memebank-recovery-20260807
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out the sealed publisher payload
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Mint a MemeBank-scoped repository administration token
+        id: token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: memebank
+          permission-administration: write
+          permission-contents: write
+          permission-issues: write
+          permission-metadata: read
+
+      - name: Reconstruct and verify the sealed payload
+        id: payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$RUNNER_TEMP/memebank-one-shot-payload.tar.gz"
+          cat .artifacts/memebank-recovery/payload.part-* | base64 --decode > "$payload"
+          printf '%s  %s\n' \
+            'c061c341c288ef69f402e56ccd9a1fff20008c549a2ae21317db15d7541b8610' \
+            "$payload" | sha256sum --check --status
+          tar -xzf "$payload" -C "$RUNNER_TEMP"
+          python3 -m py_compile "$RUNNER_TEMP/memebank-one-shot-payload/publish.py"
+          echo "root=$RUNNER_TEMP/memebank-one-shot-payload" >> "$GITHUB_OUTPUT"
+
+      - name: Publish leaf repositories and the monorepo last
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PAYLOAD_ROOT: ${{ steps.payload.outputs.root }}
+        run: |
+          set -euo pipefail
+          python3 "$PAYLOAD_ROOT/publish.py" \
+            --package "$PAYLOAD_ROOT/recovery.tar.gz" \
+            --result "$RUNNER_TEMP/memebank-publication-result.json"
+
+      - name: Summarize publication
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f "$RUNNER_TEMP/memebank-publication-result.json" ]]; then
+            python3 - "$RUNNER_TEMP/memebank-publication-result.json" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+          result = json.load(open(sys.argv[1]))
+          print('## MemeBank recovered repository publication')
+          print()
+          print('| Recovered source | Published repository | Head | Action |')
+          print('|---|---|---|---|')
+          for row in result['publications']:
+              print(f"| `{row['canonical_name']}` | `memebank/{row['actual_name']}` | `{row['source_head']}` | {row['action']} |")
+          print()
+          print('The existing `.github`, `memebank-e2e`, `mbk-desktop.rs`, `mbk-cli`, and canonical non-shared histories were preserved.')
+          PY
+          else
+            echo '## MemeBank recovered repository publication failed before producing a result ledger.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the publication ledger
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: memebank-repository-publication-${{ github.run_id }}
+          path: ${{ runner.temp }}/memebank-publication-result.json
+          retention-days: 30
+          if-no-files-found: warn
