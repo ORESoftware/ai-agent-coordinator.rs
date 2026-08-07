@@ -1,0 +1,272 @@
+name: DEN-2334 finalize claim race and baseline ordering
+
+on:
+  push:
+    branches:
+      - agent/den-2334-daily-briefing-delivery-store
+    paths:
+      - '.github/workflows/den-2334-normalize-claim-race-v5.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-2334-normalize-claim-race-v5-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:17.9-bookworm@sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: coordinator
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready --username postgres --dbname coordinator"
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 30
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/coordinator
+      RUST_BACKTRACE: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-2334-daily-briefing-delivery-store
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.1'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
+      - name: Apply normalized claim, stable digest, and ordered baseline logic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path('src/daily_portfolio_delivery_store.rs')
+          text = source.read_text(encoding='utf-8')
+          start_marker = '    pub async fn claim(\n'
+          end_marker = '    pub async fn renew(\n'
+          if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+              raise SystemExit('claim/renew structural anchors are not unique')
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          replacement = '''    pub async fn claim(
+              &self,
+              run_key: &str,
+              owner: &str,
+              now: DateTime<Utc>,
+              lease_seconds: i64,
+          ) -> Result<LeaseToken> {
+              validate_identifier(run_key)?;
+              validate_identifier(owner)?;
+              validate_lease_seconds(lease_seconds)?;
+
+              match self.claim_once(run_key, owner, now, lease_seconds).await {
+                  Ok(token) => Ok(token),
+                  Err(error) if is_serialization_failure(&error) => {
+                      Err(domain(DeliveryStateError::LeaseHeld))
+                  }
+                  Err(error) => Err(error),
+              }
+          }
+
+          async fn claim_once(
+              &self,
+              run_key: &str,
+              owner: &str,
+              now: DateTime<Utc>,
+              lease_seconds: i64,
+          ) -> Result<LeaseToken> {
+              let transaction = serializable(&self.connection).await?;
+              let record = load_run_for_update(&transaction, run_key)
+                  .await?
+                  .ok_or_else(|| domain(DeliveryStateError::RunNotFound))?;
+              if record.status == DeliveryStatus::Delivered {
+                  return Err(domain(DeliveryStateError::InvalidTransition));
+              }
+              let now_ms = datetime_millis(now)?;
+              if record
+                  .lease
+                  .as_ref()
+                  .is_some_and(|lease| lease.expires_at_ms > now_ms)
+              {
+                  return Err(domain(DeliveryStateError::LeaseHeld));
+              }
+
+              let expires_at = now + ChronoDuration::seconds(lease_seconds);
+              let row = transaction
+                  .query_one(statement(
+                      r#"
+                      UPDATE ai_agent_coordinator.daily_portfolio_delivery_runs
+                         SET lease_owner = $2,
+                             lease_fence = nextval('ai_agent_coordinator.daily_portfolio_delivery_fence_seq'),
+                             lease_expires_at = $3,
+                             updated_at = $4
+                       WHERE run_key = $1
+                       RETURNING lease_fence
+                      "#,
+                      vec![
+                          run_key.into(),
+                          owner.into(),
+                          expires_at.into(),
+                          now.into(),
+                      ],
+                  ))
+                  .await
+                  .context("failed to claim the daily portfolio delivery run")?
+                  .ok_or_else(|| anyhow!("claimed delivery run returned no fencing token"))?;
+              let fence: i64 = row.try_get("", "lease_fence")?;
+              transaction.commit().await?;
+              Ok(LeaseToken {
+                  run_key: run_key.to_owned(),
+                  owner: owner.to_owned(),
+                  fence: positive_u64(fence, "lease fence")?,
+                  expires_at_ms: datetime_millis(expires_at)?,
+              })
+          }
+
+          '''
+          text = text[:start] + replacement + text[end:]
+          helper_anchor = 'async fn serializable(connection: &DatabaseConnection) -> Result<DatabaseTransaction> {\n'
+          helper = '''fn is_serialization_failure(error: &anyhow::Error) -> bool {
+              error.chain().any(|cause| {
+                  let message = cause.to_string().to_ascii_lowercase();
+                  message.contains("could not serialize access")
+                      || message.contains("sqlstate 40001")
+              })
+          }
+
+          '''
+          if text.count(helper_anchor) != 1:
+              raise SystemExit('serializable helper anchor is not unique')
+          if 'fn is_serialization_failure(' in text:
+              raise SystemExit('serialization helper already exists')
+          text = text.replace(helper_anchor, helper + helper_anchor)
+
+          old_baseline = '''            if candidate_date > current_date {
+                  true
+              } else if candidate_date < current_date {
+                  false
+              } else if current.baseline.plan_digest == run.spec.plan_digest
+                  && current.baseline.delivery_digest == run.spec.delivery_digest
+                  && current.baseline.receipt_id == receipt.receipt_id
+              {
+                  false
+              } else {
+                  return Err(domain(DeliveryStateError::BaselineConflict));
+              }
+          '''
+          new_baseline = '''            match candidate_date.cmp(&current_date) {
+                  std::cmp::Ordering::Greater => true,
+                  std::cmp::Ordering::Less => false,
+                  std::cmp::Ordering::Equal
+                      if current.baseline.plan_digest == run.spec.plan_digest
+                          && current.baseline.delivery_digest == run.spec.delivery_digest
+                          && current.baseline.receipt_id == receipt.receipt_id =>
+                  {
+                      false
+                  }
+                  std::cmp::Ordering::Equal => {
+                      return Err(domain(DeliveryStateError::BaselineConflict));
+                  }
+              }
+          '''
+          if text.count(old_baseline) != 1:
+              raise SystemExit(f'baseline ordering anchor count={text.count(old_baseline)}')
+          source.write_text(text.replace(old_baseline, new_baseline), encoding='utf-8')
+
+          test = Path('tests/daily_portfolio_delivery_store.rs')
+          test_text = test.read_text(encoding='utf-8')
+          old_digest = '''fn digest(seed: char) -> String {
+              let nibble = seed.to_digit(36).expect("test digest seed") % 16;
+              let character = char::from_digit(nibble, 16).expect("hex digest character");
+              std::iter::repeat_n(character, 64).collect()
+          }
+          '''
+          new_digest = '''fn digest(seed: char) -> String {
+              let nibble = u32::from(seed) % 16;
+              let character = char::from_digit(nibble, 16).expect("hex digest character");
+              std::iter::repeat_n(character, 64).collect()
+          }
+          '''
+          if test_text.count(old_digest) != 1:
+              raise SystemExit(f'digest helper anchor count={test_text.count(old_digest)}')
+          test_text = test_text.replace(old_digest, new_digest)
+          lines = test_text.splitlines()
+          matches = [i for i, line in enumerate(lines) if 'error.to_string().contains("serialize")' in line]
+          if len(matches) != 1:
+              raise SystemExit(f'serialization assertion matches={len(matches)}')
+          index = matches[0]
+          if index == 0 or 'has_state_error(&error, DeliveryStateError::LeaseHeld)' not in lines[index - 1]:
+              raise SystemExit('serialization assertion predecessor changed')
+          indent = lines[index - 1][: len(lines[index - 1]) - len(lines[index - 1].lstrip())]
+          lines[index - 1:index + 1] = [indent + 'has_state_error(&error, DeliveryStateError::LeaseHeld),']
+          message_index = index
+          if 'unexpected losing claim error' not in lines[message_index]:
+              raise SystemExit('serialization assertion message changed')
+          lines[message_index] = lines[message_index].replace(
+              'unexpected losing claim error',
+              'claim race was not normalized to LeaseHeld',
+          )
+          test.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          PY
+          cargo fmt --all
+
+      - name: Apply canonical schema fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --network host \
+            --env PGPASSWORD=postgres \
+            --volume "$GITHUB_WORKSPACE/tests/fixtures/ai_agent_coordinator.schema.sql:/schema.sql:ro" \
+            postgres:17.9-bookworm@sha256:47f917f7409eacd22fc5dfb1dee634e1b55cf0c01d1a7eb701be2227a03e0641 \
+            psql --host 127.0.0.1 --username postgres --dbname coordinator \
+              --set ON_ERROR_STOP=1 --file /schema.sql
+
+      - name: Run focused repository and Clippy checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --test daily_portfolio_delivery_store -- --nocapture
+          cargo clippy --locked --lib --test daily_portfolio_delivery_store -- -D warnings
+
+      - name: Remove helpers and publish product-only correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/den-2334-normalize-claim-race.yml \
+            .github/workflows/den-2334-normalize-claim-race-v2.yml \
+            .github/workflows/den-2334-normalize-claim-race-v3.yml \
+            .github/workflows/den-2334-normalize-claim-race-v4.yml \
+            .github/workflows/den-2334-normalize-claim-race-v5.yml
+          git add \
+            src/daily_portfolio_delivery_store.rs \
+            tests/daily_portfolio_delivery_store.rs \
+            .github/workflows/den-2334-normalize-claim-race.yml \
+            .github/workflows/den-2334-normalize-claim-race-v2.yml \
+            .github/workflows/den-2334-normalize-claim-race-v3.yml \
+            .github/workflows/den-2334-normalize-claim-race-v4.yml \
+            .github/workflows/den-2334-normalize-claim-race-v5.yml
+          git diff --cached --check
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'DEN-2334: normalize serializable claim races'
+          git push origin HEAD:agent/den-2334-daily-briefing-delivery-store
