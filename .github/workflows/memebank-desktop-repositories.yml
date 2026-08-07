@@ -1,0 +1,257 @@
+name: MemeBank desktop repository migration
+
+'on':
+  push:
+    branches:
+      - agent/den-2469-memebank-desktop-pair-20260806
+    paths:
+      - .github/workflows/memebank-desktop-repositories.yml
+      - repository-fleets/memebank-desktop-pair.json
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: read
+
+concurrency:
+  group: memebank-desktop-repository-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact migration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/memebank-desktop-repositories.yml
+
+      - name: Validate migration contract
+        run: |
+          set -euo pipefail
+          jq -e '
+            .organization == "memebank" and
+            .flutter.source_repository == "memebank/memebank-flutter" and
+            .flutter.target_repository == "memebank/mbk-flutter" and
+            .flutter.required_source_commit == "e7ac96de358bdf9c6f3daaa2fa7c08e8955cdd35" and
+            .rust.repository == "memebank/mbk-desktop.rs" and
+            .safety.rename_instead_of_copy == true and
+            .safety.preserve_all_git_history == true and
+            .safety.no_force_push == true
+          ' repository-fleets/memebank-desktop-pair.json >/dev/null
+
+      - name: Create one-run encrypted credential handoff
+        id: handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          private_key="$RUNNER_TEMP/memebank-desktop-private.pem"
+          public_key="$RUNNER_TEMP/memebank-desktop-public.pem"
+          handoff_dir="$RUNNER_TEMP/memebank-desktop-handoff"
+          token_file="$RUNNER_TEMP/memebank-desktop-token"
+          ledger_dir="$RUNNER_TEMP/memebank-desktop-ledger"
+          nonce="$(openssl rand -hex 24)"
+
+          mkdir -p "$handoff_dir" "$ledger_dir"
+          chmod 700 "$handoff_dir" "$ledger_dir"
+          openssl genpkey \
+            -algorithm RSA \
+            -pkeyopt rsa_keygen_bits:3072 \
+            -out "$private_key" >/dev/null 2>&1
+          openssl pkey -in "$private_key" -pubout -out "$public_key"
+          public_key_b64="$(base64 -w0 "$public_key")"
+
+          jq -n \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg nonce "$nonce" \
+            --arg public_key_b64 "$public_key_b64" \
+            '{version:"MEMEBANK_DESKTOP_HANDOFF_V1",run_id:$run_id,nonce:$nonce,public_key_b64:$public_key_b64}' \
+            > "$handoff_dir/handoff.json"
+
+          {
+            echo "nonce=$nonce"
+            echo "private_key=$private_key"
+            echo "token_file=$token_file"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload one-run public handoff key
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: memebank-desktop-handoff-${{ github.run_id }}
+          path: ${{ runner.temp }}/memebank-desktop-handoff
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Receive and decrypt one-run credential envelope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HANDOFF_NONCE: ${{ steps.handoff.outputs.nonce }}
+          HANDOFF_PRIVATE_KEY: ${{ steps.handoff.outputs.private_key }}
+          MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
+        run: |
+          set -euo pipefail
+          umask 077
+          deadline=$((SECONDS + 1800))
+          envelope_body=""
+
+          while (( SECONDS < deadline )); do
+            comments="$(gh api "repos/$GITHUB_REPOSITORY/issues/121/comments?per_page=100")"
+            envelope_body="$(jq -r \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg nonce "$HANDOFF_NONCE" \
+              '[.[] | select(.body | startswith("MEMEBANK_DESKTOP_ENVELOPE_V1\n")) | select(.body | contains("run_id=" + $run_id)) | select(.body | contains("nonce=" + $nonce))] | last | .body // empty' \
+              <<<"$comments")"
+            [[ -n "$envelope_body" ]] && break
+            sleep 5
+          done
+
+          if [[ -z "$envelope_body" ]]; then
+            echo "Encrypted desktop migration credential envelope was not received." >&2
+            exit 1
+          fi
+
+          ciphertext="$(sed -n 's/^ciphertext=//p' <<<"$envelope_body" | tail -n1)"
+          [[ -n "$ciphertext" ]] || { echo "Credential envelope is missing ciphertext." >&2; exit 1; }
+
+          printf '%s' "$ciphertext" | base64 -d > "$RUNNER_TEMP/memebank-desktop-envelope.bin"
+          openssl pkeyutl \
+            -decrypt \
+            -inkey "$HANDOFF_PRIVATE_KEY" \
+            -in "$RUNNER_TEMP/memebank-desktop-envelope.bin" \
+            -pkeyopt rsa_padding_mode:oaep \
+            -pkeyopt rsa_oaep_md:sha256 \
+            -out "$RUNNER_TEMP/memebank-desktop-envelope.json"
+
+          provided_nonce="$(jq -r '.nonce // empty' "$RUNNER_TEMP/memebank-desktop-envelope.json")"
+          token="$(jq -r '.token // empty' "$RUNNER_TEMP/memebank-desktop-envelope.json")"
+          [[ "$provided_nonce" == "$HANDOFF_NONCE" ]] || { echo "Credential envelope nonce mismatch." >&2; exit 1; }
+          [[ "$token" =~ ^(ghp_|github_pat_)[A-Za-z0-9_]+$ ]] || { echo "Unsupported GitHub token shape." >&2; exit 1; }
+
+          echo "::add-mask::$token"
+          printf '%s' "$token" > "$MEMEBANK_TOKEN_FILE"
+          chmod 600 "$MEMEBANK_TOKEN_FILE"
+          GH_TOKEN="$token" gh api /user >/dev/null
+          [[ "$(GH_TOKEN="$token" gh api /repos/memebank/.github --jq '.permissions.admin')" == "true" ]] || {
+            echo "Credential does not have MemeBank administrator access." >&2
+            exit 1
+          }
+          rm -f "$RUNNER_TEMP/memebank-desktop-envelope.bin" "$RUNNER_TEMP/memebank-desktop-envelope.json"
+
+      - name: Rename Flutter repository and create Rust desktop repository
+        shell: bash
+        env:
+          MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
+          EXPECTED_FLUTTER_REPOSITORY_ID: '1326070645'
+          REQUIRED_SOURCE_COMMIT: e7ac96de358bdf9c6f3daaa2fa7c08e8955cdd35
+        run: |
+          set -euo pipefail
+          token="$(cat "$MEMEBANK_TOKEN_FILE")"
+          export GH_TOKEN="$token"
+          ledger_dir="$RUNNER_TEMP/memebank-desktop-ledger"
+
+          if gh api /repos/memebank/mbk-flutter >/dev/null 2>&1; then
+            flutter_id="$(gh api /repos/memebank/mbk-flutter --jq '.id')"
+          else
+            old_id="$(gh api /repos/memebank/memebank-flutter --jq '.id')"
+            [[ "$old_id" == "$EXPECTED_FLUTTER_REPOSITORY_ID" ]] || {
+              echo "Unexpected Flutter repository ID; refusing rename." >&2
+              exit 1
+            }
+            gh api --method PATCH /repos/memebank/memebank-flutter \
+              -f name='mbk-flutter' \
+              -f description='MemeBank Flutter applications for mobile, mobile web, and desktop with reviewed deep-link contracts.' \
+              >/dev/null
+            flutter_id="$(gh api /repos/memebank/mbk-flutter --jq '.id')"
+          fi
+
+          [[ "$flutter_id" == "$EXPECTED_FLUTTER_REPOSITORY_ID" ]] || {
+            echo "Flutter rename did not preserve repository ID." >&2
+            exit 1
+          }
+          [[ "$(gh api /repos/memebank/mbk-flutter --jq '.private')" == "true" ]] || {
+            echo "Renamed Flutter repository is not private." >&2
+            exit 1
+          }
+          gh api "/repos/memebank/mbk-flutter/git/commits/$REQUIRED_SOURCE_COMMIT" >/dev/null
+
+          if gh api /repos/memebank/mbk-desktop.rs >/dev/null 2>&1; then
+            desktop_created=false
+          else
+            gh api --method POST /orgs/memebank/repos \
+              -f name='mbk-desktop.rs' \
+              -f description='Native MemeBank desktop application in Rust and GPUI; no WebView.' \
+              -F private=true \
+              -F auto_init=true \
+              -F has_issues=true \
+              -F has_projects=true \
+              -F has_wiki=false \
+              -F delete_branch_on_merge=true \
+              >/dev/null
+            desktop_created=true
+          fi
+
+          [[ "$(gh api /repos/memebank/mbk-desktop.rs --jq '.private')" == "true" ]] || {
+            echo "Rust desktop repository is not private." >&2
+            exit 1
+          }
+          gh api --method PATCH /repos/memebank/mbk-desktop.rs \
+            -f description='Native MemeBank desktop application in Rust and GPUI; no WebView.' \
+            -F has_issues=true \
+            -F has_projects=true \
+            -F has_wiki=false \
+            -F allow_squash_merge=true \
+            -F allow_merge_commit=true \
+            -F allow_rebase_merge=false \
+            -F delete_branch_on_merge=true \
+            >/dev/null
+
+          jq -n \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg flutter_id "$flutter_id" \
+            --arg flutter_url 'https://github.com/memebank/mbk-flutter' \
+            --arg desktop_url 'https://github.com/memebank/mbk-desktop.rs' \
+            --argjson desktop_created "$desktop_created" \
+            '{schema_version:1,run_id:$run_id,flutter:{repository:$flutter_url,id:$flutter_id,history_preserved:true,required_source_commit_reachable:true},rust:{repository:$desktop_url,created:$desktop_created,private:true}}' \
+            > "$ledger_dir/repository-migration.json"
+
+      - name: Upload redacted repository migration ledger
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: memebank-desktop-repository-migration-${{ github.run_id }}
+          path: ${{ runner.temp }}/memebank-desktop-ledger
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Destroy one-run credential material
+        if: always()
+        shell: bash
+        env:
+          MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
+          HANDOFF_PRIVATE_KEY: ${{ steps.handoff.outputs.private_key }}
+        run: |
+          set +e
+          rm -f "$MEMEBANK_TOKEN_FILE" "$HANDOFF_PRIVATE_KEY"
+          rm -rf "$RUNNER_TEMP/memebank-desktop-handoff"
+
+      - name: Remove successful one-shot workflow
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/memebank-desktop-repositories.yml
+          git add .github/workflows/memebank-desktop-repositories.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(DEN-2469): remove successful one-shot repository migration'
+          git push origin HEAD:agent/den-2469-memebank-desktop-pair-20260806
