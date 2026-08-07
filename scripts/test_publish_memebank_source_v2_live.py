@@ -47,6 +47,16 @@ class PublicationContractTests(unittest.TestCase):
         self.assertIn("memebank-media-worker.rs", [record.name for record in records])
         self.assertNotIn("memebank-infra", [record.name for record in records])
 
+    def test_manifest_uses_role_when_description_is_absent(self) -> None:
+        document = self.manifest()
+        repositories = document["repositories"]
+        assert isinstance(repositories, list)
+        first = repositories[0]
+        assert isinstance(first, dict)
+        first.pop("description")
+        records = model.load_records(document)
+        self.assertEqual(records[0].description, "test-role")
+
     def test_manifest_rejects_identity_policy_and_order_drift(self) -> None:
         for key, value in (
             ("organization", "other"),
