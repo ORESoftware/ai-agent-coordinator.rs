@@ -16,11 +16,19 @@ A production worker must acquire the account/window lease before beginning remot
 - expired tokens cannot renew, release, record receipts, or repair duplicates;
 - after reacquisition, all older fences fail even when an old worker resumes;
 - an expired pre-renewal capability remains unusable even while the renewed lease is active;
+## Lease and fence invariants
+
+- every successful acquisition receives a strictly increasing fencing token;
+- an unexpired lease blocks every competing acquisition, including the same owner;
+- renewal preserves the fence and returns a new expiry-bearing token;
+- expired tokens cannot renew, release, record receipts, or repair duplicates;
+- after reacquisition, all older fences fail even when an old worker resumes;
 - lease TTLs and identifiers are bounded.
 
 ## Receipt invariants
 
 - writes require the current owner, current fence, unexpired token, and exact expected generation;
+- receipt writes require the current owner, current fence, unexpired token, and exact expected generation;
 - each successful new receipt increments the generation exactly once;
 - an exact rerun is a no-op and does not advance generation;
 - a conflicting result for the same operation fails closed;
@@ -46,3 +54,8 @@ These tests model process loss and stale retries while keeping one in-memory sta
 The current state machine is storage-neutral. Production must use a linearizable compare-and-set store or a Fiducia lease/fence primitive. A local file lock alone is insufficient across pods or hosts. The durable adapter must preserve `next_fence`, receipt generation, receipts, aliases, and lease expiry atomically, then rerun the failure sequences across actual process restarts and injected partial failures.
 
 The storage adapter must also prove that a stale fence cannot invoke the merged DEN-1610 mutation client and that a post-create race is repaired to one canonical Linear issue with explicit duplicate aliases. Until that evidence exists, this PR establishes the deterministic state-machine contract but does not claim distributed exactly-once mutation.
+A repair operation sorts and deduplicates candidate issue IDs, selects one deterministic canonical issue, records that choice under the fenced receipt CAS, and maps all aliases to the canonical issue. The production adapter must additionally re-read Linear under the same fence before repair and emit bounded metrics without issue bodies or credentials.
+
+## Production storage
+
+The current state machine is storage-neutral. The durable implementation must use a linearizable compare-and-set store or Fiducia lease/fence primitive. A local file lock alone is insufficient across pods or hosts.
