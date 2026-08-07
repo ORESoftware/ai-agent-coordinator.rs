@@ -1,0 +1,61 @@
+name: DEN-824 payload diagnostics
+
+on:
+  push:
+    branches:
+      - agent/den-824-materialize-current-main-20260805
+    paths:
+      - .github/workflows/den-824-payload-diagnostics.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: den-824-payload-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-824-materialize-current-main-20260805
+          persist-credentials: false
+      - name: Inspect payload without extraction
+        shell: bash
+        run: |
+          set -uo pipefail
+          payload=.github/den-824-briefing-payload.tar.xz.b64
+          decoded=/tmp/den-824-briefing.tar.xz
+          decode_status=0
+          base64 --decode "$payload" > "$decoded" || decode_status=$?
+          decoded_bytes=$(wc -c < "$decoded" | tr -d ' ')
+          actual_sha=$(sha256sum "$decoded" | awk '{print $1}')
+          tar_status=0
+          tar --list --xz --file "$decoded" > /tmp/den-824-paths.txt 2>/tmp/den-824-tar-error.txt || tar_status=$?
+          {
+            echo '## DEN-824 payload diagnostics'
+            echo
+            echo "- base64 decode status: \`$decode_status\`"
+            echo "- decoded bytes: \`$decoded_bytes\`"
+            echo "- decoded SHA-256: \`$actual_sha\`"
+            echo "- expected SHA-256: \`64535765c2e4e2ad13f868f918aff552127e2ec1c6fc49b7c273865d3b759841\`"
+            echo "- tar list status: \`$tar_status\`"
+            echo
+            echo '### Archive members'
+            echo '```text'
+            cat /tmp/den-824-paths.txt
+            echo '```'
+            if test -s /tmp/den-824-tar-error.txt; then
+              echo
+              echo '### Tar diagnostic'
+              echo '```text'
+              cat /tmp/den-824-tar-error.txt
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$decode_status" -eq 0

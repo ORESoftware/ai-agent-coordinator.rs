@@ -1,0 +1,145 @@
+name: DEN-824 stage verified non-workflow product files
+
+on:
+  push:
+    branches:
+      - agent/den-824-materialize-current-main-20260805
+    paths:
+      - .github/workflows/den-824-stage-product-files-v4.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-824-stage-product-files-v4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stage:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: agent/den-824-materialize-current-main-20260805
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify current-main and temporary-only branch state
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=64b3430126bd4180edfff3289a0713b20f5445e0
+          git merge-base --is-ancestor "$base" HEAD
+          git diff --name-only "$base"...HEAD | sort > /tmp/preflight-paths
+          cat > /tmp/expected-preflight-paths <<'EOF'
+          .github/workflows/den-824-finalize-current-main-v2.yml
+          .github/workflows/den-824-finalize-current-main-v3.yml
+          .github/workflows/den-824-finalize-current-main.yml
+          .github/workflows/den-824-materialize-current-main.yml
+          .github/workflows/den-824-payload-diagnostics.yml
+          .github/workflows/den-824-stage-product-files-v4.yml
+          EOF
+          diff -u /tmp/expected-preflight-paths /tmp/preflight-paths
+          test -f .github/den-824-briefing-payload.tar.xz.b64
+          test -f .github/workflows/den-824-briefing-bootstrap.yml
+      - name: Reconstruct and verify immutable reviewed archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_commit=265688f9d106eb185d3e1f3530e9fd3af683a2fa
+          reviewed_pr_head=1f503b660b6c567c49f4a2ab6968b19700def271
+          git fetch --no-tags origin \
+            refs/heads/agent/den-824-daily-portfolio-briefing-core:refs/remotes/origin/den-824-reviewed-source
+          test "$(git rev-parse refs/remotes/origin/den-824-reviewed-source)" = "$source_commit"
+          git merge-base --is-ancestor "$reviewed_pr_head" "$source_commit"
+          cat > /tmp/chunks <<'EOF'
+          .github/den-824-briefing-payload.part-00 7310d8a5390e7f438f8a13286948ec3e98281af5
+          .github/den-824-briefing-payload.part-01 f36ea8649202aa51095732c0de0c38583b2b225d
+          .github/den-824-briefing-payload.part-02 54300f5f2c100a5ef78904138f3a595423b0f05d
+          .github/den-824-briefing-payload.part-03 1224e7311b574ede2c10c8970801bfe6eb19296b
+          .github/den-824-briefing-payload.part-04 ccc98dbe07b905f6163a9c204004ad21e5d075fd
+          .github/den-824-briefing-payload.part-05 b2197eada639ec33cb611b346314dc409465d80a
+          EOF
+          : > /tmp/den-824-briefing.b64
+          while read -r path expected_blob; do
+            test "$(git rev-parse "$source_commit:$path")" = "$expected_blob"
+            git show "$source_commit:$path" >> /tmp/den-824-briefing.b64
+          done < /tmp/chunks
+          test "$(wc -c < /tmp/den-824-briefing.b64 | tr -d ' ')" = 25760
+          base64 --decode /tmp/den-824-briefing.b64 > /tmp/den-824-briefing.tar.xz
+          printf '%s  %s\n' \
+            '6b4716484ae348685d896d79844ccc22d2581dbc88e76ba27d30f660f452dd92' \
+            /tmp/den-824-briefing.tar.xz | sha256sum --check --strict
+          tar --list --xz --file /tmp/den-824-briefing.tar.xz | sort > /tmp/archive-paths
+          cat > /tmp/expected-archive-paths <<'EOF'
+          .github/workflows/daily-portfolio-briefing.yml
+          docs/daily-portfolio-briefing.md
+          tests/fixtures/daily_portfolio_briefing_input.json
+          tests/fixtures/daily_portfolio_briefing_state.json
+          tests/test_daily_portfolio_briefing.py
+          tools/compose_daily_portfolio_briefing.py
+          tools/enqueue_daily_portfolio_briefing.py
+          EOF
+          diff -u /tmp/expected-archive-paths /tmp/archive-paths
+          if grep -Eq '(^/|(^|/)\.\.(/|$))' /tmp/archive-paths; then
+            echo 'unsafe archive path' >&2
+            exit 1
+          fi
+          tar --extract --xz --file /tmp/den-824-briefing.tar.xz \
+            --no-same-owner --no-same-permissions
+          chmod 0755 \
+            tools/compose_daily_portfolio_briefing.py \
+            tools/enqueue_daily_portfolio_briefing.py \
+            tests/test_daily_portfolio_briefing.py
+      - name: Validate workflow, unit suite, and agent instructions
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/daily-portfolio-briefing.yml
+          python -m py_compile \
+            tools/compose_daily_portfolio_briefing.py \
+            tools/enqueue_daily_portfolio_briefing.py \
+            tests/test_daily_portfolio_briefing.py
+          python -m unittest -v tests/test_daily_portfolio_briefing.py
+          python scripts/validate_agents_md.py --repo-root . --start-dir tools
+      - name: Stage verified workflow content outside the workflow directory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p staging/den-824
+          cp .github/workflows/daily-portfolio-briefing.yml \
+            staging/den-824/daily-portfolio-briefing.yml
+          rm .github/workflows/daily-portfolio-briefing.yml
+          cat > /tmp/staged-product-paths <<'EOF'
+          docs/daily-portfolio-briefing.md
+          staging/den-824/daily-portfolio-briefing.yml
+          tests/fixtures/daily_portfolio_briefing_input.json
+          tests/fixtures/daily_portfolio_briefing_state.json
+          tests/test_daily_portfolio_briefing.py
+          tools/compose_daily_portfolio_briefing.py
+          tools/enqueue_daily_portfolio_briefing.py
+          EOF
+          while read -r path; do
+            git add -A -- "$path"
+          done < /tmp/staged-product-paths
+          git diff --cached --no-renames --name-only | sort > /tmp/actual-product-paths
+          diff -u /tmp/staged-product-paths /tmp/actual-product-paths
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+          git diff --cached --check
+      - name: Commit and push non-workflow product files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'DEN-824: stage verified daily briefing product files'
+          git push origin HEAD:agent/den-824-materialize-current-main-20260805
