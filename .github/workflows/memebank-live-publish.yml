@@ -1,6 +1,6 @@
 name: MemeBank source-v2 live publication
 
-on:
+'on':
   push:
     branches:
       - agent/den-1005-memebank-live-publication-20260805
@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: memebank-source-v2-live-publication
@@ -19,9 +20,6 @@ jobs:
   publish:
     runs-on: ubuntu-24.04
     timeout-minutes: 120
-    environment:
-      name: nightly-org-maintenance
-      deployment: false
     steps:
       - name: Check out exact publication branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -55,42 +53,131 @@ jobs:
             repository-fleets/test_validate_memebank_source_v2.py
           python3 repository-fleets/validate_memebank_source_v2.py
 
-      - name: Mint owner-scoped MemeBank publication token
-        id: memebank-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
-        with:
-          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
-          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
-          owner: memebank
-          skip-token-revoke: true
-          permission-administration: write
-          permission-checks: read
-          permission-contents: write
-          permission-issues: write
-          permission-metadata: read
-          permission-organization-projects: write
-          permission-pull-requests: write
-          permission-statuses: read
-          permission-workflows: write
-
-      - name: Materialize token and private artifact directory
+      - name: Create one-run encrypted credential handoff
+        id: handoff
         shell: bash
         env:
-          MEMEBANK_TOKEN: ${{ steps.memebank-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           umask 077
-          token_file="$RUNNER_TEMP/memebank-installation-token"
+          private_key="$RUNNER_TEMP/memebank-handoff-private.pem"
+          public_key="$RUNNER_TEMP/memebank-handoff-public.pem"
+          token_file="$RUNNER_TEMP/memebank-publication-token"
           artifact_dir="$RUNNER_TEMP/memebank-live-publication"
-          printf '%s' "$MEMEBANK_TOKEN" > "$token_file"
+          nonce="$(openssl rand -hex 24)"
+
+          openssl genpkey \
+            -algorithm RSA \
+            -pkeyopt rsa_keygen_bits:3072 \
+            -out "$private_key" >/dev/null 2>&1
+          openssl pkey -in "$private_key" -pubout -out "$public_key"
+          public_key_b64="$(base64 -w0 "$public_key")"
+
+          body="$(jq -n \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg nonce "$nonce" \
+            --arg public_key_b64 "$public_key_b64" \
+            '{run_id:$run_id,nonce:$nonce,public_key_b64:$public_key_b64}' \
+            | sed '1s/^/MEMEBANK_HANDOFF_V1\n/')"
+          handoff_comment_id="$(gh api \
+            --method POST \
+            "repos/$GITHUB_REPOSITORY/issues/94/comments" \
+            -f body="$body" \
+            --jq '.id')"
+
+          echo "nonce=$nonce" >> "$GITHUB_OUTPUT"
+          echo "handoff_comment_id=$handoff_comment_id" >> "$GITHUB_OUTPUT"
+          echo "private_key=$private_key" >> "$GITHUB_OUTPUT"
+          echo "token_file=$token_file" >> "$GITHUB_OUTPUT"
+          echo "artifact_dir=$artifact_dir" >> "$GITHUB_OUTPUT"
           mkdir -p "$artifact_dir"
-          chmod 600 "$token_file"
           chmod 700 "$artifact_dir"
-          echo "MEMEBANK_TOKEN_FILE=$token_file" >> "$GITHUB_ENV"
-          echo "MEMEBANK_ARTIFACT_DIR=$artifact_dir" >> "$GITHUB_ENV"
+
+      - name: Receive and decrypt one-run credential envelope
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HANDOFF_NONCE: ${{ steps.handoff.outputs.nonce }}
+          HANDOFF_PRIVATE_KEY: ${{ steps.handoff.outputs.private_key }}
+          MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
+        run: |
+          set -euo pipefail
+          umask 077
+          deadline=$((SECONDS + 1800))
+          envelope_comment_id=""
+          envelope_body=""
+
+          while (( SECONDS < deadline )); do
+            comments="$(gh api "repos/$GITHUB_REPOSITORY/issues/94/comments?per_page=100")"
+            envelope_comment_id="$(jq -r \
+              --arg run_id "$GITHUB_RUN_ID" \
+              --arg nonce "$HANDOFF_NONCE" \
+              '[.[] | select(.body | startswith("MEMEBANK_ENVELOPE_V1\\n")) | select(.body | contains("run_id=" + $run_id)) | select(.body | contains("nonce=" + $nonce))] | last | .id // empty' \
+              <<<"$comments")"
+            if [[ -n "$envelope_comment_id" ]]; then
+              envelope_body="$(jq -r \
+                --argjson id "$envelope_comment_id" \
+                '.[] | select(.id == $id) | .body' \
+                <<<"$comments")"
+              break
+            fi
+            sleep 5
+          done
+
+          if [[ -z "$envelope_comment_id" || -z "$envelope_body" ]]; then
+            echo "Encrypted credential envelope was not received for this run." >&2
+            exit 1
+          fi
+
+          ciphertext="$(sed -n 's/^ciphertext=//p' <<<"$envelope_body" | tail -n1)"
+          if [[ -z "$ciphertext" ]]; then
+            echo "Credential envelope is missing ciphertext." >&2
+            exit 1
+          fi
+
+          printf '%s' "$ciphertext" | base64 -d > "$RUNNER_TEMP/memebank-envelope.bin"
+          openssl pkeyutl \
+            -decrypt \
+            -inkey "$HANDOFF_PRIVATE_KEY" \
+            -in "$RUNNER_TEMP/memebank-envelope.bin" \
+            -pkeyopt rsa_padding_mode:oaep \
+            -pkeyopt rsa_oaep_md:sha256 \
+            -out "$RUNNER_TEMP/memebank-envelope.json"
+
+          provided_nonce="$(jq -r '.nonce // empty' "$RUNNER_TEMP/memebank-envelope.json")"
+          token="$(jq -r '.token // empty' "$RUNNER_TEMP/memebank-envelope.json")"
+          if [[ "$provided_nonce" != "$HANDOFF_NONCE" ]]; then
+            echo "Credential envelope nonce mismatch." >&2
+            exit 1
+          fi
+          if [[ ! "$token" =~ ^(ghp_|github_pat_)[A-Za-z0-9_]+$ ]]; then
+            echo "Credential envelope did not contain a supported GitHub token shape." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$token"
+          printf '%s' "$token" > "$MEMEBANK_TOKEN_FILE"
+          chmod 600 "$MEMEBANK_TOKEN_FILE"
+
+          GH_TOKEN="$token" gh api /user >/dev/null
+          is_admin="$(GH_TOKEN="$token" gh api /repos/memebank/.github --jq '.permissions.admin')"
+          if [[ "$is_admin" != "true" ]]; then
+            echo "Credential does not have administrator access to memebank/.github." >&2
+            exit 1
+          fi
+
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/issues/comments/$envelope_comment_id"
+          rm -f \
+            "$RUNNER_TEMP/memebank-envelope.bin" \
+            "$RUNNER_TEMP/memebank-envelope.json"
 
       - name: Create repositories, push exact source, create Project and merge PRs
         shell: bash
+        env:
+          MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
+          MEMEBANK_ARTIFACT_DIR: ${{ steps.handoff.outputs.artifact_dir }}
         run: |
           set -euo pipefail
           python3 scripts/publish_memebank_source_v2_live.py \
@@ -98,11 +185,13 @@ jobs:
             --token-file "$MEMEBANK_TOKEN_FILE" \
             --output-directory "$MEMEBANK_ARTIFACT_DIR" \
             --run-id "$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT" \
-            --check-wait-seconds 600
+            --check-wait-seconds 180
 
       - name: Publish live-publication summary
         if: always()
         shell: bash
+        env:
+          MEMEBANK_ARTIFACT_DIR: ${{ steps.handoff.outputs.artifact_dir }}
         run: |
           if [[ -f "$MEMEBANK_ARTIFACT_DIR/memebank-publication-ledger.json" ]]; then
             {
@@ -118,18 +207,26 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: memebank-live-publication-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/memebank-live-publication
+          path: ${{ steps.handoff.outputs.artifact_dir }}
           retention-days: 14
           if-no-files-found: warn
 
-      - name: Revoke MemeBank installation token
-        if: always() && steps.memebank-token.outcome == 'success'
+      - name: Destroy one-run credential material
+        if: always()
         shell: bash
         env:
-          GH_TOKEN: ${{ steps.memebank-token.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
+          HANDOFF_COMMENT_ID: ${{ steps.handoff.outputs.handoff_comment_id }}
+          MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
+          HANDOFF_PRIVATE_KEY: ${{ steps.handoff.outputs.private_key }}
         run: |
-          gh api --method DELETE /installation/token || true
-          rm -f "$MEMEBANK_TOKEN_FILE"
+          set +e
+          rm -f "$MEMEBANK_TOKEN_FILE" "$HANDOFF_PRIVATE_KEY"
+          if [[ -n "$HANDOFF_COMMENT_ID" ]]; then
+            gh api --method PATCH \
+              "repos/$GITHUB_REPOSITORY/issues/comments/$HANDOFF_COMMENT_ID" \
+              -f body="MEMEBANK_HANDOFF_V1_CONSUMED\nrun_id=$GITHUB_RUN_ID"
+          fi
 
       - name: Remove successful one-shot workflow from the feature branch
         if: success()
