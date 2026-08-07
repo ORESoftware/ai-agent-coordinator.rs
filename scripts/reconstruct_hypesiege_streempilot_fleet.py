@@ -22,7 +22,7 @@ import subprocess
 import tempfile
 from typing import Any
 
-EXPECTED_GENERATOR_SHA256 = "50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f"
+EXPECTED_GENERATOR_SHA256 = "a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84"
 FIXED_DATE = "2026-07-31T00:00:00-04:00"
 AUTHOR_NAME = "ORESoftware"
 AUTHOR_EMAIL = "11139560+ORESoftware@users.noreply.github.com"
@@ -92,14 +92,47 @@ def git_environment() -> dict[str, str]:
 
 
 def amend_root_commit(repository: pathlib.Path) -> str:
-    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":
-        raise ReconstructionError(f"{repository} must contain exactly one source commit")
-    run(
-        ["git", "commit", "--amend", "--no-edit", "--reset-author"],
+    """Seal the complete reviewed index tree as one deterministic root commit."""
+    branch = run(["git", "branch", "--show-current"], cwd=repository).strip()
+    if branch != "main":
+        raise ReconstructionError(f"{repository} must be on main before sealing")
+
+    source_count = int(
+        run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip()
+    )
+    if source_count < 1:
+        raise ReconstructionError(f"{repository} has no source commit to seal")
+    if run(["git", "diff", "--name-only"], cwd=repository):
+        raise ReconstructionError(f"{repository} contains unstaged changes")
+    if run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=repository,
+    ):
+        raise ReconstructionError(f"{repository} contains untracked files")
+    run(["git", "diff", "--cached", "--check"], cwd=repository)
+
+    message = run(["git", "log", "-1", "--format=%B"], cwd=repository).strip()
+    if not message:
+        message = f"Initialize {repository.name}"
+    tree = run(["git", "write-tree"], cwd=repository).strip()
+    if len(tree) != 40 or any(character not in "0123456789abcdef" for character in tree):
+        raise ReconstructionError(f"{repository} produced an invalid tree identity")
+    commit = run(
+        ["git", "commit-tree", tree, "-m", message],
         cwd=repository,
         env=git_environment(),
-    )
-    return run(["git", "rev-parse", "HEAD"], cwd=repository).strip()
+    ).strip()
+    if len(commit) != 40 or any(
+        character not in "0123456789abcdef" for character in commit
+    ):
+        raise ReconstructionError(f"{repository} produced an invalid commit identity")
+
+    run(["git", "update-ref", "refs/heads/main", commit], cwd=repository)
+    if run(["git", "rev-list", "--count", "HEAD"], cwd=repository).strip() != "1":
+        raise ReconstructionError(f"{repository} did not collapse to one root commit")
+    if run(["git", "status", "--porcelain"], cwd=repository):
+        raise ReconstructionError(f"{repository} became dirty while sealing")
+    return commit
 
 
 def write_gitmodules(
@@ -171,6 +204,18 @@ def reconstruct(payload_dir: pathlib.Path, output_root: pathlib.Path) -> dict[st
         raise ReconstructionError("generator output-root contract changed")
     source = source.replace(expected_literal, replacement)
 
+    archive_literal = "/mnt/data/hypesiege-streempilot-fleet.tar.gz"
+    archive_replacement = str(output_root.parent / f"{output_root.name}.tar.gz")
+    if source.count(archive_literal) != 1:
+        raise ReconstructionError("generator archive-output contract changed")
+    source = source.replace(archive_literal, archive_replacement)
+
+    checksum_literal = "/mnt/data/hypesiege-streempilot-fleet.SHA256"
+    checksum_replacement = str(output_root.parent / f"{output_root.name}.SHA256")
+    if source.count(checksum_literal) != 1:
+        raise ReconstructionError("generator checksum-output contract changed")
+    source = source.replace(checksum_literal, checksum_replacement)
+
     with tempfile.TemporaryDirectory(prefix="hypesiege-streempilot-generator-") as temp:
         generator = pathlib.Path(temp) / "generator.py"
         generator.write_text(source, encoding="utf-8")
@@ -178,8 +223,9 @@ def reconstruct(payload_dir: pathlib.Path, output_root: pathlib.Path) -> dict[st
         run(["python3", str(generator)])
 
     stale_archive = output_root.parent / f"{output_root.name}.tar.gz"
+    stale_checksum = output_root.parent / f"{output_root.name}.SHA256"
     stale_archive.unlink(missing_ok=True)
-    stale_archive.with_suffix(stale_archive.suffix + ".SHA256").unlink(missing_ok=True)
+    stale_checksum.unlink(missing_ok=True)
     (output_root / "publish.py").unlink(missing_ok=True)
 
     generated = json.loads((output_root / "MANIFEST.json").read_text(encoding="utf-8"))

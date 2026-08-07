@@ -1,0 +1,91 @@
+name: Daily portfolio delivery state
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/daily-portfolio-delivery-state.yml'
+      - 'docs/daily-portfolio-delivery-state.md'
+      - 'src/daily_portfolio_delivery.rs'
+      - 'src/lib.rs'
+      - 'tests/daily_portfolio_delivery_state.rs'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/daily-portfolio-delivery-state.yml'
+      - 'docs/daily-portfolio-delivery-state.md'
+      - 'src/daily_portfolio_delivery.rs'
+      - 'src/lib.rs'
+      - 'tests/daily_portfolio_delivery_state.rs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: daily-portfolio-delivery-state-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/daily-portfolio-delivery-state.yml
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+      - name: Compile focused state-machine target
+        run: cargo test --locked --test daily_portfolio_delivery_state --no-run
+      - name: Run fenced lease, CAS, crash, and receipt regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p test-results/daily-portfolio-delivery-state
+          cargo test --locked --test daily_portfolio_delivery_state -- --nocapture \
+            2>&1 | tee test-results/daily-portfolio-delivery-state/tests.txt
+      - name: Run focused Clippy
+        run: >-
+          cargo clippy --locked
+          --lib
+          --test daily_portfolio_delivery_state
+          -- -D warnings
+      - name: Build the release library
+        run: cargo build --locked --release --lib
+      - name: Record bounded state-machine evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > test-results/daily-portfolio-delivery-state/summary.json <<EOF
+          {
+            "schema_version": "daily_portfolio_delivery_state_evidence.v1",
+            "revision": "${GITHUB_SHA}",
+            "suite": "daily_portfolio_delivery_state",
+            "result": "passed",
+            "contracts": [
+              "immutable-plan",
+              "fenced-lease",
+              "generation-cas",
+              "crash-before-send",
+              "crash-after-send",
+              "ambiguous-receipt-reconciliation",
+              "scheduled-baseline-isolation"
+            ]
+          }
+          EOF
+      - name: Upload exact-head state-machine evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: daily-portfolio-delivery-state-${{ github.sha }}
+          path: test-results/daily-portfolio-delivery-state
+          retention-days: 14
+          if-no-files-found: error

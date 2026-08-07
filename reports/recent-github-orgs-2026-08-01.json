@@ -1,0 +1,380 @@
+{
+  "generated_at": "2026-08-02T02:13:11.657550Z",
+  "cutoff_utc": "2026-07-28T01:52:00Z",
+  "cutoff_local": "2026-07-27T20:52:00-05:00",
+  "source": "GitHub REST GET /orgs/{org}",
+  "recent_count": 10,
+  "recent_organizations": [
+    {
+      "login": "networking-components",
+      "id": 310324248,
+      "created_at": "2026-07-28T19:48:59Z",
+      "updated_at": "2026-07-28T19:49:31Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "file-tunnel",
+      "id": 310631493,
+      "created_at": "2026-07-29T13:52:29Z",
+      "updated_at": "2026-07-29T13:53:11Z",
+      "public_repos": 10,
+      "created_within_five_days": true
+    },
+    {
+      "login": "StreemPilot",
+      "id": 311150932,
+      "created_at": "2026-07-30T18:40:55Z",
+      "updated_at": "2026-07-30T18:41:16Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "streamkore",
+      "id": 311151603,
+      "created_at": "2026-07-30T18:43:41Z",
+      "updated_at": "2026-07-30T18:43:51Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "OmniBlitz",
+      "id": 311152709,
+      "created_at": "2026-07-30T18:47:35Z",
+      "updated_at": "2026-07-30T18:47:43Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "hypesiege",
+      "id": 311153811,
+      "created_at": "2026-07-30T18:52:06Z",
+      "updated_at": "2026-07-30T18:52:36Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "hypeblitz",
+      "id": 311154067,
+      "created_at": "2026-07-30T18:53:07Z",
+      "updated_at": "2026-07-30T18:53:16Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "channelsiege",
+      "id": 311154433,
+      "created_at": "2026-07-30T18:54:20Z",
+      "updated_at": "2026-07-30T18:54:29Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "unreal-unity-poc",
+      "id": 311178336,
+      "created_at": "2026-07-30T20:27:39Z",
+      "updated_at": "2026-07-30T20:27:46Z",
+      "public_repos": 24,
+      "created_within_five_days": true
+    },
+    {
+      "login": "meta-agents-demo",
+      "id": 311188342,
+      "created_at": "2026-07-30T21:17:41Z",
+      "updated_at": "2026-07-30T21:17:49Z",
+      "public_repos": 1,
+      "created_within_five_days": true
+    }
+  ],
+  "all_installed_organizations": [
+    {
+      "login": "memebank",
+      "id": 75922132,
+      "created_at": "2020-12-13T04:22:38Z",
+      "updated_at": "2020-12-13T04:22:47Z",
+      "public_repos": 0,
+      "created_within_five_days": false
+    },
+    {
+      "login": "benefactor-cc",
+      "id": 265349385,
+      "created_at": "2026-03-03T18:24:49Z",
+      "updated_at": "2026-03-03T18:26:18Z",
+      "public_repos": 2,
+      "created_within_five_days": false
+    },
+    {
+      "login": "sonus-auris",
+      "id": 292916213,
+      "created_at": "2026-06-11T21:24:32Z",
+      "updated_at": "2026-06-11T21:50:23Z",
+      "public_repos": 2,
+      "created_within_five_days": false
+    },
+    {
+      "login": "usa-acc",
+      "id": 292932113,
+      "created_at": "2026-06-11T23:00:53Z",
+      "updated_at": "2026-06-11T23:00:53Z",
+      "public_repos": 1,
+      "created_within_five_days": false
+    },
+    {
+      "login": "3FA-app",
+      "id": 292943121,
+      "created_at": "2026-06-12T00:16:26Z",
+      "updated_at": "2026-06-12T00:26:25Z",
+      "public_repos": 2,
+      "created_within_five_days": false
+    },
+    {
+      "login": "akrion-sim",
+      "id": 297237523,
+      "created_at": "2026-06-26T17:58:57Z",
+      "updated_at": "2026-06-26T18:02:29Z",
+      "public_repos": 2,
+      "created_within_five_days": false
+    },
+    {
+      "login": "canonical-cloud",
+      "id": 297250874,
+      "created_at": "2026-06-26T19:04:18Z",
+      "updated_at": "2026-06-26T19:04:27Z",
+      "public_repos": 6,
+      "created_within_five_days": false
+    },
+    {
+      "login": "fiducia-cloud",
+      "id": 297262292,
+      "created_at": "2026-06-26T20:06:18Z",
+      "updated_at": "2026-06-26T20:06:26Z",
+      "public_repos": 28,
+      "created_within_five_days": false
+    },
+    {
+      "login": "declarative-migrations",
+      "id": 304551819,
+      "created_at": "2026-07-13T16:25:37Z",
+      "updated_at": "2026-07-13T16:31:24Z",
+      "public_repos": 3,
+      "created_within_five_days": false
+    },
+    {
+      "login": "athlet-o",
+      "id": 306008767,
+      "created_at": "2026-07-16T22:08:07Z",
+      "updated_at": "2026-07-16T22:08:52Z",
+      "public_repos": 2,
+      "created_within_five_days": false
+    },
+    {
+      "login": "daedalus-fab",
+      "id": 306200852,
+      "created_at": "2026-07-17T12:21:52Z",
+      "updated_at": "2026-07-17T12:22:02Z",
+      "public_repos": 1,
+      "created_within_five_days": false
+    },
+    {
+      "login": "scintilla-run",
+      "id": 306201161,
+      "created_at": "2026-07-17T12:23:05Z",
+      "updated_at": "2026-07-17T12:23:14Z",
+      "public_repos": 1,
+      "created_within_five_days": false
+    },
+    {
+      "login": "quaestor-ledger",
+      "id": 306201356,
+      "created_at": "2026-07-17T12:23:45Z",
+      "updated_at": "2026-07-17T12:23:54Z",
+      "public_repos": 2,
+      "created_within_five_days": false
+    },
+    {
+      "login": "sagitta-stack",
+      "id": 306201557,
+      "created_at": "2026-07-17T12:24:27Z",
+      "updated_at": "2026-07-17T12:24:35Z",
+      "public_repos": 1,
+      "created_within_five_days": false
+    },
+    {
+      "login": "claritas-viz",
+      "id": 306201730,
+      "created_at": "2026-07-17T12:25:08Z",
+      "updated_at": "2026-07-17T12:25:16Z",
+      "public_repos": 1,
+      "created_within_five_days": false
+    },
+    {
+      "login": "discrete-event-systems",
+      "id": 306297904,
+      "created_at": "2026-07-17T18:05:18Z",
+      "updated_at": "2026-07-18T17:03:38Z",
+      "public_repos": 3,
+      "created_within_five_days": false
+    },
+    {
+      "login": "shared-auth",
+      "id": 307325286,
+      "created_at": "2026-07-21T00:33:25Z",
+      "updated_at": "2026-07-21T00:33:47Z",
+      "public_repos": 0,
+      "created_within_five_days": false
+    },
+    {
+      "login": "messaging-intel",
+      "id": 308168184,
+      "created_at": "2026-07-22T22:31:00Z",
+      "updated_at": "2026-07-22T22:31:48Z",
+      "public_repos": 0,
+      "created_within_five_days": false
+    },
+    {
+      "login": "drone-mngr",
+      "id": 308176360,
+      "created_at": "2026-07-22T23:18:34Z",
+      "updated_at": "2026-07-22T23:18:41Z",
+      "public_repos": 0,
+      "created_within_five_days": false
+    },
+    {
+      "login": "zed-pkg",
+      "id": 308416455,
+      "created_at": "2026-07-23T14:29:47Z",
+      "updated_at": "2026-07-23T14:30:59Z",
+      "public_repos": 11,
+      "created_within_five_days": false
+    },
+    {
+      "login": "opto-sync",
+      "id": 308481609,
+      "created_at": "2026-07-23T17:46:20Z",
+      "updated_at": "2026-07-23T17:47:51Z",
+      "public_repos": 4,
+      "created_within_five_days": false
+    },
+    {
+      "login": "voxletra",
+      "id": 308588098,
+      "created_at": "2026-07-24T01:24:02Z",
+      "updated_at": "2026-07-24T01:24:09Z",
+      "public_repos": 0,
+      "created_within_five_days": false
+    },
+    {
+      "login": "anticaptrad",
+      "id": 308909485,
+      "created_at": "2026-07-24T21:39:25Z",
+      "updated_at": "2026-07-24T21:39:48Z",
+      "public_repos": 10,
+      "created_within_five_days": false
+    },
+    {
+      "login": "zed-pkg-test",
+      "id": 309134292,
+      "created_at": "2026-07-25T15:28:03Z",
+      "updated_at": "2026-07-25T15:28:38Z",
+      "public_repos": 22,
+      "created_within_five_days": false
+    },
+    {
+      "login": "rust-ssr-demos",
+      "id": 309136194,
+      "created_at": "2026-07-25T15:35:47Z",
+      "updated_at": "2026-07-25T15:35:57Z",
+      "public_repos": 0,
+      "created_within_five_days": false
+    },
+    {
+      "login": "cliptown",
+      "id": 309492430,
+      "created_at": "2026-07-26T19:19:58Z",
+      "updated_at": "2026-07-26T19:20:06Z",
+      "public_repos": 10,
+      "created_within_five_days": false
+    },
+    {
+      "login": "networking-components",
+      "id": 310324248,
+      "created_at": "2026-07-28T19:48:59Z",
+      "updated_at": "2026-07-28T19:49:31Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "file-tunnel",
+      "id": 310631493,
+      "created_at": "2026-07-29T13:52:29Z",
+      "updated_at": "2026-07-29T13:53:11Z",
+      "public_repos": 10,
+      "created_within_five_days": true
+    },
+    {
+      "login": "StreemPilot",
+      "id": 311150932,
+      "created_at": "2026-07-30T18:40:55Z",
+      "updated_at": "2026-07-30T18:41:16Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "streamkore",
+      "id": 311151603,
+      "created_at": "2026-07-30T18:43:41Z",
+      "updated_at": "2026-07-30T18:43:51Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "OmniBlitz",
+      "id": 311152709,
+      "created_at": "2026-07-30T18:47:35Z",
+      "updated_at": "2026-07-30T18:47:43Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "hypesiege",
+      "id": 311153811,
+      "created_at": "2026-07-30T18:52:06Z",
+      "updated_at": "2026-07-30T18:52:36Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "hypeblitz",
+      "id": 311154067,
+      "created_at": "2026-07-30T18:53:07Z",
+      "updated_at": "2026-07-30T18:53:16Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "channelsiege",
+      "id": 311154433,
+      "created_at": "2026-07-30T18:54:20Z",
+      "updated_at": "2026-07-30T18:54:29Z",
+      "public_repos": 0,
+      "created_within_five_days": true
+    },
+    {
+      "login": "unreal-unity-poc",
+      "id": 311178336,
+      "created_at": "2026-07-30T20:27:39Z",
+      "updated_at": "2026-07-30T20:27:46Z",
+      "public_repos": 24,
+      "created_within_five_days": true
+    },
+    {
+      "login": "meta-agents-demo",
+      "id": 311188342,
+      "created_at": "2026-07-30T21:17:41Z",
+      "updated_at": "2026-07-30T21:17:49Z",
+      "public_repos": 1,
+      "created_within_five_days": true
+    }
+  ],
+  "note": "public_repos is public-only; installation-scoped repository counts are audited separately."
+}

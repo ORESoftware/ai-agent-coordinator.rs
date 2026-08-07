@@ -1,0 +1,261 @@
+{
+  "archive": {
+    "bytes": 82828,
+    "format": "tar.gz",
+    "name": "memebank-source.tar.gz",
+    "sha256": "bed1779f851dc3c39b5e3328a4c8cb569f19d56afe04f786da105aa199d59159"
+  },
+  "commit": {
+    "author_email": "bot@oresoftware.dev",
+    "author_name": "ORESoftware publication automation",
+    "date": "2026-07-31T16:00:00Z",
+    "message": "bootstrap: publish MemeBank repository source"
+  },
+  "forbidden_repositories": [
+    "memebank-infra"
+  ],
+  "generated_at": "2026-07-31T16:00:00Z",
+  "monorepo": {
+    "gitlinks": {
+      "apps/mb-cli": "ecfaad8c307c2978eff7ce38e2dcae0683721cba",
+      "apps/mb-clients": "3c6cef8ae6bbba4fede849ebb9d8cc743276813f",
+      "apps/mb-infra": "c24a77c37cfe5445e51799030362ec222e61992d",
+      "apps/mb-interfaces": "c91979c6f3f261d027de44f28fd05a79e99ed22f",
+      "apps/memebank-api-server.rs": "aa1722073684a65c51dfc21f06dc7eeaefcb4402",
+      "apps/memebank-e2e": "0d234a172d454a2ffde666869558a2c6b3a9fa8a",
+      "apps/memebank-flutter": "a764b531a1c8164460f20fd00f464966786ccd08",
+      "apps/memebank-media-worker.rs": "90d8677577ca62276260a97bf1598d5b22e418a7",
+      "apps/memebank-mcp-server.rs": "f593283d4afd379e37c215db06f2a387a11701cf",
+      "apps/memebank-web-server.rs": "7b6015fea1b05bb799f1226a34544a64776e23cc",
+      "apps/memebank.github.io": "8ec02746e05d2b9733816b5fcc5725c96cd1d003"
+    },
+    "repository": "memebank-monorepo"
+  },
+  "organization": "memebank",
+  "payload": {
+    "base64_bytes": 110440,
+    "chunk_bytes": 20000,
+    "chunks": [
+      {
+        "bytes": 20000,
+        "path": "repository-fleets/memebank-source/memebank-source.tar.gz.b64.part-000.txt",
+        "sha256": "5e736d728dc83096d3244b6cd70b2a0d37d3a594ba0b43e5292c424476029e00"
+      },
+      {
+        "bytes": 20000,
+        "path": "repository-fleets/memebank-source/memebank-source.tar.gz.b64.part-001.txt",
+        "sha256": "38ccabf5d1fdde83f1f32772d2ec3e6bda7969ab97ff3be87c646b454e374ea9"
+      },
+      {
+        "bytes": 20000,
+        "path": "repository-fleets/memebank-source/memebank-source.tar.gz.b64.part-002.txt",
+        "sha256": "0c44d71520b6373262fdc9b0f0c05f89c387ea19ffcf22c8361fe68ec168cdae"
+      },
+      {
+        "bytes": 20000,
+        "path": "repository-fleets/memebank-source/memebank-source.tar.gz.b64.part-003.txt",
+        "sha256": "11274cdc7b01af37a1a8dd75263d0c09dc57cf5b2d0bd4ea3cd9825251346b7a"
+      },
+      {
+        "bytes": 20000,
+        "path": "repository-fleets/memebank-source/memebank-source.tar.gz.b64.part-004.txt",
+        "sha256": "3fa69a6072472c406d132737954b9f52f3dccd31b9258e56729ba417ba055be8"
+      },
+      {
+        "bytes": 10440,
+        "path": "repository-fleets/memebank-source/memebank-source.tar.gz.b64.part-005.txt",
+        "sha256": "94653e7cd08d558c5589a8af92e317bf737b6951b8783bab2023ee05b686d2da"
+      }
+    ],
+    "encoding": "base64"
+  },
+  "repositories": [
+    {
+      "expected_head": "86db60cee035f84811143e448e74ecd87eb8b68f",
+      "expected_tree": "51a89b4ff74d45f13f0934941c92606e9f3248a8",
+      "name": ".github",
+      "role": "Organization profile, shared policies, and reusable GitHub configuration",
+      "source_path": ".github",
+      "topics": [
+        "memebank",
+        "github-configuration",
+        "community-health"
+      ],
+      "tracked_files": 8
+    },
+    {
+      "expected_head": "c91979c6f3f261d027de44f28fd05a79e99ed22f",
+      "expected_tree": "e9885e47db129e57f053184378ed4fa002b9bbb0",
+      "name": "mb-interfaces",
+      "role": "Versioned OpenAPI, JSON Schema, events, and model compatibility contracts",
+      "source_path": "mb-interfaces",
+      "topics": [
+        "memebank",
+        "openapi",
+        "json-schema",
+        "nats"
+      ],
+      "tracked_files": 19
+    },
+    {
+      "expected_head": "3c6cef8ae6bbba4fede849ebb9d8cc743276813f",
+      "expected_tree": "6555a37dd871eb5261714a19b06363ea9691ebac",
+      "name": "mb-clients",
+      "role": "Rust, Dart, and TypeScript MemeBank client SDKs",
+      "source_path": "mb-clients",
+      "topics": [
+        "memebank",
+        "sdk",
+        "rust",
+        "dart",
+        "typescript"
+      ],
+      "tracked_files": 10
+    },
+    {
+      "expected_head": "ecfaad8c307c2978eff7ce38e2dcae0683721cba",
+      "expected_tree": "1764feaeec0a53473a92371f4821a530a5e78960",
+      "name": "mb-cli",
+      "role": "Rust MemeBank command-line client using flags-2-env",
+      "source_path": "mb-cli",
+      "topics": [
+        "memebank",
+        "cli",
+        "rust"
+      ],
+      "tracked_files": 9
+    },
+    {
+      "expected_head": "aa1722073684a65c51dfc21f06dc7eeaefcb4402",
+      "expected_tree": "89cc636e93d2c033002905d7e1a0f80d76fdf90e",
+      "name": "memebank-api-server.rs",
+      "role": "Rust API server for catalog, ingestion, storage, jobs, and search",
+      "source_path": "memebank-api-server.rs",
+      "topics": [
+        "memebank",
+        "rust",
+        "axum",
+        "seaorm",
+        "postgresql"
+      ],
+      "tracked_files": 14
+    },
+    {
+      "expected_head": "7b6015fea1b05bb799f1226a34544a64776e23cc",
+      "expected_tree": "75e8bc55bf743b2d65aee3ba49d4902b46f90eea",
+      "name": "memebank-web-server.rs",
+      "role": "Rust server-rendered MemeBank web application",
+      "source_path": "memebank-web-server.rs",
+      "topics": [
+        "memebank",
+        "rust",
+        "axum",
+        "maud",
+        "htmx"
+      ],
+      "tracked_files": 9
+    },
+    {
+      "expected_head": "90d8677577ca62276260a97bf1598d5b22e418a7",
+      "expected_tree": "13f7f20d7bcf588de010db666d13b143ba95998b",
+      "name": "memebank-media-worker.rs",
+      "role": "Rust media enrichment worker for OCR, tagging, and embeddings",
+      "source_path": "memebank-media-worker.rs",
+      "topics": [
+        "memebank",
+        "rust",
+        "ocr",
+        "onnx",
+        "nats"
+      ],
+      "tracked_files": 11
+    },
+    {
+      "expected_head": "a764b531a1c8164460f20fd00f464966786ccd08",
+      "expected_tree": "23fc1af5303909c47a4c66d197f5fd0766300f9e",
+      "name": "memebank-flutter",
+      "role": "MemeBank Flutter applications for mobile and desktop platforms",
+      "source_path": "memebank-flutter",
+      "topics": [
+        "memebank",
+        "flutter",
+        "dart",
+        "mobile",
+        "desktop"
+      ],
+      "tracked_files": 10
+    },
+    {
+      "expected_head": "c24a77c37cfe5445e51799030362ec222e61992d",
+      "expected_tree": "e3b98a3dce27822f11859eea2c2d5ccab9e2854f",
+      "name": "mb-infra",
+      "role": "Argo CD app-of-apps and Kubernetes GitOps infrastructure for MemeBank",
+      "source_path": "mb-infra",
+      "topics": [
+        "memebank",
+        "kubernetes",
+        "argocd",
+        "gitops"
+      ],
+      "tracked_files": 22
+    },
+    {
+      "expected_head": "8ec02746e05d2b9733816b5fcc5725c96cd1d003",
+      "expected_tree": "77d96a6fc85bc03669a24bfbe1d697c46028c2b5",
+      "name": "memebank.github.io",
+      "role": "Astro marketing, documentation, privacy, support, and download site",
+      "source_path": "memebank.github.io",
+      "topics": [
+        "memebank",
+        "astro",
+        "github-pages",
+        "documentation"
+      ],
+      "tracked_files": 13
+    },
+    {
+      "expected_head": "f593283d4afd379e37c215db06f2a387a11701cf",
+      "expected_tree": "fc1fdad8a895461df875cbffea4dfb8977371b58",
+      "name": "memebank-mcp-server.rs",
+      "role": "Rust MCP server for safe MemeBank catalog and search operations",
+      "source_path": "memebank-mcp-server.rs",
+      "topics": [
+        "memebank",
+        "mcp",
+        "rust",
+        "ai-agents"
+      ],
+      "tracked_files": 9
+    },
+    {
+      "expected_head": "0d234a172d454a2ffde666869558a2c6b3a9fa8a",
+      "expected_tree": "295ac8957a97d3cbd266be4455a3e787ca58a8a2",
+      "name": "memebank-e2e",
+      "role": "Cross-client, provider, storage, ingestion, search, and failure-path tests",
+      "source_path": "memebank-e2e",
+      "topics": [
+        "memebank",
+        "testing",
+        "end-to-end"
+      ],
+      "tracked_files": 11
+    },
+    {
+      "expected_head": "fc7496c1243c31aae3a53ece7674913aac72ca29",
+      "expected_tree": "4bd36ae0d2d06ec060b2574d599a14249a348783",
+      "name": "memebank-monorepo",
+      "role": "Cross-repository orchestration and pinned MemeBank application topology",
+      "source_path": "memebank-monorepo",
+      "topics": [
+        "memebank",
+        "monorepo",
+        "git-submodules"
+      ],
+      "tracked_files": 12
+    }
+  ],
+  "schema_version": 1,
+  "source_root": "memebank-source",
+  "total_source_files": 166,
+  "total_tracked_entries": 177
+}

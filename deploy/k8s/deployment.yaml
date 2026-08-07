@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: coordinator
-          image: ghcr.io/oresoftware/ai-agent-coordinator:sha-ec2f57d8f6c3d61f826fe0f99dea63e77063c647
+          image: ghcr.io/oresoftware/ai-agent-coordinator:sha-41c2d80bbd4412df3ca2d9448401c19fa23985a3
           imagePullPolicy: IfNotPresent
           args:
             - --config
@@ -44,6 +44,8 @@ spec:
               value: declarative-migrations
             - name: GITHUB_API_BASE_URL
               value: https://api.github.com
+            - name: GITHUB_API_ALLOWED_HOSTS
+              value: api.github.com
             - name: GITHUB_API_VERSION
               value: "2022-11-28"
             - name: GITHUB_API_USER_AGENT

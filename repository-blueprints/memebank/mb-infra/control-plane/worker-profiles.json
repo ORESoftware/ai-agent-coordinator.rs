@@ -1,0 +1,166 @@
+{
+  "profiles": {
+    "enrichment-cloud-dispatch": {
+      "class": "cloud-dispatch",
+      "default_enabled": false,
+      "egress": {
+        "dns_names": [
+          "vision-provider.example.com"
+        ],
+        "internal_services": [
+          "nats.memebank-data.svc.cluster.local",
+          "postgres.memebank-data.svc.cluster.local"
+        ],
+        "mode": "allowlist"
+      },
+      "probes": {
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "startup": "/health/startup"
+      },
+      "resources": {
+        "limits": {
+          "cpu": "500m",
+          "memory": "512Mi"
+        },
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        }
+      },
+      "scaling": {
+        "max_in_flight_per_replica": 4,
+        "max_replicas": 4,
+        "metric": "nats_consumer_lag",
+        "min_replicas": 0,
+        "termination_grace_seconds": 60
+      },
+      "secret_refs": [
+        "external-secrets/memebank-cloud-dispatch"
+      ],
+      "security_context": {
+        "allow_privilege_escalation": false,
+        "automount_service_account_token": false,
+        "capabilities_drop": [
+          "ALL"
+        ],
+        "host_ipc": false,
+        "host_network": false,
+        "host_path": false,
+        "host_pid": false,
+        "privileged": false,
+        "read_only_root_filesystem": true,
+        "run_as_non_root": true,
+        "seccomp_profile": "RuntimeDefault"
+      },
+      "service_account": "memebank-enrichment-cloud-dispatch"
+    },
+    "enrichment-local-cpu": {
+      "class": "local-inference",
+      "default_enabled": true,
+      "egress": {
+        "dns_names": [],
+        "internal_services": [
+          "nats.memebank-data.svc.cluster.local",
+          "postgres.memebank-data.svc.cluster.local",
+          "model-cache.memebank-models.svc.cluster.local"
+        ],
+        "mode": "allowlist"
+      },
+      "probes": {
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "startup": "/health/startup"
+      },
+      "resources": {
+        "limits": {
+          "cpu": "2",
+          "memory": "2Gi"
+        },
+        "requests": {
+          "cpu": "250m",
+          "memory": "512Mi"
+        }
+      },
+      "scaling": {
+        "max_in_flight_per_replica": 2,
+        "max_replicas": 8,
+        "metric": "nats_consumer_lag",
+        "min_replicas": 0,
+        "termination_grace_seconds": 120
+      },
+      "secret_refs": [],
+      "security_context": {
+        "allow_privilege_escalation": false,
+        "automount_service_account_token": false,
+        "capabilities_drop": [
+          "ALL"
+        ],
+        "host_ipc": false,
+        "host_network": false,
+        "host_path": false,
+        "host_pid": false,
+        "privileged": false,
+        "read_only_root_filesystem": true,
+        "run_as_non_root": true,
+        "seccomp_profile": "RuntimeDefault"
+      },
+      "service_account": "memebank-enrichment-local-cpu"
+    },
+    "enrichment-local-gpu": {
+      "class": "local-inference",
+      "default_enabled": false,
+      "egress": {
+        "dns_names": [],
+        "internal_services": [
+          "nats.memebank-data.svc.cluster.local",
+          "postgres.memebank-data.svc.cluster.local",
+          "model-cache.memebank-models.svc.cluster.local"
+        ],
+        "mode": "allowlist"
+      },
+      "probes": {
+        "liveness": "/health/live",
+        "readiness": "/health/ready",
+        "startup": "/health/startup"
+      },
+      "resources": {
+        "limits": {
+          "cpu": "4",
+          "memory": "8Gi",
+          "nvidia.com/gpu": "1"
+        },
+        "requests": {
+          "cpu": "500m",
+          "memory": "2Gi",
+          "nvidia.com/gpu": "1"
+        }
+      },
+      "scaling": {
+        "max_in_flight_per_replica": 1,
+        "max_replicas": 4,
+        "metric": "nats_consumer_lag",
+        "min_replicas": 0,
+        "termination_grace_seconds": 180
+      },
+      "secret_refs": [],
+      "security_context": {
+        "allow_privilege_escalation": false,
+        "automount_service_account_token": false,
+        "capabilities_drop": [
+          "ALL"
+        ],
+        "host_ipc": false,
+        "host_network": false,
+        "host_path": false,
+        "host_pid": false,
+        "privileged": false,
+        "read_only_root_filesystem": true,
+        "run_as_non_root": true,
+        "seccomp_profile": "RuntimeDefault"
+      },
+      "service_account": "memebank-enrichment-local-gpu"
+    }
+  },
+  "schema_version": 1
+}

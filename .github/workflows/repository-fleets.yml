@@ -6,6 +6,7 @@ on:
       - repository-fleets/**
       - scripts/render_repository_fleet.py
       - scripts/test_render_repository_fleet.py
+      - scripts/reconstruct_hypesiege_streempilot_fleet.py
       - scripts/publish_hypesiege_streempilot_fleet.py
       - scripts/test_publish_hypesiege_streempilot_fleet.py
       - docs/memebank-repository-bootstrap.md
@@ -17,6 +18,7 @@ on:
       - repository-fleets/**
       - scripts/render_repository_fleet.py
       - scripts/test_render_repository_fleet.py
+      - scripts/reconstruct_hypesiege_streempilot_fleet.py
       - scripts/publish_hypesiege_streempilot_fleet.py
       - scripts/test_publish_hypesiege_streempilot_fleet.py
       - docs/memebank-repository-bootstrap.md
@@ -80,7 +82,7 @@ jobs:
 
   hypesiege-streempilot:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -88,12 +90,13 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
-      - name: Compile sealed-fleet tools
+      - name: Compile deterministic fleet tools
         run: |
           python -m py_compile \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/publish_hypesiege_streempilot_fleet.py \
             scripts/test_publish_hypesiege_streempilot_fleet.py
-      - name: Run sealed-fleet tests
+      - name: Reconstruct, compare, and preflight the sealed fleet
         run: |
           python -m unittest -v \
             scripts/test_publish_hypesiege_streempilot_fleet.py
@@ -116,15 +119,39 @@ jobs:
           assert hypesiege == {
               "mode": "plan",
               "repository": "hypesiege/hypesiege-api-server.rs",
-              "commit": "665de38a82f016b11dd60ddf70428c78605da75b",
+              "commit": "8b1b00ecc3ef421d03db9f9231a703bfbec6df9f",
               "visibility": "public",
               "remote": "https://github.com/hypesiege/hypesiege-api-server.rs.git",
+              "files": 25,
+              "gitlinks": 0,
           }
           assert streempilot == {
               "mode": "plan",
               "repository": "streempilot/streempilot-monorepo",
-              "commit": "a978ac20f41b09581012c3e8cbb48e2d2674c631",
+              "commit": "e1527280d6a21f49fcdc08dc9efc00bedfbf718c",
               "visibility": "public",
               "remote": "https://github.com/streempilot/streempilot-monorepo.git",
+              "files": 43,
+              "gitlinks": 16,
           }
           PY
+      - name: Reject conflict markers and live credential wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '^(<<<<<<<|=======|>>>>>>>)' \
+            repository-fleets/hypesiege-streempilot* \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py; then
+            echo 'conflict markers found' >&2
+            exit 1
+          fi
+          credential_pattern='HYPESIEGE_REPOSITORY_ADMIN_''TOKEN|STREEMPILOT_REPOSITORY_ADMIN_''TOKEN'
+          if grep -RInE "$credential_pattern" \
+            .github/workflows/repository-fleets.yml \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py; then
+            echo 'live organization credentials must not be wired into validation CI' >&2
+            exit 1
+          fi

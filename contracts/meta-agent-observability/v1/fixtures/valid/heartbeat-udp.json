@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "event_id": "7db7147e-c79c-4fe1-8cbc-f20ed5858ef9",
+  "idempotency_key": "heartbeat:agent-demo:1710000000",
+  "occurred_at": "2026-08-01T20:00:00Z",
+  "source": {
+    "agent_id": "agent-demo",
+    "provider": "local",
+    "model": "deterministic-fixture",
+    "instance_id": "fixture-1",
+    "metadata": {"capability": "protocol-conformance"}
+  },
+  "correlation": {
+    "correlation_id": "2d81fd9d-2174-4b5e-aec5-778f06bf3375",
+    "server_id": "meta-agent-control-plane",
+    "session_id": "session-demo",
+    "run_id": "run-demo"
+  },
+  "kind": "heartbeat",
+  "payload_classification": "internal",
+  "redaction_state": "sanitized",
+  "evidence_references": [],
+  "delivery": {
+    "transport": "udp",
+    "delivery_id": "udp-heartbeat-1",
+    "attempt": 1,
+    "ack_requested": false
+  },
+  "payload": {
+    "status": "healthy",
+    "queue_depth": 0,
+    "retained_bytes": 4096
+  }
+}

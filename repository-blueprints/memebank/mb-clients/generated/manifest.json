@@ -1,0 +1,11 @@
+{
+  "contract_digest": "sha256:8d1ec8c1ffbb9d7aa9361fbd498ea500230ff7daeeb60026be60493ea20a6216",
+  "generator": "scripts/generate_clients.py",
+  "operation_count": 5,
+  "outputs": {
+    "dart": "sha256:6208ddbbbe9e46564b8eaf7ab0766a7c3626939c48bf9d6d0921a787d30bf51b",
+    "rust": "sha256:6fb96fa778c9bccd278ffc0c6c70eb468097b2cc6a64bd8e02b76fa1d356e67e",
+    "typescript": "sha256:0d38fedba66357079bf8d133c8376b903db7589ffe5eb7419c7151f045c2c684"
+  },
+  "schema_version": 1
+}

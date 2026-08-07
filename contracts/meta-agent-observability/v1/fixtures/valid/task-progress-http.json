@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "event_id": "55aa82fa-92fa-45fb-9c0a-bec24bb56715",
+  "idempotency_key": "task-progress:run-demo:task-42:3",
+  "occurred_at": "2026-08-01T20:01:00Z",
+  "source": {
+    "agent_id": "agent-demo",
+    "provider": "openai",
+    "model": "example-model",
+    "metadata": {"adapter": "fixture"}
+  },
+  "correlation": {
+    "correlation_id": "2d81fd9d-2174-4b5e-aec5-778f06bf3375",
+    "causation_id": "7db7147e-c79c-4fe1-8cbc-f20ed5858ef9",
+    "parent_event_id": "7db7147e-c79c-4fe1-8cbc-f20ed5858ef9",
+    "server_id": "meta-agent-control-plane",
+    "session_id": "session-demo",
+    "run_id": "run-demo",
+    "goal_id": "goal-1",
+    "task_id": "task-42"
+  },
+  "kind": "task_progressed",
+  "payload_classification": "internal",
+  "redaction_state": "sanitized",
+  "evidence_references": [
+    {
+      "kind": "test",
+      "reference": "tests/protocol_conformance.rs::task_progress",
+      "sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "observed_at": "2026-08-01T20:00:59Z"
+    }
+  ],
+  "delivery": {
+    "transport": "http",
+    "delivery_id": "http-task-progress-3",
+    "attempt": 1,
+    "ack_requested": true,
+    "sequence": 3
+  },
+  "payload": {
+    "completed_weight": 0.5,
+    "summary": "The protocol fixture validator is implemented and tests are running.",
+    "confidence": 0.9
+  }
+}

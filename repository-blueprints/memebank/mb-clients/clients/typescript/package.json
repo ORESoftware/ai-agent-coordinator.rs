@@ -1,0 +1,26 @@
+{
+  "name": "@memebank/mb-clients",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "description": "Transport-neutral MemeBank TypeScript client behavior core",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "check": "node --experimental-strip-types --check src/generated.ts && node --experimental-strip-types --check src/runtime.ts && node --experimental-strip-types --check src/index.ts",
+    "test": "node --experimental-strip-types test/runtime.smoke.ts"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/memebank/mb-clients.git"
+  }
+}

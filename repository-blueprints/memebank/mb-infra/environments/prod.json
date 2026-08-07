@@ -1,0 +1,37 @@
+{
+  "artifact_bundle": "artifact-locks/bundle.json",
+  "auto_sync": false,
+  "cloud_dispatch": {
+    "egress_dns_names": [],
+    "enabled": false,
+    "secret_refs": []
+  },
+  "cluster_server": "https://kubernetes.default.svc",
+  "deployment_enabled": false,
+  "enabled_profiles": [
+    "enrichment-local-cpu"
+  ],
+  "environment": "prod",
+  "gpu": {
+    "enabled": false,
+    "node_selector": {},
+    "runtime_class": null,
+    "tolerations": []
+  },
+  "network_policy": {
+    "default_deny_egress": true,
+    "default_deny_ingress": true
+  },
+  "promotion_policy": {
+    "allow_bootstrap_placeholders": false,
+    "require_immutable_artifacts": true,
+    "require_review": true
+  },
+  "repository": "memebank/mb-infra",
+  "schema_version": 1,
+  "secret_backend": {
+    "cluster_store_ref": "cluster-secret-store/memebank",
+    "type": "external-secrets"
+  },
+  "source_revision": "PLACEHOLDER"
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "event_id": "493a67a5-a2e8-4146-8d0a-3e9a74a758ba",
+  "idempotency_key": "reflection:run-demo:1",
+  "occurred_at": "2026-08-01T20:03:00Z",
+  "source": {"agent_id": "agent-demo", "provider": "local", "model": "fixture", "metadata": {}},
+  "correlation": {"correlation_id": "2d81fd9d-2174-4b5e-aec5-778f06bf3375", "run_id": "run-demo"},
+  "kind": "reflection_recorded",
+  "payload_classification": "restricted",
+  "redaction_state": "raw",
+  "evidence_references": [],
+  "delivery": {"transport": "http", "delivery_id": "http-reflection-1", "attempt": 1, "ack_requested": true},
+  "payload": {"chain_of_thought": "This field is explicitly forbidden."}
+}

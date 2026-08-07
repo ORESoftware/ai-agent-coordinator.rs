@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "organization": "embedded-alerts",
+  "tracking_issue": "DEN-1949",
+  "default_branch": "main",
+  "initialization": "readme",
+  "live_creation_enabled": false,
+  "deferred_repositories": [
+    ".github"
+  ],
+  "forbidden_repositories": [],
+  "repositories": [
+    {
+      "order": 1,
+      "name": "eal-interfaces",
+      "visibility": "public",
+      "description": "Canonical Embedded Alerts OpenAPI, AsyncAPI, JSON Schema, embedding, rule, and event contracts."
+    },
+    {
+      "order": 2,
+      "name": "eal-api",
+      "visibility": "public",
+      "description": "Rust Axum, SeaORM, and WebSocket API for embedding-driven alert rules and delivery state."
+    },
+    {
+      "order": 3,
+      "name": "eal-mash-web",
+      "visibility": "public",
+      "description": "Maud, Axum, SeaORM, Supabase, HTMX, and WebSocket Embedded Alerts web server."
+    },
+    {
+      "order": 4,
+      "name": "eal-leptos-web",
+      "visibility": "public",
+      "description": "Leptos Embedded Alerts web server using shared interfaces and alert-domain contracts."
+    },
+    {
+      "order": 5,
+      "name": "eal-dioxus-web",
+      "visibility": "public",
+      "description": "Dioxus Embedded Alerts web server using shared interfaces and alert-domain contracts."
+    },
+    {
+      "order": 6,
+      "name": "eal-sync",
+      "visibility": "public",
+      "description": "Offline-first rule, alert, acknowledgement, and delivery synchronization built with opto-sync contracts."
+    },
+    {
+      "order": 7,
+      "name": "eal-cli",
+      "visibility": "public",
+      "description": "Rust Embedded Alerts CLI integrated through flags-2-env for safe rule and operations workflows."
+    },
+    {
+      "order": 8,
+      "name": "eal-infra",
+      "visibility": "public",
+      "description": "Kubernetes, Argo CD, observability, and bounded Cloudflare Worker edge code for Embedded Alerts."
+    },
+    {
+      "order": 9,
+      "name": "embedded-alerts-clients",
+      "visibility": "public",
+      "description": "Generated and hand-written Embedded Alerts clients for supported application runtimes."
+    },
+    {
+      "order": 10,
+      "name": "embedded-alerts-libs",
+      "visibility": "public",
+      "description": "Reusable embedding-provider, rule-evaluation, event, delivery, and policy libraries."
+    },
+    {
+      "order": 11,
+      "name": "embedded-alerts.github.io",
+      "visibility": "public",
+      "description": "Marketing, documentation, privacy, support, and public integration guidance for Embedded Alerts."
+    },
+    {
+      "order": 12,
+      "name": "embedded-alerts-monorepo",
+      "visibility": "public",
+      "description": "Cross-repository orchestration, pinned revisions, release manifests, and integration validation for Embedded Alerts."
+    }
+  ]
+}

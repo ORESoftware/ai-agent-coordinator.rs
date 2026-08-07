@@ -91,6 +91,23 @@ impl CreateJobRequest {
         if self.budget_usd.is_some_and(|budget| budget <= 0.0) {
             return Err("budget_usd must be greater than zero".to_owned());
         }
+        if self.task_type == crate::slack_run::TASK_TYPE {
+            crate::slack_run::SlackAgentRunPayload::from_value(&self.payload)?;
+        }
+        Ok(())
+    }
+
+    pub fn validate_idempotency_key(&self, idempotency_key: Option<&str>) -> Result<(), String> {
+        if self.task_type != crate::slack_run::TASK_TYPE {
+            return Ok(());
+        }
+
+        let payload = crate::slack_run::SlackAgentRunPayload::from_value(&self.payload)?;
+        let supplied =
+            idempotency_key.ok_or_else(|| "slack_agent_run requires Idempotency-Key".to_owned())?;
+        if supplied != payload.run_id.as_str() {
+            return Err("slack_agent_run Idempotency-Key must equal payload.run_id".to_owned());
+        }
         Ok(())
     }
 }
@@ -175,4 +192,99 @@ fn default_retry_delay_seconds() -> i64 {
 pub enum CompletionOutcome {
     Succeeded,
     Failed,
+}
+
+#[cfg(test)]
+mod idempotency_key_tests {
+    use serde_json::json;
+
+    use super::*;
+
+    const RUN_ID: &str = "ores-00112233445566778899aabb";
+
+    fn slack_job() -> CreateJobRequest {
+        CreateJobRequest {
+            org: "ORESoftware".to_owned(),
+            repo: "ai-agent-coordinator.rs".to_owned(),
+            task_type: crate::slack_run::TASK_TYPE.to_owned(),
+            payload: json!({
+                "schema_version": 1,
+                "run_id": RUN_ID,
+                "bridge_workflow_id": "workflow-123",
+                "provider": "chatgpt",
+                "action": "implement",
+                "prompt": "Implement DEN-1231 with tests.",
+                "origin": {
+                    "workspace_id": "T012345",
+                    "channel_id": "C012345",
+                    "requester_user_id": "U012345"
+                },
+                "context": {
+                    "trust": "untrusted_channel_context",
+                    "selection": "latest_non_bot_channel_messages",
+                    "messages": []
+                },
+                "routing": {
+                    "repository": "ORESoftware/ai-agent-coordinator.rs",
+                    "linear_team_id": "team-uuid",
+                    "linear_project_id": "project-uuid",
+                    "linear_run_project_id": "run-project-uuid",
+                    "linear_issue": "DEN-1231",
+                    "write_policy": "draft_pull_request"
+                },
+                "broadcast_targets": [
+                    "slack_run_thread",
+                    "ai_agent_coordinator_job",
+                    "ai_agent_bridge_workflow",
+                    "linear_run_queue",
+                    "github_branch_pr_checks"
+                ]
+            }),
+            priority: 25,
+            max_attempts: 3,
+            available_at: None,
+            budget_usd: Some(2.0),
+        }
+    }
+
+    #[test]
+    fn slack_run_requires_the_exact_run_id_header() {
+        let request = slack_job();
+        request.validate().unwrap();
+        request.validate_idempotency_key(Some(RUN_ID)).unwrap();
+
+        assert_eq!(
+            request.validate_idempotency_key(None).unwrap_err(),
+            "slack_agent_run requires Idempotency-Key"
+        );
+        assert_eq!(
+            request
+                .validate_idempotency_key(Some("ores-aaaaaaaaaaaaaaaaaaaaaaaa"))
+                .unwrap_err(),
+            "slack_agent_run Idempotency-Key must equal payload.run_id"
+        );
+        assert!(request
+            .validate_idempotency_key(Some(" ores-00112233445566778899aabb"))
+            .is_err());
+    }
+
+    #[test]
+    fn non_slack_jobs_keep_optional_idempotency_keys() {
+        let request = CreateJobRequest {
+            org: "ORESoftware".to_owned(),
+            repo: "ai-agent-coordinator.rs".to_owned(),
+            task_type: "code_change".to_owned(),
+            payload: json!({"goal": "test"}),
+            priority: 0,
+            max_attempts: 3,
+            available_at: None,
+            budget_usd: None,
+        };
+
+        request.validate().unwrap();
+        request.validate_idempotency_key(None).unwrap();
+        request
+            .validate_idempotency_key(Some("linear:DEN-1231"))
+            .unwrap();
+    }
 }

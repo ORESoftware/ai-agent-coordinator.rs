@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-08-04",
+  "source": "connected_github_installations",
+  "query": "exact_repository_name:.github",
+  "repositories": [
+    {
+      "full_name": "fiducia-cloud/.github",
+      "repository_id": 1320444409,
+      "owner_account_id": 297262292,
+      "visibility": "public",
+      "default_branch": "main"
+    },
+    {
+      "full_name": "shared-auth/.github",
+      "repository_id": 1320444668,
+      "owner_account_id": 307325286,
+      "visibility": "public",
+      "default_branch": "main"
+    },
+    {
+      "full_name": "sonus-auris/.github",
+      "repository_id": 1320444552,
+      "owner_account_id": 292916213,
+      "visibility": "public",
+      "default_branch": "main"
+    }
+  ]
+}

@@ -1,0 +1,76 @@
+name: Organization repository mirror verifier
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/org-repository-mirror.yml
+      - config/org-project-registry.yaml
+      - scripts/render_org_project_context.py
+      - scripts/render_org_repository_relationships.py
+      - scripts/verify_org_repository_relationship_mirror.py
+      - tests/test_verify_org_repository_relationship_mirror.py
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/org-repository-mirror.yml
+      - config/org-project-registry.yaml
+      - scripts/render_org_project_context.py
+      - scripts/render_org_repository_relationships.py
+      - scripts/verify_org_repository_relationship_mirror.py
+      - tests/test_verify_org_repository_relationship_mirror.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: org-repository-mirror-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check out exact source head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          persist-credentials: false
+
+      - name: Compile dependency-free mirror tooling
+        run: |
+          python3 -m py_compile \
+            scripts/validate_org_project_registry.py \
+            scripts/render_org_project_context.py \
+            scripts/render_org_repository_relationships.py \
+            scripts/verify_org_repository_relationship_mirror.py \
+            tests/test_verify_org_repository_relationship_mirror.py
+
+      - name: Run mirror mutation tests
+        run: python3 -m unittest -v tests/test_verify_org_repository_relationship_mirror.py
+
+      - name: Exercise generated and routed organization context
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(mktemp -d)"
+          trap 'rm -rf "$output"' EXIT
+
+          python3 scripts/render_org_project_context.py \
+            --owner shared-auth \
+            --registry-ref "$SOURCE_SHA" \
+            --output-dir "$output/context"
+
+          python3 scripts/render_org_repository_relationships.py \
+            --owner shared-auth \
+            --registry-ref "$SOURCE_SHA" \
+            --output-dir "$output/relationships"
+
+          python3 scripts/verify_org_repository_relationship_mirror.py \
+            --relationships "$output/relationships/repository-relationships.json" \
+            --project-context "$output/context/project-context.yaml" \
+            --expected-owner shared-auth \
+            --expected-registry-ref "$SOURCE_SHA"

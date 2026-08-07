@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "valid": [
+    "valid/heartbeat-udp.json",
+    "valid/task-progress-http.json",
+    "valid/human-approval-websocket.json"
+  ],
+  "invalid": [
+    {"path": "invalid/hidden-reasoning.json", "error": "forbidden-field"},
+    {"path": "invalid/secret-shaped-value.json", "error": "secret-shaped-value"},
+    {"path": "invalid/udp-privileged-event.json", "error": "udp-event-kind-forbidden"}
+  ]
+}

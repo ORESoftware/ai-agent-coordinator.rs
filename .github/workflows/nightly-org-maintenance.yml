@@ -1,0 +1,497 @@
+name: Nightly organization Codex maintenance
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/nightly-org-maintenance.yml'
+      - '.github/nightly-org-maintenance-plan.schema.json'
+      - '.github/nightly-org-maintenance-result.schema.json'
+      - 'config/nightly-org-maintenance-policy.json'
+      - 'config/org-project-registry.yaml'
+      - 'docs/nightly-org-maintenance*.md'
+      - 'tools/nightly_org_maintenance.py'
+      - 'tools/nightly_org_maintenance_impl/**'
+      - 'tests/test_nightly_org_maintenance.py'
+      - 'tests/test_nightly_org_tracking.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/nightly-org-maintenance.yml'
+      - '.github/nightly-org-maintenance-plan.schema.json'
+      - '.github/nightly-org-maintenance-result.schema.json'
+      - 'config/nightly-org-maintenance-policy.json'
+      - 'config/org-project-registry.yaml'
+      - 'docs/nightly-org-maintenance*.md'
+      - 'tools/nightly_org_maintenance.py'
+      - 'tools/nightly_org_maintenance_impl/**'
+      - 'tests/test_nightly_org_maintenance.py'
+      - 'tests/test_nightly_org_tracking.py'
+  schedule:
+    # Native timezone-aware schedule. GitHub may still delay dispatch under load.
+    - cron: '0 1 * * *'
+      timezone: 'America/Lima'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate the matrix only, or execute the selected organizations.
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - enqueue
+      owners:
+        description: Optional comma-separated exact registry owners for a canary run.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-org-maintenance-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out control repository without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Compile controller and tests
+        run: >-
+          python3 -m py_compile
+          tools/nightly_org_maintenance.py
+          tools/nightly_org_maintenance_impl/*.py
+          tests/test_nightly_org_maintenance.py
+          tests/test_nightly_org_tracking.py
+
+      - name: Run fail-closed controller tests
+        run: >-
+          python3 -m unittest -v
+          tests/test_nightly_org_maintenance.py
+          tests/test_nightly_org_tracking.py
+
+      - name: Validate policy and output schemas
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m json.tool config/nightly-org-maintenance-policy.json >/dev/null
+          python3 -m json.tool .github/nightly-org-maintenance-plan.schema.json >/dev/null
+          python3 -m json.tool .github/nightly-org-maintenance-result.schema.json >/dev/null
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          policy = json.loads(Path('config/nightly-org-maintenance-policy.json').read_text())
+          assert policy['timezone'] == 'America/Lima'
+          assert policy['local_hour'] == 1
+          assert policy['local_minute'] == 0
+          assert policy['max_parallel_organizations'] == 3
+          assert policy['min_new_prs_per_org'] == 1
+          assert policy['max_new_prs_per_org'] == 3
+          assert policy['max_runtime_minutes_per_org'] == 20
+          assert policy['prefer_existing_pr_merges'] is True
+          assert policy['require_tracking_sync'] is True
+          assert policy['require_linear_issue_for_documentation_changes'] is True
+          PY
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/nightly-org-maintenance.yml
+
+  matrix:
+    needs: validate
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      execute: ${{ steps.plan.outputs.execute }}
+      due: ${{ steps.plan.outputs.due }}
+      run_key: ${{ steps.plan.outputs.run_key }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+      organization_count: ${{ steps.plan.outputs.organization_count }}
+    steps:
+      - name: Check out canonical registry
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Build bounded organization matrix
+        id: plan
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_MODE: ${{ inputs.mode }}
+          DISPATCH_OWNERS: ${{ inputs.owners }}
+        run: |
+          set -euo pipefail
+          mode="${DISPATCH_MODE:-enqueue}"
+          owners_args=()
+          if [[ -n "${DISPATCH_OWNERS:-}" ]]; then
+            owners_args+=(--owners "$DISPATCH_OWNERS")
+          fi
+          python3 tools/nightly_org_maintenance.py matrix \
+            --force \
+            --github-output "$GITHUB_OUTPUT" \
+            "${owners_args[@]}" \
+            > "$RUNNER_TEMP/nightly-matrix.json"
+          cat "$RUNNER_TEMP/nightly-matrix.json"
+          execute=false
+          if [[ "$EVENT_NAME" == schedule || "$mode" == enqueue ]]; then
+            execute=true
+          fi
+          echo "execute=$execute" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize dry run
+        if: steps.plan.outputs.execute != 'true'
+        shell: bash
+        run: |
+          {
+            echo '## Nightly organization maintenance dry run'
+            echo
+            echo "Organizations selected: ${{ steps.plan.outputs.organization_count }}"
+            echo
+            echo 'No Codex or GitHub mutation jobs were started.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  maintain:
+    needs: matrix
+    if: needs.matrix.outputs.execute == 'true' && needs.matrix.outputs.organization_count != '0'
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix: ${{ fromJSON(needs.matrix.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: nightly-org-maintenance
+      deployment: false
+    steps:
+      - name: Check out control repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: control
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Create isolated unprivileged Codex user
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo groupadd nightly-codex
+          sudo useradd --create-home --gid nightly-codex --shell /bin/bash codex-nightly
+          sudo install -d -o "$(id -u)" -g nightly-codex -m 2770 "$RUNNER_TEMP/nightly-codex-home"
+          sudo chmod -R a+rX control
+
+      - name: Mint read-only snapshot GitHub App token
+        id: snapshot-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.owner }}
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+          permission-pull-requests: read
+
+      - name: Build sanitized GitHub and Linear snapshot
+        id: snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.snapshot-token.outputs.token }}
+          LINEAR_API_TOKEN: ${{ secrets.LINEAR_API_TOKEN }}
+          LINEAR_API_AUTH_SCHEME: ${{ vars.LINEAR_API_AUTH_SCHEME || 'api_key' }}
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          mkdir -p "$artifact_dir"
+          result="$(python3 control/tools/nightly_org_maintenance.py snapshot \
+            --owner "$OWNER" \
+            --registry control/config/org-project-registry.yaml \
+            --policy control/config/nightly-org-maintenance-policy.json \
+            --output "$artifact_dir/snapshot.json")"
+          printf '%s\n' "$result"
+          repository_count="$(python3 -c 'import json,sys; print(json.load(sys.stdin)["repository_count"])' <<<"$result")"
+          echo "repository_count=$repository_count" >> "$GITHUB_OUTPUT"
+
+      - name: Revoke snapshot token before model execution
+        if: always() && steps.snapshot-token.outcome == 'success'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.snapshot-token.outputs.token }}
+        run: gh api --method DELETE /installation/token
+
+      - name: Record organizations with no eligible repositories
+        if: steps.snapshot.outputs.repository_count == '0'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+          RUN_KEY: ${{ needs.matrix.outputs.run_key }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          owner = os.environ['OWNER']
+          path = Path('control/.artifacts/nightly') / owner / 'ledger.json'
+          path.write_text(json.dumps({
+              'schema_version': 'nightly_org_ledger.v1',
+              'run_key': os.environ['RUN_KEY'],
+              'owner': owner,
+              'completed_at': datetime.now(timezone.utc).isoformat(),
+              'created_pull_requests': [],
+              'merge_results': [],
+              'status': 'blocked',
+              'reason': 'organization has no eligible repository in the GitHub App installation'
+          }, indent=2, sort_keys=True) + '\n')
+          PY
+          {
+            echo "## Nightly maintenance: \`$OWNER\`"
+            echo
+            echo 'Blocked: no eligible repository was visible to the owner-scoped GitHub App token.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build read-only planner prompt
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+          RUN_KEY: ${{ needs.matrix.outputs.run_key }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          cat control/docs/nightly-org-maintenance-planner.md > "$artifact_dir/planner-prompt.txt"
+          cat >> "$artifact_dir/planner-prompt.txt" <<EOF
+
+          Invocation context:
+          - owner: ${OWNER}
+          - run key: ${RUN_KEY}
+          - snapshot: .artifacts/nightly/${OWNER}/snapshot.json
+          - output must match: .github/nightly-org-maintenance-plan.schema.json
+
+          Read the snapshot now and return the plan JSON only.
+          EOF
+          sudo chgrp -R nightly-codex "$artifact_dir"
+          sudo chmod -R u+rwX,g+rwX,o-rwx "$artifact_dir"
+          sudo find "$artifact_dir" -type d -exec chmod g+s {} +
+
+      - name: Plan one to three bounded pull requests
+        if: steps.snapshot.outputs.repository_count != '0'
+        id: codex-plan
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ github.workspace }}/control/.artifacts/nightly/${{ matrix.owner }}/planner-prompt.txt
+          output-file: ${{ github.workspace }}/control/.artifacts/nightly/${{ matrix.owner }}/plan.raw.json
+          output-schema-file: ${{ github.workspace }}/control/.github/nightly-org-maintenance-plan.schema.json
+          working-directory: ${{ github.workspace }}/control
+          permission-profile: ':read-only'
+          codex-home: ${{ runner.temp }}/nightly-codex-home
+          codex-user: codex-nightly
+          codex-version: ${{ vars.NIGHTLY_CODEX_VERSION || '0.138.0' }}
+          model: ${{ vars.NIGHTLY_CODEX_MODEL }}
+          effort: high
+          safety-strategy: unprivileged-user
+          allow-bots: true
+
+      - name: Restore controller ownership after planning
+        if: always() && steps.codex-plan.outcome != 'skipped'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+        run: sudo chown -R "$(id -u):$(id -g)" "control/.artifacts/nightly/${OWNER}"
+
+      - name: Validate grounded plan
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          python3 control/tools/nightly_org_maintenance.py validate-plan \
+            --plan "$artifact_dir/plan.raw.json" \
+            --snapshot "$artifact_dir/snapshot.json" \
+            --output "$artifact_dir/plan.json"
+
+      - name: Mint read-only workspace GitHub App token
+        if: steps.snapshot.outputs.repository_count != '0'
+        id: workspace-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.owner }}
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+          permission-pull-requests: read
+
+      - name: Clone only planned repositories and capture repair evidence
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.workspace-token.outputs.token }}
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          python3 control/tools/nightly_org_maintenance.py prepare-workspace \
+            --plan "$artifact_dir/plan.json" \
+            --snapshot "$artifact_dir/snapshot.json" \
+            --workspace "$artifact_dir/workspace"
+
+      - name: Revoke workspace token before model execution
+        if: always() && steps.workspace-token.outcome == 'success' && steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.workspace-token.outputs.token }}
+        run: gh api --method DELETE /installation/token
+
+      - name: Build offline implementation prompt
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+          RUN_KEY: ${{ needs.matrix.outputs.run_key }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          workspace="control/.artifacts/nightly/${OWNER}/workspace"
+          cat control/docs/nightly-org-maintenance-implementer.md > "$workspace/.nightly/implementer-prompt.txt"
+          cat >> "$workspace/.nightly/implementer-prompt.txt" <<EOF
+
+          Invocation context:
+          - owner: ${OWNER}
+          - run key: ${RUN_KEY}
+          - branch prefix: agent/nightly-${RUN_ID}-${RUN_ATTEMPT}-
+          - output must match: ${{ github.workspace }}/control/.github/nightly-org-maintenance-result.schema.json
+
+          Implement the validated plan now and return the result JSON only.
+          EOF
+          sudo chgrp -R nightly-codex "$workspace"
+          sudo chmod -R u+rwX,g+rwX,o-rwx "$workspace"
+          sudo find "$workspace" -type d -exec chmod g+s {} +
+
+      - name: Implement plan offline as the isolated Codex user
+        if: steps.snapshot.outputs.repository_count != '0'
+        id: codex-implement
+        uses: openai/codex-action@52fe01ec70a42f454c9d2ebd47598f9fd6893d56 # v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt-file: ${{ github.workspace }}/control/.artifacts/nightly/${{ matrix.owner }}/workspace/.nightly/implementer-prompt.txt
+          output-file: ${{ github.workspace }}/control/.artifacts/nightly/${{ matrix.owner }}/workspace/.nightly/result.raw.json
+          output-schema-file: ${{ github.workspace }}/control/.github/nightly-org-maintenance-result.schema.json
+          working-directory: ${{ github.workspace }}/control/.artifacts/nightly/${{ matrix.owner }}/workspace
+          permission-profile: ':workspace'
+          codex-home: ${{ runner.temp }}/nightly-codex-home
+          codex-user: codex-nightly
+          codex-version: ${{ vars.NIGHTLY_CODEX_VERSION || '0.138.0' }}
+          model: ${{ vars.NIGHTLY_CODEX_MODEL }}
+          effort: high
+          safety-strategy: unprivileged-user
+          allow-bots: true
+
+      - name: Restore controller ownership after implementation
+        if: always() && steps.codex-implement.outcome != 'skipped'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+        run: sudo chown -R "$(id -u):$(id -g)" "control/.artifacts/nightly/${OWNER}/workspace"
+
+      - name: Validate implementation and publication metadata
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          python3 control/tools/nightly_org_maintenance.py validate-result \
+            --result "$artifact_dir/workspace/.nightly/result.raw.json" \
+            --plan "$artifact_dir/plan.json" \
+            --snapshot "$artifact_dir/snapshot.json" \
+            --workspace "$artifact_dir/workspace" \
+            --output "$artifact_dir/result.json"
+
+      - name: Mint write-scoped publication GitHub App token
+        if: steps.snapshot.outputs.repository_count != '0'
+        id: publish-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.owner }}
+          permission-checks: read
+          permission-contents: write
+          permission-issues: write
+          permission-metadata: read
+          permission-organization-projects: write
+          permission-pull-requests: write
+          permission-statuses: read
+
+      - name: Publish code PRs and merge freshly eligible existing PRs
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.publish-token.outputs.token }}
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          python3 control/tools/nightly_org_maintenance.py publish \
+            --result "$artifact_dir/result.json" \
+            --plan "$artifact_dir/plan.json" \
+            --snapshot "$artifact_dir/snapshot.json" \
+            --policy control/config/nightly-org-maintenance-policy.json \
+            --workspace "$artifact_dir/workspace" \
+            --run-key "${{ needs.matrix.outputs.run_key }}" \
+            --ledger "$artifact_dir/ledger.json"
+
+      - name: Sync published work to Linear and GitHub Projects
+        if: steps.snapshot.outputs.repository_count != '0'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.publish-token.outputs.token }}
+          LINEAR_API_TOKEN: ${{ secrets.LINEAR_API_TOKEN }}
+          LINEAR_API_AUTH_SCHEME: ${{ vars.LINEAR_API_AUTH_SCHEME || 'api_key' }}
+          OWNER: ${{ matrix.owner }}
+        run: |
+          set -euo pipefail
+          artifact_dir="control/.artifacts/nightly/${OWNER}"
+          python3 control/tools/nightly_org_maintenance.py sync-tracking \
+            --result "$artifact_dir/result.json" \
+            --snapshot "$artifact_dir/snapshot.json" \
+            --policy control/config/nightly-org-maintenance-policy.json \
+            --run-key "${{ needs.matrix.outputs.run_key }}" \
+            --ledger "$artifact_dir/ledger.json"
+
+      - name: Upload redacted organization ledger
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-org-maintenance-${{ matrix.owner }}-${{ github.run_id }}
+          path: control/.artifacts/nightly/${{ matrix.owner }}/ledger.json
+          retention-days: 14
+          if-no-files-found: ignore
