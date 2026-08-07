@@ -31,7 +31,7 @@ jobs:
             rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
             .github/workflows/ci.yml 2>&1 | tee actionlint-output.log
       - name: Upload failing actionlint output
-        if: steps.actionlint.outcome == 'failure'
+        if: always() && steps.actionlint.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: actionlint-output
