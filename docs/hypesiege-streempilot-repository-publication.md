@@ -18,6 +18,7 @@ The canonical implementation combines the compatible intent instead of selecting
 2. discard the all-at-once live workflow and organization-secret wiring;
 3. reconstruct the 32 source repositories in a caller-owned directory;
 4. replace timestamp-dependent histories with deterministic commits using fixed author, committer, and date metadata;
+4. replace timestamp-dependent commits with fixed author, committer, and date metadata;
 5. seal all 30 child repositories before the two monorepos;
 6. materialize clean local child checkouts while committing only exact mode-`160000` gitlinks and canonical `.gitmodules` URLs;
 7. compare the regenerated schema-v2 manifest byte-for-byte with the checked-in ledger; and
@@ -89,6 +90,9 @@ The superseded `deploy/k8s/bootstrap` all-at-once publisher and its bundled gene
 ## Reconstruct and validate locally
 
 The gzip/base64 parts under `repository-fleets/hypesiege-streempilot/` contain the complete reviewed source generator. The reconstruction wrapper checks the decoded generator against SHA-256 `a57b00961ee57ae09bf3bb2e2d09afbdd1ddbbbde832b027802f82a1fc5dfa84` before executing it.
+## Reconstruct and validate locally
+
+The gzip/base64 parts under `repository-fleets/hypesiege-streempilot/` contain the complete reviewed source generator. The reconstruction wrapper checks the decoded generator against SHA-256 `50629a57beca1ac85928cfae8fbebbca4f62a6455a7013016f92b1203dcbbd1f` before executing it.
 
 ```bash
 python scripts/reconstruct_hypesiege_streempilot_fleet.py \
@@ -110,6 +114,9 @@ drift, or totals other than 32 repositories, 888 files, and 30 gitlinks.
 Transport archives and their checksums are recovery material only. They are not
 substitutes for the per-repository commit ledger, authenticated remote metadata,
 or post-push head verification.
+The reconstruction fails closed on payload drift, malformed generation output, a non-single-commit source history, branch or origin drift, dirty repositories, Git corruption, tracked-file drift, missing or wrong gitlinks, mismatched submodule checkouts, or fleet totals other than 32 repositories, 888 tracked files, and 30 gitlinks.
+
+Transport archives are recovery material only. An archive checksum is not a substitute for the per-repository commit ledger, a remote metadata read, or successful push verification.
 
 ## Current remote boundary
 
@@ -136,6 +143,12 @@ Do not redirect HypeSiege repositories into another organization, rename the sea
 Do not redirect HypeSiege repositories into another organization, rename sealed
 repositories, create README-only substitutes, or treat an empty organization
 installation as publication evidence.
+- the connected GitHub App is not installed for `hypesiege`;
+- the existing-repository connector can manage files, branches, pull requests, issues, and checks, but it does not expose organization repository creation;
+- the attempted live workflow had no HypeSiege, StreemPilot, or shared repository-administration secret, exited before every create/push operation, and verified `0/32` public remote heads; and
+- the protected coordinator repository-bootstrap path still needs a short-lived, least-privilege GitHub App installation token and exact organization allowlist under DEN-319.
+
+Do not redirect HypeSiege repositories into another organization, rename the sealed repositories, create README-only substitutes, or treat an empty organization installation as publication evidence.
 
 ## Safe one-repository publisher
 
@@ -188,6 +201,7 @@ not publish `hypesiege-monorepo` or `streempilot-monorepo` until every child
 repository's remote `main` resolves to the exact commit pinned by the ledger.
 The monorepositories are published last.
 
+
 For every successful publication retain:
 
 - GitHub repository ID, canonical URL, visibility, and default branch;
@@ -203,3 +217,5 @@ No repository or foundation ticket is complete until those remote reads and chec
 
 No repository or foundation ticket is complete until those remote reads and
 checks exist.
+
+No repository or foundation ticket is complete until those remote reads and checks exist.
