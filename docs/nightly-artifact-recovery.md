@@ -39,7 +39,7 @@ The classifier detects all required failure and partial-delivery states:
 | `remote_evidence_incomplete` | Evidence collection did not complete; recovery fails closed. |
 | `ownership_ambiguous` | Owner or repository resolution is not authoritative; recovery fails closed. |
 
-A work item is complete only when the required repository, branch, commit, and pull-request evidence is resolvable. Default-branch deliveries may explicitly set `pull_request_required: false` when a verified merged or sealed commit is the intended end state.
+A work item is complete only when the required repository, branch, commit, and pull-request evidence is resolvable. Default-branch deliveries may explicitly set `pull_request_required: false` when a verified merged or sealed commit is the intended end state. An open draft PR may count as recovered delivery even when product review or an external dependency still blocks merge; the ledger records delivery evidence, not product completion.
 
 ## Executor split
 
@@ -78,7 +78,7 @@ The workflow:
 
 - compiles the ledger and scheduler tools;
 - runs positive and adversarial unit tests;
-- validates policy, schema, and the checked-in public-safe backfill fixture;
+- validates policy, schema, and the generated public-safe backfill fixture;
 - proves byte-stable reconciliation on an identical rerun;
 - uploads bounded ledger, CLI queue, and summary evidence;
 - optionally enqueues one coordinator job through the protected `nightly-artifact-recovery` environment.
@@ -99,17 +99,17 @@ GitHub issue and PR objects are the source items for Project synchronization. Pr
 
 ## Initial bounded backfill — 2026-08-07
 
-Generator: `scripts/build_artifact_recovery_backfill.py` (renders the reviewed `artifact_recovery_observation.v1` fixture).
+Generator: `scripts/build_artifact_recovery_backfill.py` renders the reviewed `artifact_recovery_observation.v1` fixture.
 
-The first accessible-library batch contains **17** owner/repository ledger rows:
+The refreshed accessible-library batch contains **17** owner/repository ledger rows:
 
-- **4 complete** by exact private default-branch evidence;
-- **13 actionable**;
+- **9 complete** by current repository/branch/commit/PR evidence;
+- **8 actionable**;
 - **8** exact missing repositories routed to `cli_create_repository`;
-- **5** existing-repository artifact recoveries routed to `cli_recover_local_artifact`;
+- **0** existing-repository artifacts routed to local recovery after successor-PR discovery;
 - **0** ambiguous or evidence-incomplete entries in this bounded batch.
 
-### Complete immutable evidence
+### Exact sealed publication evidence
 
 | Repository | Verified `main` SHA |
 |---|---|
@@ -119,6 +119,20 @@ The first accessible-library batch contains **17** owner/repository ledger rows:
 | `StreemPilot/streempilot-media-router.rs` | `a3b01146f85ee61400b72ed3f333c76b4413a4fa` |
 
 The bounded control-plane evidence is merged in `ORESoftware/k8s-cluster#1069` as merge commit `4e9df62da54479c9f52d850c16703b5e112bb282`. Artifact `8946360080` has SHA-256 `c87ff38d687d81def5c419297dc28445d6cf659ef1d262c3c02d6b4a18ed99ec`.
+
+### Existing-repository artifacts already recovered or superseded
+
+A second remote-evidence pass found that all five existing-repository artifacts already have GitHub delivery evidence. They must not be duplicated:
+
+| Artifact target | Recovery evidence | Disposition |
+|---|---|---|
+| `canonical-cloud/canonical-api-server.rs` | merged PR #10; current `main` `d3ed973eeb32df2210ce5d53cd2855b42dd220a3` | complete; later mainline corrections are authoritative |
+| `canonical-cloud/canonical-infra` | merged PR #4; PR #5 closed superseded; current `main` `03d37469a6ea5ee075a89c064ee60017ae4ebf23` | complete; do not revive the divergent local Worker fork |
+| `canonical-cloud/canonical-lib` | merged PR #1; current `main` `04fc0aeccf455282cd8c1eb537161be546d83d8a` | complete |
+| `canonical-cloud/canonical-flutter` | open draft PR #1, branch `feat/authenticated-compliance-quote-stack`, head `ae333dd1f507aa5f626e6980dd76bc266788be3e` | recovered to GitHub; still review-blocked by Canonical interface/client dependencies |
+| `ORESoftware/slack-ores-integrations` | merged PR #1; current `main` `4319e30048a2eb59088afaf1d5f5b299d5746fdb` | complete; later compatible hardening is authoritative |
+
+The bundle's original local commit is retained only as artifact provenance. The ledger uses the current semantic successor branch or default-branch SHA as delivery evidence, preventing the local worker from pushing stale histories or opening duplicate PRs.
 
 ### Missing repositories in the CLI queue
 
@@ -134,15 +148,6 @@ The exact current lookup is absent for:
 - `hacker-house-medellin/hhm-e2e`
 
 The tested local source is `zed-fleet-reconcile.sh`, SHA-256 `70e7bcdfa3a8a3e15bcbf8bd635a240baca53c9b95a36f01f4aa312f66fd18ae`. Explicit public visibility is preserved from the corresponding product fleet; an omitted visibility would default to private.
-
-### Existing-repository artifact recoveries
-
-The following artifacts have a resolved existing repository but no remote evidence for the exact local delivery identity:
-
-- four `canonical-quote-stack.zip` repository bundles for `canonical-api-server.rs`, `canonical-infra`, `canonical-lib`, and `canonical-flutter`;
-- `alex-main-agent-v0.3.0-converged.zip` targeting the existing `ORESoftware/slack-ores-integrations` ownership boundary.
-
-These are not safe blind patches. The local worker must inspect current repository history and tests, semantically combine compatible intent, create a new feature branch, and open a draft PR. It must not push the bundle's local `main` commit directly or overwrite newer remote work.
 
 ## Operator commands
 
