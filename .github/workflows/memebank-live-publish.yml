@@ -86,11 +86,13 @@ jobs:
             -f body="$body" \
             --jq '.id')"
 
-          echo "nonce=$nonce" >> "$GITHUB_OUTPUT"
-          echo "handoff_comment_id=$handoff_comment_id" >> "$GITHUB_OUTPUT"
-          echo "private_key=$private_key" >> "$GITHUB_OUTPUT"
-          echo "token_file=$token_file" >> "$GITHUB_OUTPUT"
-          echo "artifact_dir=$artifact_dir" >> "$GITHUB_OUTPUT"
+          {
+            echo "nonce=$nonce"
+            echo "handoff_comment_id=$handoff_comment_id"
+            echo "private_key=$private_key"
+            echo "token_file=$token_file"
+            echo "artifact_dir=$artifact_dir"
+          } >> "$GITHUB_OUTPUT"
           mkdir -p "$artifact_dir"
           chmod 700 "$artifact_dir"
 
@@ -177,7 +179,7 @@ jobs:
         shell: bash
         env:
           MEMEBANK_TOKEN_FILE: ${{ steps.handoff.outputs.token_file }}
-          MEMEBANK_ARTIFACT_DIR: ${{ steps.handoff.outputs.artifact_dir }}
+          MEMEBANK_ARTIFACT_DIR: ${{ runner.temp }}/memebank-live-publication
         run: |
           set -euo pipefail
           python3 scripts/publish_memebank_source_v2_live.py \
@@ -191,7 +193,7 @@ jobs:
         if: always()
         shell: bash
         env:
-          MEMEBANK_ARTIFACT_DIR: ${{ steps.handoff.outputs.artifact_dir }}
+          MEMEBANK_ARTIFACT_DIR: ${{ runner.temp }}/memebank-live-publication
         run: |
           if [[ -f "$MEMEBANK_ARTIFACT_DIR/memebank-publication-ledger.json" ]]; then
             {
@@ -207,7 +209,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: memebank-live-publication-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ steps.handoff.outputs.artifact_dir }}
+          path: ${{ runner.temp }}/memebank-live-publication
           retention-days: 14
           if-no-files-found: warn
 
