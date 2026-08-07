@@ -1,3 +1,4 @@
+pub mod agent_pontifex;
 pub mod app;
 pub mod config;
 /// Storage-independent fenced delivery contract; persistence adapters must preserve its invariants.
