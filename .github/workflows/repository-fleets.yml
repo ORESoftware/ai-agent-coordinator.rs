@@ -4,25 +4,37 @@ on:
   pull_request:
     paths:
       - repository-fleets/**
+      - browser-tests/requirements-den877.txt
+      - browser-tests/test_hypesiege_streempilot_audit_report.py
       - scripts/render_repository_fleet.py
       - scripts/test_render_repository_fleet.py
       - scripts/reconstruct_hypesiege_streempilot_fleet.py
       - scripts/publish_hypesiege_streempilot_fleet.py
+      - scripts/render_hypesiege_streempilot_audit_report.py
       - scripts/test_publish_hypesiege_streempilot_fleet.py
+      - scripts/test_publish_hypesiege_streempilot_fleet_hardening.py
+      - scripts/test_render_hypesiege_streempilot_audit_report.py
       - docs/memebank-repository-bootstrap.md
       - docs/hypesiege-streempilot-repository-publication.md
+      - docs/den-877-publisher-hardening-and-browser-audit.md
       - .github/workflows/repository-fleets.yml
   push:
     branches: [main]
     paths:
       - repository-fleets/**
+      - browser-tests/requirements-den877.txt
+      - browser-tests/test_hypesiege_streempilot_audit_report.py
       - scripts/render_repository_fleet.py
       - scripts/test_render_repository_fleet.py
       - scripts/reconstruct_hypesiege_streempilot_fleet.py
       - scripts/publish_hypesiege_streempilot_fleet.py
+      - scripts/render_hypesiege_streempilot_audit_report.py
       - scripts/test_publish_hypesiege_streempilot_fleet.py
+      - scripts/test_publish_hypesiege_streempilot_fleet_hardening.py
+      - scripts/test_render_hypesiege_streempilot_audit_report.py
       - docs/memebank-repository-bootstrap.md
       - docs/hypesiege-streempilot-repository-publication.md
+      - docs/den-877-publisher-hardening-and-browser-audit.md
       - .github/workflows/repository-fleets.yml
   workflow_dispatch:
 
@@ -34,6 +46,23 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  workflow-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate this workflow with pinned actionlint
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/repository-fleets.yml
+
   memebank:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -82,7 +111,7 @@ jobs:
 
   hypesiege-streempilot:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -95,47 +124,84 @@ jobs:
           python -m py_compile \
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/publish_hypesiege_streempilot_fleet.py \
-            scripts/test_publish_hypesiege_streempilot_fleet.py
-      - name: Reconstruct, compare, and preflight the sealed fleet
+            scripts/render_hypesiege_streempilot_audit_report.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py \
+            browser-tests/test_hypesiege_streempilot_audit_report.py
+      - name: Reconstruct, compare, and harden the sealed fleet
         run: |
           python -m unittest -v \
-            scripts/test_publish_hypesiege_streempilot_fleet.py
-      - name: Render representative network-free plans
+            scripts/test_publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py
+      - name: Render all 32 credential-free plans
+        shell: bash
+        env:
+          GITHUB_REPOSITORY_ADMIN_TOKEN: ""
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/plans
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import pathlib
+          import subprocess
+          import sys
+
+          root = pathlib.Path.cwd()
+          manifest_path = root / "repository-fleets/hypesiege-streempilot.json"
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          assert not os.environ.get("GITHUB_REPOSITORY_ADMIN_TOKEN")
+          plans = []
+          for record in manifest["repositories"]:
+              completed = subprocess.run(
+                  [
+                      sys.executable,
+                      "scripts/publish_hypesiege_streempilot_fleet.py",
+                      "--manifest",
+                      str(manifest_path),
+                      "--repository",
+                      record["full_name"],
+                  ],
+                  check=True,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+              plan = json.loads(completed.stdout)
+              assert plan == {
+                  "mode": "plan",
+                  "repository": record["full_name"],
+                  "commit": record["commit"],
+                  "visibility": record["visibility"],
+                  "remote": record["remote"],
+                  "files": record["files"],
+                  "gitlinks": record["gitlinks"],
+              }
+              plans.append(plan)
+              safe_name = record["full_name"].replace("/", "--")
+              (root / "artifacts/plans" / f"{safe_name}.json").write_text(
+                  json.dumps(plan, indent=2, sort_keys=True) + "\n",
+                  encoding="utf-8",
+              )
+          assert len(plans) == 32
+          (root / "artifacts/all-plans.json").write_text(
+              json.dumps(plans, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+      - name: Render the static fleet audit evidence
         shell: bash
         run: |
           set -euo pipefail
-          python scripts/publish_hypesiege_streempilot_fleet.py \
-            --repository hypesiege/hypesiege-api-server.rs \
-            > hypesiege-plan.json
-          python scripts/publish_hypesiege_streempilot_fleet.py \
-            --repository streempilot/streempilot-monorepo \
-            > streempilot-plan.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-
-          hypesiege = json.loads(Path("hypesiege-plan.json").read_text())
-          streempilot = json.loads(Path("streempilot-plan.json").read_text())
-          assert hypesiege == {
-              "mode": "plan",
-              "repository": "hypesiege/hypesiege-api-server.rs",
-              "commit": "8b1b00ecc3ef421d03db9f9231a703bfbec6df9f",
-              "visibility": "public",
-              "remote": "https://github.com/hypesiege/hypesiege-api-server.rs.git",
-              "files": 25,
-              "gitlinks": 0,
-          }
-          assert streempilot == {
-              "mode": "plan",
-              "repository": "streempilot/streempilot-monorepo",
-              "commit": "e1527280d6a21f49fcdc08dc9efc00bedfbf718c",
-              "visibility": "public",
-              "remote": "https://github.com/streempilot/streempilot-monorepo.git",
-              "files": 43,
-              "gitlinks": 16,
-          }
-          PY
-      - name: Reject conflict markers and live credential wiring
+          python scripts/render_hypesiege_streempilot_audit_report.py \
+            --manifest repository-fleets/hypesiege-streempilot.json \
+            --output artifacts/hypesiege-streempilot-audit-report.html \
+            --metadata-out artifacts/hypesiege-streempilot-audit-report.json
+      - name: Reject conflicts, credentials, and active report content
         shell: bash
         run: |
           set -euo pipefail
@@ -143,7 +209,11 @@ jobs:
             repository-fleets/hypesiege-streempilot* \
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/publish_hypesiege_streempilot_fleet.py \
-            scripts/test_publish_hypesiege_streempilot_fleet.py; then
+            scripts/render_hypesiege_streempilot_audit_report.py \
+            scripts/test_publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/test_render_hypesiege_streempilot_audit_report.py \
+            browser-tests/test_hypesiege_streempilot_audit_report.py; then
             echo 'conflict markers found' >&2
             exit 1
           fi
@@ -151,7 +221,70 @@ jobs:
           if grep -RInE "$credential_pattern" \
             .github/workflows/repository-fleets.yml \
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
-            scripts/test_publish_hypesiege_streempilot_fleet.py; then
+            scripts/test_publish_hypesiege_streempilot_fleet.py \
+            scripts/test_publish_hypesiege_streempilot_fleet_hardening.py \
+            scripts/render_hypesiege_streempilot_audit_report.py; then
             echo 'live organization credentials must not be wired into validation CI' >&2
             exit 1
           fi
+          if grep -Eiq '<script|<img|github_pat_|gh[pousr]_' \
+            artifacts/hypesiege-streempilot-audit-report.html; then
+            echo 'active content or credential marker found in audit report' >&2
+            exit 1
+          fi
+      - name: Upload credential-free fleet evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: den-877-fleet-plans-and-audit
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: error
+
+  hypesiege-streempilot-browser-audit:
+    needs: [workflow-policy, hypesiege-streempilot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: browser-tests/requirements-den877.txt
+      - name: Install exact browser-test Python dependencies
+        run: |
+          python -m pip install \
+            --disable-pip-version-check \
+            --no-input \
+            --requirement browser-tests/requirements-den877.txt
+      - name: Install the matching Playwright Chromium runtime
+        run: python -m playwright install --with-deps chromium
+      - name: Render the audit report without credentials or mutation
+        shell: bash
+        env:
+          GITHUB_REPOSITORY_ADMIN_TOKEN: ""
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/browser
+          test -z "$GITHUB_REPOSITORY_ADMIN_TOKEN"
+          python scripts/render_hypesiege_streempilot_audit_report.py \
+            --manifest repository-fleets/hypesiege-streempilot.json \
+            --output artifacts/hypesiege-streempilot-audit-report.html \
+            --metadata-out artifacts/hypesiege-streempilot-audit-report.json
+      - name: Exercise desktop and mobile evidence in Chromium
+        env:
+          DEN877_AUDIT_REPORT: ${{ github.workspace }}/artifacts/hypesiege-streempilot-audit-report.html
+          DEN877_BROWSER_ARTIFACTS: ${{ github.workspace }}/artifacts/browser
+        run: |
+          python -m unittest -v \
+            browser-tests/test_hypesiege_streempilot_audit_report.py
+      - name: Upload browser audit evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: den-877-browser-audit
+          path: artifacts/
+          retention-days: 7
+          if-no-files-found: warn
