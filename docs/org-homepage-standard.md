@@ -139,9 +139,9 @@ python3 scripts/validate_test_org_homepage_canaries.py \
 
 python3 scripts/render_test_org_homepage_context.py \
   --registry config/test-org-homepage-canaries.yaml \
-  --owner claritas-viz-test \
+  --owner scintilla-run-test \
   --registry-ref 0123456789abcdef0123456789abcdef01234567 \
-  --output-dir /tmp/claritas-viz-test
+  --output-dir /tmp/scintilla-run-test
 ```
 
 A test `.github` repository verifies its checked-in managed files and semantic profile by downloading the registry, renderer, validators, and verifier from the same immutable commit, then running:
@@ -149,7 +149,7 @@ A test `.github` repository verifies its checked-in managed files and semantic p
 ```bash
 python3 scripts/verify_test_org_homepage_context.py \
   --registry config/test-org-homepage-canaries.yaml \
-  --owner claritas-viz-test \
+  --owner scintilla-run-test \
   --registry-ref 0123456789abcdef0123456789abcdef01234567 \
   --bundle-dir .
 ```
