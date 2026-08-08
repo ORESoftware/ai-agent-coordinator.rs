@@ -29,6 +29,7 @@ from .common import (
 )
 from .observation import validate_observation
 
+
 def claimed_pr_number(url: str | None) -> int | None:
     if url is None:
         return None
@@ -109,12 +110,23 @@ def classify(item: Mapping[str, Any]) -> dict[str, Any]:
             "reason": "repository, branch, commit, and pull-request evidence is complete",
         }
 
-    if "ownership_ambiguous" in findings or "remote_evidence_incomplete" in findings:
+    fail_closed_findings = {
+        "ownership_ambiguous",
+        "remote_evidence_incomplete",
+        "claimed_repository_unverified",
+        "claimed_commit_unverified",
+        "claimed_branch_unverified",
+        "claimed_pull_request_unverified",
+    }
+    if findings & fail_closed_findings:
         return {
             "status": "blocked",
             "findings": ordered,
             "next_action": "manual_review",
-            "reason": "ownership or remote evidence is incomplete; fail closed",
+            "reason": (
+                "ownership, remote evidence, or a claimed GitHub object is incomplete; "
+                "fail closed"
+            ),
         }
     if "repository_missing" in findings:
         action = "cli_create_repository" if intent["allow_repository_creation"] else "manual_review"
