@@ -98,7 +98,7 @@ jobs:
           set -euo pipefail
           output="$(mktemp -d)"
           trap 'rm -rf "$output"' EXIT
-          for owner in claritas-viz-test cliptown-test; do
+          for owner in scintilla-run-test file-tunnel-test; do
             python3 scripts/render_test_org_homepage_context.py \
               --registry config/test-org-homepage-canaries.yaml \
               --owner "$owner" \
