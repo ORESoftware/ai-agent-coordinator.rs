@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any, Sequence
 
-GENERATED_AT = "2026-08-07T20:10:00Z"
+GENERATED_AT = "2026-08-08T04:16:00Z"
 SEALED_ORIGIN = "file_000000003294820e97c272f46f9db586"
 ZED_ORIGIN = "file_000000003448822f94ce8546e1467c71"
 CANONICAL_ORIGIN = "file_000000004f70820eb68de1c6e743e057"
@@ -65,6 +65,17 @@ RECOVERED = (
         "main": "4319e30048a2eb59088afaf1d5f5b299d5746fdb", "pr": 1,
         "pr_head": "agent/den-1602-canonicalize-repository", "pr_state": "merged",
     },
+    {
+    "owner": "ORESoftware", "repository": "ai-agent-coordinator.rs", "visibility": "public",
+    "origin": "file_00000000efc0820e870395d40af3be7f", "observed_at": "2026-08-08T04:00:00Z",
+    "artifact": "DEN-602-github-admin-browser-hardening.patch",
+    "digest": "8b649d9c1e0cffe9162d47d70313544d376e19842c39d191a7f1ae7dd842127f",
+    "locator": "library:file_00000000efc0820e870395d40af3be7f", "kind": "file",
+    "paths": ["DEN-602-github-admin-browser-hardening.patch"],
+    "artifact_commit": "0fee30e469f99d2e5cefc66b1389298dc3c33e30",
+    "main": "624c2bae2ac92f65a3a0e86a842fed83758d0972", "pr": 56,
+    "pr_head": "agent/den-602-github-admin-browser-hardening", "pr_state": "merged",
+},
 )
 FLUTTER = {
     "owner": "canonical-cloud", "repository": "canonical-flutter", "visibility": "private",
@@ -76,6 +87,31 @@ FLUTTER = {
     "branch": "feat/authenticated-compliance-quote-stack",
     "branch_sha": "ae333dd1f507aa5f626e6980dd76bc266788be3e", "pr": 1,
 }
+
+OPEN_RECOVERIES = (
+    {
+        "owner": "zed-pkg", "repository": "zed-api-server.rs", "visibility": "public",
+        "origin": "file_00000000810481f78c4cd3b1052881c9", "observed_at": "2026-08-08T04:09:00Z",
+        "artifact": "DEN-99-dependency-resolution.patch",
+        "digest": "c183d8e12225776537b03c9d3720984804f360f88a4793b3646abe4dd7ea12b2",
+        "locator": "library:file_00000000810481f78c4cd3b1052881c9",
+        "main": "9d019325d42508aec883cfe86f59ce1461063b9c",
+        "branch": "agent/den-99-dependency-resolution-model",
+        "branch_sha": "b80f728dfed8f6cb005846015300a3ee19e01678", "pr": 16,
+        "note": "Recovered to a green current-main draft PR; retain product-owner review.",
+    },
+    {
+        "owner": "fiducia-cloud", "repository": "fiducia-brain.rs", "visibility": "public",
+        "origin": "file_00000000119081f7b244394be85b4569", "observed_at": "2026-08-08T04:15:00Z",
+        "artifact": "DEN-569-composition-model.patch",
+        "digest": "184c4e58cbf047ee81d2cd1923285036f615d8462ed491c52f2ba0366bed358d",
+        "locator": "library:file_00000000119081f7b244394be85b4569",
+        "main": "4ef54fc5431793623c868de2ac0f4887858885de",
+        "branch": "agent/den-569-quint-composition-model",
+        "branch_sha": "c90cf14db6609ab550444af64200e22c8ee19327", "pr": 26,
+        "note": "Recovered to a green current-main draft PR without overlapping the merged DEN-1516 Rust model.",
+    },
+)
 
 
 def origin(file_id: str, observed_at: str) -> dict[str, str]:
@@ -139,13 +175,13 @@ def recovered(value: dict[str, Any]) -> dict[str, Any]:
     owner, repository, main = value["owner"], value["repository"], value["main"]
     url = f"https://github.com/{owner}/{repository}"
     evidence = pr(owner, repository, value["pr"], value["pr_head"], value["pr_state"])
-    kind = "archive" if repository == "slack-ores-integrations" else "git_bundle"
+    kind = value.get("kind", "archive" if repository == "slack-ores-integrations" else "git_bundle")
     return {
         "origin": origin(value["origin"], value["observed_at"]),
         "target": {"owner": owner, "repository": repository, "visibility": value["visibility"], "artifact_kind": "code", "ownership_resolved": True},
         "intent": {"artifact_expected": True, "base_branch": "main", "branch": "main", "pull_request_required": False, "allow_repository_creation": True},
         "local": {"artifact": {"kind": kind, "name": value["artifact"], "sha256": value["digest"], "locator": value["locator"],
-            "commit_sha": value["artifact_commit"], "paths": []}, "git_repository": True, "remote_present": True,
+            "commit_sha": value["artifact_commit"], "paths": value.get("paths", [])}, "git_repository": True, "remote_present": True,
             "branch": "main", "branches": ["main"], "head_sha": main, "dirty_paths": []},
         "remote": remote(owner, repository, value["visibility"], main, pull_requests=(evidence,)),
         "claims": {"repository_url": url, "commit_sha": main, "branch": "main", "pull_request_url": evidence["url"]},
@@ -171,16 +207,35 @@ def flutter() -> dict[str, Any]:
     }
 
 
+
+def open_recovery(value: dict[str, Any]) -> dict[str, Any]:
+    owner, repository, branch = value["owner"], value["repository"], value["branch"]
+    url = f"https://github.com/{owner}/{repository}"
+    evidence = pr(owner, repository, value["pr"], branch, "open", True)
+    return {
+        "origin": origin(value["origin"], value["observed_at"]),
+        "target": {"owner": owner, "repository": repository, "visibility": value["visibility"], "artifact_kind": "code", "ownership_resolved": True},
+        "intent": {"artifact_expected": True, "base_branch": "main", "branch": branch, "pull_request_required": True, "allow_repository_creation": False},
+        "local": {"artifact": {"kind": "file", "name": value["artifact"], "sha256": value["digest"], "locator": value["locator"],
+            "commit_sha": value["branch_sha"], "paths": [value["artifact"]]}, "git_repository": True, "remote_present": True,
+            "branch": branch, "branches": [branch], "head_sha": value["branch_sha"], "dirty_paths": []},
+        "remote": remote(owner, repository, value["visibility"], value["main"], branch=branch, branch_sha=value["branch_sha"], pull_requests=(evidence,)),
+        "claims": {"repository_url": url, "commit_sha": value["branch_sha"], "branch": branch, "pull_request_url": evidence["url"]},
+        "note": value["note"],
+    }
+
+
 def build_fixture() -> dict[str, Any]:
     items = [sealed(*value) for value in SEALED]
     items.extend(missing(*value) for value in MISSING)
     items.extend(recovered(value) for value in RECOVERED)
     items.append(flutter())
+    items.extend(open_recovery(value) for value in OPEN_RECOVERIES)
     return {
         "schema_version": "artifact_recovery_observation.v1", "generated_at": GENERATED_AT,
-        "batch": {"id": "initial-accessible-library-backfill-2026-08-07-b", "complete": False,
+        "batch": {"id": "accessible-library-backfill-2026-08-08-wave-2", "complete": False,
             "next_cursor": "library-created-before:2026-08-01T23:41:07Z",
-            "source_window": "accessible ChatGPT file-library artifacts and refreshed GitHub evidence through 2026-08-07"},
+            "source_window": "accessible ChatGPT file-library artifacts and refreshed GitHub evidence through 2026-08-08"},
         "items": items,
     }
 
