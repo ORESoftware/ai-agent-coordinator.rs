@@ -1,0 +1,477 @@
+name: DEN-2797 validate cumulative recovery wave 3
+
+on:
+  push:
+    branches:
+      - agent/den-2797-backfill-wave-3
+    paths:
+      - .github/workflows/den-2797-backfill-wave-3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-2797-backfill-wave-3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact recovery branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-2797-backfill-wave-3
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify exact base and carrier-only branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=a30af8786d7dc22782ff8d6d12de829cf2306193
+          test "$(git branch --show-current)" = agent/den-2797-backfill-wave-3
+          test "$(git merge-base HEAD "$base")" = "$base"
+          git diff --name-only "$base"...HEAD | sort > /tmp/carriers.actual
+          printf '%s\n' .github/workflows/den-2797-backfill-wave-3.yml > /tmp/carriers.expected
+          diff -u /tmp/carriers.expected /tmp/carriers.actual
+
+      - name: Apply exact cumulative wave-3 transformations
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          generator = Path('scripts/build_artifact_recovery_backfill.py')
+          text = generator.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str) -> None:
+              global text
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected one anchor, found {count}')
+              text = text.replace(old, new)
+
+          replace_once(
+              'GENERATED_AT = "2026-08-08T04:16:00Z"',
+              'GENERATED_AT = "2026-08-08T04:52:00Z"',
+              'generated timestamp',
+          )
+          replace_once(
+              '''MISSING = (
+              ("apostille-me", "apme-mcp-server.rs"), ("apostille-me", "apme-e2e"),
+              ("embedded-alerts", "eal-mcp-server.rs"), ("embedded-alerts", "eal-e2e"),
+              ("evento-globolo", "evgl-mcp-server.rs"), ("evento-globolo", "evgl-e2e"),
+              ("hacker-house-medellin", "hhm-mcp-server.rs"), ("hacker-house-medellin", "hhm-e2e"),
+          )''',
+              '''MISSING = (
+              ("apostille-me", "apme-e2e"),
+              ("embedded-alerts", "eal-e2e"),
+              ("evento-globolo", "evgl-e2e"),
+              ("hacker-house-medellin", "hhm-e2e"),
+          )''',
+              'missing repository set',
+          )
+
+          recovered_additions = '''    {
+              "owner": "ORESoftware", "repository": "project-registry", "visibility": "public",
+              "origin": "file_00000000f48c820ea276a1c39727b1c0", "observed_at": "2026-08-08T04:44:00Z",
+              "artifact": "apply-project-registry-minor-only.py",
+              "digest": "5eedf2b100d337b1db00a8bf38eb5aa68806e96ff308709f36921bb27bac306a",
+              "locator": "library:file_00000000f48c820ea276a1c39727b1c0", "kind": "file",
+              "paths": ["apply-project-registry-minor-only.py"], "artifact_commit": None,
+              "main": "a7f8eada86a0b3c7cfcd94010b633ba716ef0f12", "pr": 33,
+              "pr_head": "agent/den-2745-minor-only-correction", "pr_state": "merged",
+              "note": "DEN-2745 minor-only policy is merged; follow-up PR #34 also landed tracked branch-tip advancement.",
+          },
+          {
+              "owner": "ORESoftware", "repository": "k8s-cluster", "visibility": "public",
+              "origin": "file_00000000f48c820ea276a1c39727b1c0", "observed_at": "2026-08-08T04:49:00Z",
+              "artifact": "apply-project-registry-minor-only.py",
+              "digest": "5eedf2b100d337b1db00a8bf38eb5aa68806e96ff308709f36921bb27bac306a",
+              "locator": "library:file_00000000f48c820ea276a1c39727b1c0#k8s-policy", "kind": "file",
+              "paths": ["apply-project-registry-minor-only.py"], "artifact_commit": None,
+              "main": "e4134cce559732dbad2527e874f7e673cf6dca1f", "pr": 1101,
+              "pr_head": "agent/den-2745-branch-tip-policy-v2", "pr_state": "merged",
+              "note": "DEN-2745 branch-tip policy landed through PR #1101; default-branch tracked-tip rollout also landed through #1103.",
+          },
+          '''
+          marker = ')\nFLUTTER = {'
+          if text.count(marker) != 1:
+              raise SystemExit('RECOVERED tuple marker is not unique')
+          text = text.replace(marker, recovered_additions + marker)
+
+          open_additions = '''    {
+              "owner": "apostille-me", "repository": "apme-mcp-server.rs", "visibility": "public",
+              "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:07Z",
+              "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+              "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+              "main": "7ab3198e78ce30849c22584ac9afb5007d3ed2ab",
+              "branch": "agent/den-2285-recovery-review",
+              "branch_sha": "a255bcbafc7a3e6f69b05fd6502f66b43ffb4a43", "pr": 1,
+              "note": "Local creation succeeded; green draft PR supplies review evidence while apme-e2e remains absent.",
+          },
+          {
+              "owner": "embedded-alerts", "repository": "eal-mcp-server.rs", "visibility": "public",
+              "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:20Z",
+              "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+              "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+              "main": "05384988c517b19e49022d32945a11c3393de0e4",
+              "branch": "agent/den-2287-recovery-review",
+              "branch_sha": "0ba444300f16327fc07fe4e2f419031eb87cfad4", "pr": 1,
+              "note": "Local creation succeeded; green draft PR supplies review evidence while eal-e2e remains absent.",
+          },
+          {
+              "owner": "evento-globolo", "repository": "evgl-mcp-server.rs", "visibility": "public",
+              "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:35Z",
+              "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+              "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+              "main": "6e69697b525ce696f98a8e74b35c888487240796",
+              "branch": "agent/den-2290-recovery-review",
+              "branch_sha": "6a2cc7e239243b2a4d580953c576294e5bf4c557", "pr": 1,
+              "note": "Local creation succeeded; green draft PR supplies review evidence while evgl-e2e remains absent.",
+          },
+          {
+              "owner": "hacker-house-medellin", "repository": "hhm-mcp-server.rs", "visibility": "public",
+              "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:53Z",
+              "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+              "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+              "main": "9e8850ff7b48b41f46ff62af31ca4d423e5aa7d5",
+              "branch": "agent/den-2293-recovery-review",
+              "branch_sha": "6eb3b797a73f7d7bd68de3f249793de0caf836cb", "pr": 1,
+              "note": "Local creation succeeded; green draft PR supplies review evidence while hhm-e2e remains absent.",
+          },
+          '''
+          open_marker = '    },\n)\n\n\ndef origin('
+          if text.count(open_marker) != 1:
+              raise SystemExit('OPEN_RECOVERIES tuple marker is not unique')
+          text = text.replace(open_marker, '    },\n' + open_additions + ')\n\n\ndef origin(')
+
+          replace_once(
+              '        "note": "A current semantic successor is already merged; do not open a duplicate recovery branch.",',
+              '        "note": value.get("note", "A current semantic successor is already merged; do not open a duplicate recovery branch."),',
+              'recovered note override',
+          )
+          replace_once(
+              '        "batch": {"id": "accessible-library-backfill-2026-08-08-wave-2", "complete": False,',
+              '        "batch": {"id": "accessible-library-backfill-2026-08-08-wave-3", "complete": False,',
+              'batch id',
+          )
+          generator.write_text(text, encoding='utf-8')
+
+          tests = Path('tests/test_artifact_recovery_ledger.py')
+          test_text = tests.read_text(encoding='utf-8')
+
+          def replace_test_once(old: str, new: str, label: str) -> None:
+              nonlocal_test_count = test_text.count(old)
+              if nonlocal_test_count != 1:
+                  raise SystemExit(f'{label}: expected one test anchor, found {nonlocal_test_count}')
+              return None
+
+          replacements = {
+              'self.assertEqual(ledger["summary"]["entries"], 20)': 'self.assertEqual(ledger["summary"]["entries"], 22)',
+              'self.assertEqual(ledger["summary"]["complete"], 12)': 'self.assertEqual(ledger["summary"]["complete"], 18)',
+              'self.assertEqual(ledger["summary"]["actionable"], 8)': 'self.assertEqual(ledger["summary"]["actionable"], 4)',
+              'self.assertEqual(queue["summary"], {"items": 8, "create_repository": 8, "recover_local": 0})': 'self.assertEqual(queue["summary"], {"items": 4, "create_repository": 4, "recover_local": 0})',
+              'self.assertEqual(ledger["last_batch"]["available"], 20)': 'self.assertEqual(ledger["last_batch"]["available"], 22)',
+          }
+          for old, new in replacements.items():
+              count = test_text.count(old)
+              if count != 1:
+                  raise SystemExit(f'test replacement {old!r}: found {count}')
+              test_text = test_text.replace(old, new)
+
+          old_expected = '''        expected = {
+              "apostille-me/apme-mcp-server.rs", "apostille-me/apme-e2e",
+              "embedded-alerts/eal-mcp-server.rs", "embedded-alerts/eal-e2e",
+              "evento-globolo/evgl-mcp-server.rs", "evento-globolo/evgl-e2e",
+              "hacker-house-medellin/hhm-mcp-server.rs", "hacker-house-medellin/hhm-e2e",
+          }'''
+          new_expected = '''        expected = {
+              "apostille-me/apme-e2e",
+              "embedded-alerts/eal-e2e",
+              "evento-globolo/evgl-e2e",
+              "hacker-house-medellin/hhm-e2e",
+          }'''
+          if test_text.count(old_expected) != 1:
+              raise SystemExit('expected queue set anchor is not unique')
+          test_text = test_text.replace(old_expected, new_expected)
+
+          insertion = '''    def test_third_wave_reuses_created_mcp_prs_and_den_2745_merges(self) -> None:
+              ledger, queue = self.reconcile(self.fixture())
+              entries = {
+                  entry["observation"]["target"]["identity"]: entry
+                  for entry in ledger["entries"].values()
+              }
+              mcp_identities = {
+                  "apostille-me/apme-mcp-server.rs",
+                  "embedded-alerts/eal-mcp-server.rs",
+                  "evento-globolo/evgl-mcp-server.rs",
+                  "hacker-house-medellin/hhm-mcp-server.rs",
+              }
+              for identity in mcp_identities:
+                  with self.subTest(identity=identity):
+                      entry = entries[identity]
+                      self.assertEqual(entry["classification"]["status"], "complete")
+                      pull = entry["observation"]["remote"]["pull_requests"][0]
+                      self.assertEqual(pull["number"], 1)
+                      self.assertTrue(pull["draft"])
+                      self.assertEqual(pull["state"], "open")
+              for identity, pull_number in {
+                  "oresoftware/project-registry": 33,
+                  "oresoftware/k8s-cluster": 1101,
+              }.items():
+                  with self.subTest(identity=identity):
+                      entry = entries[identity]
+                      self.assertEqual(entry["classification"]["status"], "complete")
+                      self.assertTrue(any(
+                          link.endswith(f"/pull/{pull_number}")
+                          for link in entry["evidence_links"]
+                      ))
+              queued = {
+                  f"{item['owner'].lower()}/{item['repository'].lower()}"
+                  for item in queue["items"]
+              }
+              self.assertTrue(mcp_identities.isdisjoint(queued))
+
+'''
+          anchor = '    def test_identical_rerun_is_byte_stable_and_does_not_increment_attempts(self) -> None:\n'
+          if test_text.count(anchor) != 1:
+              raise SystemExit('third-wave test insertion anchor is not unique')
+          test_text = test_text.replace(anchor, insertion + anchor)
+          tests.write_text(test_text, encoding='utf-8')
+
+          workflow = Path('.github/workflows/nightly-artifact-recovery.yml')
+          workflow_text = workflow.read_text(encoding='utf-8')
+          for old, new in {
+              "assert ledger['summary']['entries'] == 20": "assert ledger['summary']['entries'] == 22",
+              "assert ledger['summary']['complete'] == 12": "assert ledger['summary']['complete'] == 18",
+              "assert ledger['summary']['actionable'] == 8": "assert ledger['summary']['actionable'] == 4",
+              "assert queue['summary'] == {'items': 8, 'create_repository': 8, 'recover_local': 0}": "assert queue['summary'] == {'items': 4, 'create_repository': 4, 'recover_local': 0}",
+          }.items():
+              if workflow_text.count(old) != 1:
+                  raise SystemExit(f'workflow assertion anchor {old!r} is not unique')
+              workflow_text = workflow_text.replace(old, new)
+          workflow.write_text(workflow_text, encoding='utf-8')
+
+          documentation = Path('docs/artifact-recovery-initial-backfill.md')
+          documentation.write_text('''# DEN-2797 cumulative artifact-recovery backfill
+
+Generated from three public-safe, bounded accessible-Library waves on 2026-08-07 and 2026-08-08 and refreshed against current GitHub repository, branch, commit, pull-request, workflow, and Linear evidence.
+
+## Result
+
+| Metric | Count |
+|---|---:|
+| Ledger rows | 22 |
+| Verified complete | 18 |
+| Actionable | 4 |
+| Missing repositories | 4 |
+| Existing-repository artifacts already recovered, superseded, merged, or on verified draft PRs | 14 |
+| Blocked/ambiguous | 0 |
+
+The checked-in deterministic generator is not a transcript export. It contains stable source file IDs, intended owner/repository identities, artifact digests and locators, current bounded GitHub evidence, and classification inputs. It contains no prompt body, hidden reasoning, email address, token, private key, or credential assignment.
+
+## First and second waves
+
+The first two waves retain exact evidence for four sealed private repositories, Canonical and Slack artifacts, merged DEN-602 work, and green current-main draft PRs for DEN-99 and DEN-569. Existing remote delivery suppresses duplicate recovery even when a product PR remains draft for normal owner review.
+
+## Third bounded wave
+
+Fresh cross-thread reads changed the local queue materially:
+
+- `apostille-me/apme-mcp-server.rs` now exists publicly and has green draft PR #1 at `a255bcbafc7a3e6f69b05fd6502f66b43ffb4a43`;
+- `embedded-alerts/eal-mcp-server.rs` now exists publicly and has green draft PR #1 at `0ba444300f16327fc07fe4e2f419031eb87cfad4`;
+- `evento-globolo/evgl-mcp-server.rs` now exists publicly and has green draft PR #1 at `6a2cc7e239243b2a4d580953c576294e5bf4c557`;
+- `hacker-house-medellin/hhm-mcp-server.rs` now exists publicly and has green draft PR #1 at `6eb3b797a73f7d7bd68de3f249793de0caf836cb`.
+
+Each PR preserves the published implementation, removes stale post-publication instructions, pins and bounds CI, records immutable recovery evidence, and leaves real Zed lock/frozen-install work open. The sibling E2E repositories remain separate creation targets.
+
+The DEN-2745 local transformer is not replayed. Its intended policy is already merged through `ORESoftware/project-registry#33`, branch-tip follow-up #34, `ORESoftware/k8s-cluster#1101`, and tracked-tip rollout #1103. Current repository reads and merged PR evidence mark both repository targets complete.
+
+## Recovery handoff
+
+Only four genuinely missing repositories now emit deterministic rows for local Codex task `019fd526-f34d-7f72-94fa-2da6185f2d74`:
+
+1. `apostille-me/apme-e2e`
+2. `embedded-alerts/eal-e2e`
+3. `evento-globolo/evgl-e2e`
+4. `hacker-house-medellin/hhm-e2e`
+
+Every row requires a fresh GitHub read, intended-content secret scan, create-only behavior, exact path staging, non-force push, draft PR, and post-write evidence read. A later batch must use the persisted cursor and revisit any source whose observation digest changes.
+
+See `docs/nightly-artifact-recovery.md` for the complete contract and evidence inventory.
+''', encoding='utf-8')
+          PY
+
+          git add \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md
+          git diff --cached --check
+          ! grep -RInE '^(<<<<<<<|=======|>>>>>>>)' \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md
+
+      - name: Compile and run complete recovery suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/build_artifact_recovery_backfill.py \
+            tools/artifact_recovery_ledger.py \
+            tools/artifact_recovery/*.py \
+            tools/enqueue_artifact_recovery.py \
+            tests/test_artifact_recovery_ledger.py \
+            tests/test_enqueue_artifact_recovery.py
+          python3 -m unittest -v \
+            tests/test_artifact_recovery_ledger.py \
+            tests/test_enqueue_artifact_recovery.py
+
+      - name: Validate permanent workflow and deterministic wave-3 evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/nightly-artifact-recovery.yml
+          evidence="$RUNNER_TEMP/artifact-recovery-wave-3"
+          mkdir -p "$evidence"
+          python3 scripts/build_artifact_recovery_backfill.py --output "$evidence/backfill.json"
+          python3 tools/artifact_recovery_ledger.py validate "$evidence/backfill.json"
+          python3 tools/artifact_recovery_ledger.py reconcile \
+            --input "$evidence/backfill.json" --output "$evidence/ledger-first.json" \
+            --cli-queue "$evidence/queue-first.json" --batch-size 50 --now 2026-08-08T04:55:00Z
+          python3 tools/artifact_recovery_ledger.py reconcile \
+            --input "$evidence/backfill.json" --ledger "$evidence/ledger-first.json" \
+            --output "$evidence/ledger-second.json" --cli-queue "$evidence/queue-second.json" \
+            --batch-size 50 --now 2026-08-08T04:55:00Z
+          cmp "$evidence/ledger-first.json" "$evidence/ledger-second.json"
+          cmp "$evidence/queue-first.json" "$evidence/queue-second.json"
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['EVIDENCE'])
+          ledger = json.loads((root / 'ledger-second.json').read_text())
+          queue = json.loads((root / 'queue-second.json').read_text())
+          assert ledger['summary'] == {
+              'entries': 22,
+              'complete': 18,
+              'actionable': 4,
+              'blocked': 0,
+              'excluded': 0,
+          }
+          assert queue['summary'] == {
+              'items': 4,
+              'create_repository': 4,
+              'recover_local': 0,
+          }
+          expected_queue = {
+              'apostille-me/apme-e2e',
+              'embedded-alerts/eal-e2e',
+              'evento-globolo/evgl-e2e',
+              'hacker-house-medellin/hhm-e2e',
+          }
+          assert {
+              f"{item['owner']}/{item['repository']}"
+              for item in queue['items']
+          } == expected_queue
+          PY
+
+      - name: Scan intended product scope for credential material
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE \
+            '(gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|cfat_[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)' \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md; then
+            echo 'credential-shaped material found in intended product scope' >&2
+            exit 1
+          fi
+
+      - name: Commit product-only wave-3 tree and export evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=a30af8786d7dc22782ff8d6d12de829cf2306193
+          git rm .github/workflows/den-2797-backfill-wave-3.yml
+          git add \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md
+          git diff --cached --check
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(DEN-2797): extend artifact recovery backfill through wave 3'
+          product_commit="$(git rev-parse HEAD)"
+          product_tree="$(git rev-parse 'HEAD^{tree}')"
+          echo "PRODUCT_COMMIT=$product_commit"
+          echo "PRODUCT_TREE=$product_tree"
+          git diff --name-only "$base"...HEAD | sort > /tmp/product.actual
+          cat > /tmp/product.expected <<'EOF'
+          .github/workflows/nightly-artifact-recovery.yml
+          docs/artifact-recovery-initial-backfill.md
+          scripts/build_artifact_recovery_backfill.py
+          tests/test_artifact_recovery_ledger.py
+          EOF
+          diff -u /tmp/product.expected /tmp/product.actual
+
+          root="$RUNNER_TEMP/den-2797-wave-3-product"
+          mkdir -p "$root/.github/workflows" "$root/docs" "$root/scripts" "$root/tests"
+          cp .github/workflows/nightly-artifact-recovery.yml "$root/.github/workflows/nightly-artifact-recovery.yml"
+          cp docs/artifact-recovery-initial-backfill.md "$root/docs/artifact-recovery-initial-backfill.md"
+          cp scripts/build_artifact_recovery_backfill.py "$root/scripts/build_artifact_recovery_backfill.py"
+          cp tests/test_artifact_recovery_ledger.py "$root/tests/test_artifact_recovery_ledger.py"
+          cp -R "$RUNNER_TEMP/artifact-recovery-wave-3" "$root/evidence"
+          (
+            cd "$root"
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+          cat > "$root/RECOVERY_EVIDENCE.json" <<EOF
+          {
+            "schema_version": 1,
+            "source_branch_head": "${GITHUB_SHA}",
+            "base_commit": "$base",
+            "product_commit": "$product_commit",
+            "product_tree": "$product_tree",
+            "ledger_rows": 22,
+            "complete": 18,
+            "actionable": 4,
+            "cli_repository_creates": 4
+          }
+          EOF
+
+          set +e
+          push_output="$(git push origin HEAD:agent/den-2797-backfill-wave-3 2>&1)"
+          push_status=$?
+          set -e
+          printf '%s\n' "$push_output"
+          test "$push_status" -ne 0
+          grep -F 'refusing to allow a GitHub App to create or update workflow' <<<"$push_output"
+
+      - name: Upload product tree and wave-3 evidence for App publication
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: den-2797-wave-3-product-${{ github.sha }}
+          path: ${{ runner.temp }}/den-2797-wave-3-product
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
