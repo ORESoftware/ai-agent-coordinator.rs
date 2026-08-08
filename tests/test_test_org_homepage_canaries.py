@@ -34,9 +34,9 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
         self.assertEqual(
             validator.validate_registry(self.registry),
             {
-                "canaries": 2,
-                "test_organizations": 2,
-                "production_parents": 2,
+                "canaries": 3,
+                "test_organizations": 3,
+                "production_parents": 3,
             },
         )
 
@@ -45,6 +45,24 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
         by_id = validator.resolve_canary(self.registry, 313179056)
         self.assertEqual(by_login, by_id)
         self.assertEqual(by_login["github"]["login"], "scintilla-run-test")
+
+    def test_discrete_event_systems_canary_is_explicit_and_test_only(self) -> None:
+        by_login = validator.resolve_canary(
+            self.registry,
+            "discrete-event-systems-test",
+        )
+        by_id = validator.resolve_canary(self.registry, 313546124)
+        self.assertEqual(by_login, by_id)
+        self.assertEqual(
+            by_login["parent_production"]["github_login"],
+            "discrete-event-systems",
+        )
+        self.assertEqual(
+            by_login["linear"]["project_id"],
+            "abc2c19e-7ec3-458a-a33d-0f8a105de450",
+        )
+        self.assertIsNone(by_login["runtime_route"])
+        self.assertTrue(by_login["public_context_only"])
 
     def test_runtime_route_is_forbidden(self) -> None:
         registry = self.mutated()
