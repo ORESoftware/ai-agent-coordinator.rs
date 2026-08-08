@@ -28,33 +28,33 @@
   "canaries": [
     {
       "github": {
-        "login": "memebank-test",
-        "account_id": 313178150,
+        "login": "scintilla-run-test",
+        "account_id": 313179056,
         "account_type": "Organization",
-        "installation_id": 151313003,
-        "repository": "memebank-test/.github",
-        "github_project_url": "https://github.com/orgs/memebank-test/projects/1"
+        "installation_id": 151313324,
+        "repository": "scintilla-run-test/.github",
+        "github_project_url": "https://github.com/orgs/scintilla-run-test/projects/1"
       },
       "linear": {
-        "project_id": "fc8321cd-eaa3-44ef-bb70-e0ffcb16df3c",
-        "project_name": "github.com/memebank-test",
-        "project_url": "https://linear.app/denman/project/githubcommemebank-test-6f5975c8c794"
+        "project_id": "f0c7eeef-c061-4d2f-981d-c0f8c3b1fd9c",
+        "project_name": "github.com/scintilla-run-test",
+        "project_url": "https://linear.app/denman/project/githubcomscintilla-run-test-260f59af5817"
       },
       "parent_production": {
-        "github_login": "memebank",
-        "github_account_id": 75922132,
-        "linear_project_id": "aa7e93aa-0921-4e60-8ec3-a0e4da1e9572",
-        "linear_project_name": "memebank",
-        "linear_project_url": "https://linear.app/denman/project/memebank-3db5f5cc7452"
+        "github_login": "scintilla-run",
+        "github_account_id": 306201161,
+        "linear_project_id": "f5da817a-9c48-48ff-abcd-c6dd21045c20",
+        "linear_project_name": "github.com/scintilla-run",
+        "linear_project_url": "https://linear.app/denman/project/githubcomscintilla-run-6d9dd5f5e244"
       },
       "test_program": {
-        "purpose": "Independent acceptance and release-certification organization for Memebank.",
+        "purpose": "Independent acceptance and release-certification organization for Scintilla Run.",
         "scope": [
-          "mobile, desktop, and web application behavior",
-          "image ingestion and metadata preservation",
-          "OCR, vision, and search contracts",
-          "cross-device synchronization",
-          "Cliptown interoperability boundaries"
+          "runner and protocol conformance",
+          "revision and alias weighting",
+          "durable invocation and workflow behavior",
+          "KV, secret, and PostgreSQL boundaries",
+          "client, UI, and MCP contracts"
         ],
         "profile_strategy": "preserve_specialized_acceptance_notes"
       },
