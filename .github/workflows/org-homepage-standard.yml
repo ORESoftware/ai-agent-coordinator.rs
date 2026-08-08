@@ -5,24 +5,34 @@ on:
     branches: [main]
     paths:
       - .github/workflows/org-homepage-standard.yml
+      - config/test-org-homepage-canaries.yaml
       - docs/org-homepage-standard.md
       - templates/org-profile-readme.md
       - scripts/render_org_homepage.py
       - scripts/render_org_project_context.py
+      - scripts/render_test_org_homepage_context.py
       - scripts/validate_org_homepage.py
+      - scripts/validate_test_org_homepage_canaries.py
+      - scripts/verify_test_org_homepage_context.py
       - tests/fixtures/org-homepage.valid.md
       - tests/test_render_org_homepage.py
+      - tests/test_test_org_homepage_canaries.py
       - tests/test_validate_org_homepage.py
   pull_request:
     paths:
       - .github/workflows/org-homepage-standard.yml
+      - config/test-org-homepage-canaries.yaml
       - docs/org-homepage-standard.md
       - templates/org-profile-readme.md
       - scripts/render_org_homepage.py
       - scripts/render_org_project_context.py
+      - scripts/render_test_org_homepage_context.py
       - scripts/validate_org_homepage.py
+      - scripts/validate_test_org_homepage_canaries.py
+      - scripts/verify_test_org_homepage_context.py
       - tests/fixtures/org-homepage.valid.md
       - tests/test_render_org_homepage.py
+      - tests/test_test_org_homepage_canaries.py
       - tests/test_validate_org_homepage.py
   workflow_dispatch:
 
@@ -51,19 +61,24 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Compile dependency-free renderer, validator, and tests
+      - name: Compile dependency-free renderers, validators, verifiers, and tests
         run: >-
           python3 -m py_compile
           scripts/render_org_homepage.py
           scripts/render_org_project_context.py
+          scripts/render_test_org_homepage_context.py
           scripts/validate_org_homepage.py
+          scripts/validate_test_org_homepage_canaries.py
+          scripts/verify_test_org_homepage_context.py
           tests/test_render_org_homepage.py
+          tests/test_test_org_homepage_canaries.py
           tests/test_validate_org_homepage.py
 
-      - name: Run organization homepage renderer and mutation tests
+      - name: Run organization homepage and test-canary mutation tests
         run: >-
           python3 -m unittest -v
           tests/test_render_org_homepage.py
+          tests/test_test_org_homepage_canaries.py
           tests/test_validate_org_homepage.py
 
       - name: Validate the rendered example profile
@@ -71,3 +86,22 @@ jobs:
           python3 scripts/validate_org_homepage.py
           tests/fixtures/org-homepage.valid.md
           --expect-org example-org
+
+      - name: Validate the test-only canary registry
+        run: >-
+          python3 scripts/validate_test_org_homepage_canaries.py
+          config/test-org-homepage-canaries.yaml
+
+      - name: Render every registered test canary at the exact workflow revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="$(mktemp -d)"
+          trap 'rm -rf "$output"' EXIT
+          for owner in claritas-viz-test cliptown-test; do
+            python3 scripts/render_test_org_homepage_context.py \
+              --registry config/test-org-homepage-canaries.yaml \
+              --owner "$owner" \
+              --registry-ref "$GITHUB_SHA" \
+              --output-dir "$output/$owner"
+          done
