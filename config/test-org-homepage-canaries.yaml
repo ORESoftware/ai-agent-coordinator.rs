@@ -28,33 +28,33 @@
   "canaries": [
     {
       "github": {
-        "login": "claritas-viz-test",
-        "account_id": 313177891,
+        "login": "memebank-test",
+        "account_id": 313178150,
         "account_type": "Organization",
-        "installation_id": 151312752,
-        "repository": "claritas-viz-test/.github",
-        "github_project_url": "https://github.com/orgs/claritas-viz-test/projects/1"
+        "installation_id": 151313003,
+        "repository": "memebank-test/.github",
+        "github_project_url": "https://github.com/orgs/memebank-test/projects/1"
       },
       "linear": {
-        "project_id": "e142efcd-d4ff-494f-b985-5a7c9bc9da2d",
-        "project_name": "github.com/claritas-viz-test",
-        "project_url": "https://linear.app/denman/project/githubcomclaritas-viz-test-be061b785d84"
+        "project_id": "fc8321cd-eaa3-44ef-bb70-e0ffcb16df3c",
+        "project_name": "github.com/memebank-test",
+        "project_url": "https://linear.app/denman/project/githubcommemebank-test-6f5975c8c794"
       },
       "parent_production": {
-        "github_login": "claritas-viz",
-        "github_account_id": 306201730,
-        "linear_project_id": "ff47fc82-5612-4bf6-a8cc-cc23da267931",
-        "linear_project_name": "github.com/claritas-viz",
-        "linear_project_url": "https://linear.app/denman/project/githubcomclaritas-viz-09fcc5d7dd9e"
+        "github_login": "memebank",
+        "github_account_id": 75922132,
+        "linear_project_id": "aa7e93aa-0921-4e60-8ec3-a0e4da1e9572",
+        "linear_project_name": "memebank",
+        "linear_project_url": "https://linear.app/denman/project/memebank-3db5f5cc7452"
       },
       "test_program": {
-        "purpose": "Independent acceptance and release-certification organization for Claritas Viz.",
+        "purpose": "Independent acceptance and release-certification organization for Memebank.",
         "scope": [
-          "visualization SDK and API contracts",
-          "rendering and export behavior",
-          "Flutter and web user interfaces",
-          "accessibility",
-          "large-dataset performance"
+          "mobile, desktop, and web application behavior",
+          "image ingestion and metadata preservation",
+          "OCR, vision, and search contracts",
+          "cross-device synchronization",
+          "Cliptown interoperability boundaries"
         ],
         "profile_strategy": "preserve_specialized_acceptance_notes"
       },
@@ -63,33 +63,33 @@
     },
     {
       "github": {
-        "login": "cliptown-test",
-        "account_id": 313178019,
+        "login": "file-tunnel-test",
+        "account_id": 313180937,
         "account_type": "Organization",
-        "installation_id": 151312784,
-        "repository": "cliptown-test/.github",
-        "github_project_url": "https://github.com/orgs/cliptown-test/projects/1"
+        "installation_id": 151313752,
+        "repository": "file-tunnel-test/.github",
+        "github_project_url": "https://github.com/orgs/file-tunnel-test/projects/1"
       },
       "linear": {
-        "project_id": "e0914801-1cb8-4eb2-b70f-010369fdf771",
-        "project_name": "github.com/cliptown-test",
-        "project_url": "https://linear.app/denman/project/githubcomcliptown-test-8157daa8a324"
+        "project_id": "f571acda-b2bd-4289-864a-8091b65eb20d",
+        "project_name": "github.com/file-tunnel-test",
+        "project_url": "https://linear.app/denman/project/githubcomfile-tunnel-test-c8f644168247"
       },
       "parent_production": {
-        "github_login": "cliptown",
-        "github_account_id": 309492430,
-        "linear_project_id": "83b03121-db08-4e34-a69f-99fd1c873ced",
-        "linear_project_name": "github.com/cliptown",
-        "linear_project_url": "https://linear.app/denman/project/githubcomcliptown-adf62fab3f42"
+        "github_login": "file-tunnel",
+        "github_account_id": 310631493,
+        "linear_project_id": "0cb3346d-19e0-4aff-8758-c5d5a4a1ed80",
+        "linear_project_name": "github.com/file-tunnel",
+        "linear_project_url": "https://linear.app/denman/project/githubcomfile-tunnel-f46884af1012"
       },
       "test_program": {
-        "purpose": "Independent acceptance and release-certification organization for Cliptown.",
+        "purpose": "Independent acceptance and release-certification organization for File Tunnel.",
         "scope": [
-          "clipboard fidelity",
-          "SDK and API contracts",
-          "mobile, desktop, web, and extension behavior",
-          "cross-device synchronization",
-          "Memebank interoperability"
+          "transfer integrity and resumability",
+          "client and service contract compatibility",
+          "cross-platform desktop and mobile behavior",
+          "authorization and tenant isolation",
+          "large-file and interrupted-network recovery"
         ],
         "profile_strategy": "preserve_specialized_acceptance_notes"
       },
