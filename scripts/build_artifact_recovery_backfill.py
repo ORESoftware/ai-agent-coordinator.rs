@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 from typing import Any, Sequence
 
-GENERATED_AT = "2026-08-08T04:16:00Z"
+GENERATED_AT = "2026-08-08T04:52:00Z"
 SEALED_ORIGIN = "file_000000003294820e97c272f46f9db586"
 ZED_ORIGIN = "file_000000003448822f94ce8546e1467c71"
 CANONICAL_ORIGIN = "file_000000004f70820eb68de1c6e743e057"
@@ -24,10 +24,10 @@ SEALED = (
     ("StreemPilot", "streempilot-media-router.rs", "a3b01146f85ee61400b72ed3f333c76b4413a4fa"),
 )
 MISSING = (
-    ("apostille-me", "apme-mcp-server.rs"), ("apostille-me", "apme-e2e"),
-    ("embedded-alerts", "eal-mcp-server.rs"), ("embedded-alerts", "eal-e2e"),
-    ("evento-globolo", "evgl-mcp-server.rs"), ("evento-globolo", "evgl-e2e"),
-    ("hacker-house-medellin", "hhm-mcp-server.rs"), ("hacker-house-medellin", "hhm-e2e"),
+    ("apostille-me", "apme-e2e"),
+    ("embedded-alerts", "eal-e2e"),
+    ("evento-globolo", "evgl-e2e"),
+    ("hacker-house-medellin", "hhm-e2e"),
 )
 RECOVERED = (
     {
@@ -76,6 +76,28 @@ RECOVERED = (
     "main": "624c2bae2ac92f65a3a0e86a842fed83758d0972", "pr": 56,
     "pr_head": "agent/den-602-github-admin-browser-hardening", "pr_state": "merged",
 },
+    {
+        "owner": "ORESoftware", "repository": "project-registry", "visibility": "public",
+        "origin": "file_00000000f48c820ea276a1c39727b1c0", "observed_at": "2026-08-08T04:44:00Z",
+        "artifact": "apply-project-registry-minor-only.py",
+        "digest": "5eedf2b100d337b1db00a8bf38eb5aa68806e96ff308709f36921bb27bac306a",
+        "locator": "library:file_00000000f48c820ea276a1c39727b1c0", "kind": "file",
+        "paths": ["apply-project-registry-minor-only.py"], "artifact_commit": None,
+        "main": "a7f8eada86a0b3c7cfcd94010b633ba716ef0f12", "pr": 33,
+        "pr_head": "agent/den-2745-minor-only-correction", "pr_state": "merged",
+        "note": "DEN-2745 minor-only policy is merged; follow-up PR #34 also landed tracked branch-tip advancement.",
+    },
+    {
+        "owner": "ORESoftware", "repository": "k8s-cluster", "visibility": "public",
+        "origin": "file_00000000f48c820ea276a1c39727b1c0", "observed_at": "2026-08-08T04:49:00Z",
+        "artifact": "apply-project-registry-minor-only.py",
+        "digest": "5eedf2b100d337b1db00a8bf38eb5aa68806e96ff308709f36921bb27bac306a",
+        "locator": "library:file_00000000f48c820ea276a1c39727b1c0#k8s-policy", "kind": "file",
+        "paths": ["apply-project-registry-minor-only.py"], "artifact_commit": None,
+        "main": "e4134cce559732dbad2527e874f7e673cf6dca1f", "pr": 1101,
+        "pr_head": "agent/den-2745-branch-tip-policy-v2", "pr_state": "merged",
+        "note": "DEN-2745 branch-tip policy landed through PR #1101; default-branch tracked-tip rollout also landed through #1103.",
+    },
 )
 FLUTTER = {
     "owner": "canonical-cloud", "repository": "canonical-flutter", "visibility": "private",
@@ -110,6 +132,46 @@ OPEN_RECOVERIES = (
         "branch": "agent/den-569-quint-composition-model",
         "branch_sha": "c90cf14db6609ab550444af64200e22c8ee19327", "pr": 26,
         "note": "Recovered to a green current-main draft PR without overlapping the merged DEN-1516 Rust model.",
+    },
+    {
+        "owner": "apostille-me", "repository": "apme-mcp-server.rs", "visibility": "public",
+        "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:07Z",
+        "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+        "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+        "main": "7ab3198e78ce30849c22584ac9afb5007d3ed2ab",
+        "branch": "agent/den-2285-recovery-review",
+        "branch_sha": "a255bcbafc7a3e6f69b05fd6502f66b43ffb4a43", "pr": 1,
+        "note": "Local creation succeeded; green draft PR supplies review evidence while apme-e2e remains absent.",
+    },
+    {
+        "owner": "embedded-alerts", "repository": "eal-mcp-server.rs", "visibility": "public",
+        "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:20Z",
+        "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+        "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+        "main": "05384988c517b19e49022d32945a11c3393de0e4",
+        "branch": "agent/den-2287-recovery-review",
+        "branch_sha": "0ba444300f16327fc07fe4e2f419031eb87cfad4", "pr": 1,
+        "note": "Local creation succeeded; green draft PR supplies review evidence while eal-e2e remains absent.",
+    },
+    {
+        "owner": "evento-globolo", "repository": "evgl-mcp-server.rs", "visibility": "public",
+        "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:35Z",
+        "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+        "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+        "main": "6e69697b525ce696f98a8e74b35c888487240796",
+        "branch": "agent/den-2290-recovery-review",
+        "branch_sha": "6a2cc7e239243b2a4d580953c576294e5bf4c557", "pr": 1,
+        "note": "Local creation succeeded; green draft PR supplies review evidence while evgl-e2e remains absent.",
+    },
+    {
+        "owner": "hacker-house-medellin", "repository": "hhm-mcp-server.rs", "visibility": "public",
+        "origin": ZED_ORIGIN, "observed_at": "2026-08-08T04:46:53Z",
+        "artifact": "zed-fleet-reconcile.sh", "digest": ZED_DIGEST,
+        "locator": "library:file_000000009c1c822fbca21330abaa93d2",
+        "main": "9e8850ff7b48b41f46ff62af31ca4d423e5aa7d5",
+        "branch": "agent/den-2293-recovery-review",
+        "branch_sha": "6eb3b797a73f7d7bd68de3f249793de0caf836cb", "pr": 1,
+        "note": "Local creation succeeded; green draft PR supplies review evidence while hhm-e2e remains absent.",
     },
 )
 
@@ -185,7 +247,7 @@ def recovered(value: dict[str, Any]) -> dict[str, Any]:
             "branch": "main", "branches": ["main"], "head_sha": main, "dirty_paths": []},
         "remote": remote(owner, repository, value["visibility"], main, pull_requests=(evidence,)),
         "claims": {"repository_url": url, "commit_sha": main, "branch": "main", "pull_request_url": evidence["url"]},
-        "note": "A current semantic successor is already merged; do not open a duplicate recovery branch.",
+        "note": value.get("note", "A current semantic successor is already merged; do not open a duplicate recovery branch."),
     }
 
 
@@ -233,7 +295,7 @@ def build_fixture() -> dict[str, Any]:
     items.extend(open_recovery(value) for value in OPEN_RECOVERIES)
     return {
         "schema_version": "artifact_recovery_observation.v1", "generated_at": GENERATED_AT,
-        "batch": {"id": "accessible-library-backfill-2026-08-08-wave-2", "complete": False,
+        "batch": {"id": "accessible-library-backfill-2026-08-08-wave-3", "complete": False,
             "next_cursor": "library-created-before:2026-08-01T23:41:07Z",
             "source_window": "accessible ChatGPT file-library artifacts and refreshed GitHub evidence through 2026-08-08"},
         "items": items,

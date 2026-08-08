@@ -1,44 +1,46 @@
-# DEN-2797 initial artifact-recovery backfill
+# DEN-2797 cumulative artifact-recovery backfill
 
-Generated from public-safe, bounded accessible-library batches on 2026-08-07 and 2026-08-08 and refreshed against current GitHub repository, branch, commit, and pull-request evidence.
+Generated from three public-safe, bounded accessible-Library waves on 2026-08-07 and 2026-08-08 and refreshed against current GitHub repository, branch, commit, pull-request, workflow, and Linear evidence.
 
 ## Result
 
 | Metric | Count |
 |---|---:|
-| Ledger rows | 20 |
-| Verified complete | 12 |
-| Actionable | 8 |
-| Missing repositories | 8 |
-| Existing-repository artifacts already recovered, superseded, or on verified draft PRs | 8 |
+| Ledger rows | 22 |
+| Verified complete | 18 |
+| Actionable | 4 |
+| Missing repositories | 4 |
+| Existing-repository artifacts already recovered, superseded, merged, or on verified draft PRs | 14 |
 | Blocked/ambiguous | 0 |
 
-The checked-in deterministic generator is not a transcript export. It contains stable source file IDs, intended owner/repository identities, artifact digests and locators, current bounded GitHub evidence, and classification inputs. It contains no prompt body, hidden reasoning, email address, token, private key, or credential assignment.
+The deterministic generator is not a transcript export. It retains stable source IDs, owner/repository identities, artifact digests and locators, bounded GitHub evidence, and classification inputs. It contains no prompt body, hidden reasoning, email address, token, private key, or credential assignment.
 
-## Duplicate prevention
+## First and second waves
 
-The refreshed evidence scan found remote delivery for all five existing-repository artifacts:
+The first two waves retain exact evidence for four sealed private repositories, Canonical and Slack artifacts, merged DEN-602 work, and green current-main draft PRs for DEN-99 and DEN-569. Existing remote delivery suppresses duplicate recovery even when product review remains open.
 
-- `canonical-cloud/canonical-api-server.rs` — merged PR #10 and later mainline corrections;
-- `canonical-cloud/canonical-infra` — merged PR #4; PR #5 closed as superseded;
-- `canonical-cloud/canonical-lib` — merged PR #1;
-- `canonical-cloud/canonical-flutter` — open draft PR #1 at a later canonical-interface-aligned head;
-- `ORESoftware/slack-ores-integrations` — merged PR #1 and later compatible hardening.
+## Third bounded wave
 
-Those entries are complete for artifact-recovery purposes and are not sent to the local CLI worker. An open draft can remain review-blocked while still proving that the artifact reached a named remote branch and PR.
+Fresh cross-thread reads changed the local queue materially:
 
-## Second bounded wave
+- `apostille-me/apme-mcp-server.rs` now exists publicly and has green draft PR #1 at `a255bcbafc7a3e6f69b05fd6502f66b43ffb4a43`;
+- `embedded-alerts/eal-mcp-server.rs` now exists publicly and has green draft PR #1 at `0ba444300f16327fc07fe4e2f419031eb87cfad4`;
+- `evento-globolo/evgl-mcp-server.rs` now exists publicly and has green draft PR #1 at `6a2cc7e239243b2a4d580953c576294e5bf4c557`;
+- `hacker-house-medellin/hhm-mcp-server.rs` now exists publicly and has green draft PR #1 at `6eb3b797a73f7d7bd68de3f249793de0caf836cb`.
 
-The next older Library slice added three tangible artifacts after fresh remote verification:
+Each PR preserves the published implementation, removes stale post-publication instructions, pins and bounds CI, records immutable recovery evidence, and leaves real Zed lock/frozen-install work open. The sibling E2E repositories remain separate creation targets.
 
-- `DEN-602-github-admin-browser-hardening.patch` is already represented by merged `ORESoftware/ai-agent-coordinator.rs#56`, merge `8fa726f3d531d5ced99bfe3f67b6091f564e7d95`;
-- `DEN-99-dependency-resolution.patch` is recovered to green draft `zed-pkg/zed-api-server.rs#16` at `b80f728dfed8f6cb005846015300a3ee19e01678`;
-- `DEN-569-composition-model.patch` is recovered to green draft `fiducia-cloud/fiducia-brain.rs#26` at `c90cf14db6609ab550444af64200e22c8ee19327`, without modifying the merged DEN-1516 Rust model.
-
-All three rows have complete repository, commit, branch, and PR evidence and therefore do not enter the local CLI queue. The two drafts still require normal product-owner review before merge.
+The DEN-2745 local transformer is not replayed. Its intended policy is already merged through `ORESoftware/project-registry#33`, branch-tip follow-up #34, `ORESoftware/k8s-cluster#1101`, and tracked-tip rollout #1103. Current repository reads and merged PR evidence mark both repository targets complete.
 
 ## Recovery handoff
 
-Only the eight genuinely missing repositories emit deterministic rows for local Codex task `019fd526-f34d-7f72-94fa-2da6185f2d74`. Every row requires a fresh GitHub read, secret scan, exact path staging, non-force push, draft PR, and post-write evidence read. A later batch must use the persisted cursor and revisit any source whose observation digest changes.
+Only four genuinely missing repositories now emit deterministic rows for local Codex task `019fd526-f34d-7f72-94fa-2da6185f2d74`:
+
+1. `apostille-me/apme-e2e`
+2. `embedded-alerts/eal-e2e`
+3. `evento-globolo/evgl-e2e`
+4. `hacker-house-medellin/hhm-e2e`
+
+Every row requires a fresh GitHub read, intended-content secret scan, create-only behavior, exact path staging, non-force push, draft PR, and post-write evidence read. Later batches must use the persisted cursor and revisit materially changed sources.
 
 See `docs/nightly-artifact-recovery.md` for the complete contract and evidence inventory.

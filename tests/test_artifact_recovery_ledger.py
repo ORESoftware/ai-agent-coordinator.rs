@@ -29,16 +29,16 @@ class ArtifactRecoveryLedgerTests(unittest.TestCase):
 
     def test_refreshed_backfill_routes_only_genuinely_missing_repositories(self) -> None:
         ledger, queue = self.reconcile(self.fixture())
-        self.assertEqual(ledger["summary"]["entries"], 20)
-        self.assertEqual(ledger["summary"]["complete"], 12)
-        self.assertEqual(ledger["summary"]["actionable"], 8)
+        self.assertEqual(ledger["summary"]["entries"], 22)
+        self.assertEqual(ledger["summary"]["complete"], 18)
+        self.assertEqual(ledger["summary"]["actionable"], 4)
         self.assertEqual(ledger["summary"]["blocked"], 0)
-        self.assertEqual(queue["summary"], {"items": 8, "create_repository": 8, "recover_local": 0})
+        self.assertEqual(queue["summary"], {"items": 4, "create_repository": 4, "recover_local": 0})
         expected = {
-            "apostille-me/apme-mcp-server.rs", "apostille-me/apme-e2e",
-            "embedded-alerts/eal-mcp-server.rs", "embedded-alerts/eal-e2e",
-            "evento-globolo/evgl-mcp-server.rs", "evento-globolo/evgl-e2e",
-            "hacker-house-medellin/hhm-mcp-server.rs", "hacker-house-medellin/hhm-e2e",
+            "apostille-me/apme-e2e",
+            "embedded-alerts/eal-e2e",
+            "evento-globolo/evgl-e2e",
+            "hacker-house-medellin/hhm-e2e",
         }
         self.assertEqual({f"{item['owner']}/{item['repository']}" for item in queue["items"]}, expected)
         self.assertTrue(all(item["target_task_id"] == recovery.DEFAULT_CLI_TASK_ID for item in queue["items"]))
@@ -86,6 +86,43 @@ class ArtifactRecoveryLedgerTests(unittest.TestCase):
         queued = {f"{item['owner'].lower()}/{item['repository'].lower()}" for item in queue["items"]}
         self.assertTrue(identities.isdisjoint(queued))
 
+    def test_third_wave_reuses_created_mcp_prs_and_den_2745_merges(self) -> None:
+        ledger, queue = self.reconcile(self.fixture())
+        entries = {
+            entry["observation"]["target"]["identity"]: entry
+            for entry in ledger["entries"].values()
+        }
+        mcp_identities = {
+            "apostille-me/apme-mcp-server.rs",
+            "embedded-alerts/eal-mcp-server.rs",
+            "evento-globolo/evgl-mcp-server.rs",
+            "hacker-house-medellin/hhm-mcp-server.rs",
+        }
+        for identity in mcp_identities:
+            with self.subTest(identity=identity):
+                entry = entries[identity]
+                self.assertEqual(entry["classification"]["status"], "complete")
+                pull = entry["observation"]["remote"]["pull_requests"][0]
+                self.assertEqual(pull["number"], 1)
+                self.assertTrue(pull["draft"])
+                self.assertEqual(pull["state"], "open")
+        for identity, pull_number in {
+            "oresoftware/project-registry": 33,
+            "oresoftware/k8s-cluster": 1101,
+        }.items():
+            with self.subTest(identity=identity):
+                entry = entries[identity]
+                self.assertEqual(entry["classification"]["status"], "complete")
+                self.assertTrue(any(
+                    link.endswith(f"/pull/{pull_number}")
+                    for link in entry["evidence_links"]
+                ))
+        queued = {
+            f"{item['owner'].lower()}/{item['repository'].lower()}"
+            for item in queue["items"]
+        }
+        self.assertTrue(mcp_identities.isdisjoint(queued))
+
     def test_identical_rerun_is_byte_stable_and_does_not_increment_attempts(self) -> None:
         first, first_queue = self.reconcile(self.fixture())
         second, second_queue = self.reconcile(self.fixture(), first)
@@ -106,7 +143,7 @@ class ArtifactRecoveryLedgerTests(unittest.TestCase):
     def test_bounded_batch_preserves_cursor(self) -> None:
         ledger, queue = self.reconcile(self.fixture(), size=3)
         self.assertEqual(ledger["last_batch"]["processed"], 3)
-        self.assertEqual(ledger["last_batch"]["available"], 20)
+        self.assertEqual(ledger["last_batch"]["available"], 22)
         self.assertEqual(ledger["last_batch"]["next_cursor"], "library-created-before:2026-08-01T23:41:07Z")
         self.assertLessEqual(len(queue["items"]), 3)
 
