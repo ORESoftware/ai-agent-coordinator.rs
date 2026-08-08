@@ -41,41 +41,41 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
         )
 
     def test_resolution_is_case_insensitive_and_id_stable(self) -> None:
-        by_login = validator.resolve_canary(self.registry, "CLARITAS-VIZ-TEST")
-        by_id = validator.resolve_canary(self.registry, 313177891)
+        by_login = validator.resolve_canary(self.registry, "SCINTILLA-RUN-TEST")
+        by_id = validator.resolve_canary(self.registry, 313179056)
         self.assertEqual(by_login, by_id)
-        self.assertEqual(by_login["github"]["login"], "claritas-viz-test")
+        self.assertEqual(by_login["github"]["login"], "scintilla-run-test")
 
     def test_runtime_route_is_forbidden(self) -> None:
         registry = self.mutated()
         registry["canaries"][0]["runtime_route"] = {
-            "default_repository": "claritas-viz-test/api-contract"
+            "default_repository": "scintilla-run-test/protocol-conformance"
         }
         with self.assertRaisesRegex(validator.RegistryError, "runtime_route must be null"):
             validator.validate_registry(registry)
 
     def test_parent_must_match_non_test_owner(self) -> None:
         registry = self.mutated()
-        registry["canaries"][0]["parent_production"]["github_login"] = "cliptown"
+        registry["canaries"][0]["parent_production"]["github_login"] = "file-tunnel"
         with self.assertRaisesRegex(validator.RegistryError, "must match the non-test parent"):
             validator.validate_registry(registry)
 
     def test_test_and_production_identity_must_differ(self) -> None:
         registry = self.mutated()
-        registry["canaries"][0]["parent_production"]["github_account_id"] = 313177891
+        registry["canaries"][0]["parent_production"]["github_account_id"] = 313179056
         with self.assertRaisesRegex(validator.RegistryError, "test and production GitHub IDs"):
             validator.validate_registry(registry)
 
     def test_duplicate_owner_id_is_rejected(self) -> None:
         registry = self.mutated()
-        registry["canaries"][1]["github"]["account_id"] = 313177891
+        registry["canaries"][1]["github"]["account_id"] = 313179056
         with self.assertRaisesRegex(validator.RegistryError, "duplicate GitHub account ID"):
             validator.validate_registry(registry)
 
     def test_github_project_must_belong_to_test_owner(self) -> None:
         registry = self.mutated()
         registry["canaries"][0]["github"]["github_project_url"] = (
-            "https://github.com/orgs/cliptown-test/projects/1"
+            "https://github.com/orgs/file-tunnel-test/projects/1"
         )
         with self.assertRaisesRegex(validator.RegistryError, "organization project"):
             validator.validate_registry(registry)
@@ -105,12 +105,12 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
     def test_renderer_is_deterministic_and_test_only(self) -> None:
         first = renderer.render_bundle(
             self.registry,
-            "claritas-viz-test",
+            "scintilla-run-test",
             REGISTRY_REF,
         )
         second = renderer.render_bundle(
             self.registry,
-            "claritas-viz-test",
+            "scintilla-run-test",
             REGISTRY_REF,
         )
         self.assertEqual(first, second)
@@ -131,7 +131,7 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
         self.assertEqual(context["resolution"]["runtime_routing"], "forbidden")
         self.assertEqual(
             context["parent_production"]["github_login"],
-            "claritas-viz",
+            "scintilla-run",
         )
         self.assertEqual(
             context["authorization"]["repository_access"],
@@ -159,16 +159,16 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
     def _write_valid_canary_checkout(self, root: Path) -> dict[str, str]:
         bundle = renderer.render_bundle(
             self.registry,
-            "claritas-viz-test",
+            "scintilla-run-test",
             REGISTRY_REF,
         )
         renderer.write_bundle(root, bundle)
         profile = PROFILE_FIXTURE.read_text(encoding="utf-8")
-        profile = profile.replace("example-org", "claritas-viz-test")
-        profile = profile.replace("123456789", "313177891")
+        profile = profile.replace("example-org", "scintilla-run-test")
+        profile = profile.replace("123456789", "313179056")
         profile = profile.replace(
             "12345678-1234-4abc-8def-123456789abc",
-            "e142efcd-d4ff-494f-b985-5a7c9bc9da2d",
+            "f0c7eeef-c061-4d2f-981d-c0f8c3b1fd9c",
         )
         profile_path = root / "profile" / "README.md"
         profile_path.parent.mkdir(parents=True, exist_ok=True)
@@ -181,12 +181,12 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
             self._write_valid_canary_checkout(root)
             report = verifier.verify_bundle(
                 self.registry,
-                "claritas-viz-test",
+                "scintilla-run-test",
                 REGISTRY_REF,
                 root,
             )
-            self.assertEqual(report["owner"], "claritas-viz-test")
-            self.assertEqual(report["parent_production"], "claritas-viz")
+            self.assertEqual(report["owner"], "scintilla-run-test")
+            self.assertEqual(report["parent_production"], "scintilla-run")
             self.assertEqual(len(report["managed_files"]), 5)
 
     def test_verifier_rejects_drift_and_invalid_profile(self) -> None:
@@ -201,7 +201,7 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
             with self.assertRaisesRegex(verifier.RegistryError, "differs"):
                 verifier.verify_bundle(
                     self.registry,
-                    "claritas-viz-test",
+                    "scintilla-run-test",
                     REGISTRY_REF,
                     root,
                 )
@@ -223,7 +223,7 @@ class TestOrganizationHomepageCanaryTests(unittest.TestCase):
             ):
                 verifier.verify_bundle(
                     self.registry,
-                    "claritas-viz-test",
+                    "scintilla-run-test",
                     REGISTRY_REF,
                     root,
                 )
