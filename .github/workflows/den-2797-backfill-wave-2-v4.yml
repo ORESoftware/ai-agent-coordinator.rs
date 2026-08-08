@@ -1,0 +1,178 @@
+name: DEN-2797 finalize cumulative recovery wave 2
+
+on:
+  push:
+    branches:
+      - agent/den-2797-backfill-wave-2
+    paths:
+      - .github/workflows/den-2797-backfill-wave-2-v4.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-2797-backfill-wave-2-v4-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact recovery branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-2797-backfill-wave-2
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify exact carrier-only branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=624c2bae2ac92f65a3a0e86a842fed83758d0972
+          test "$(git branch --show-current)" = agent/den-2797-backfill-wave-2
+          test "$(git merge-base HEAD "$base")" = "$base"
+          git diff --name-only "$base"...HEAD | sort > /tmp/carriers.actual
+          cat > /tmp/carriers.expected <<'EOF'
+          .github/recovery/DEN-2797-backfill-wave-2.patch
+          .github/workflows/den-2797-backfill-wave-2-v2.yml
+          .github/workflows/den-2797-backfill-wave-2-v3.yml
+          .github/workflows/den-2797-backfill-wave-2-v4.yml
+          .github/workflows/den-2797-backfill-wave-2.yml
+          EOF
+          diff -u /tmp/carriers.expected /tmp/carriers.actual
+
+      - name: Extract reviewed runtime validation steps
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          workflow = Path('.github/workflows/den-2797-backfill-wave-2-v3.yml')
+          lines = workflow.read_text(encoding='utf-8').splitlines()
+          names = [
+              'Apply workflow, tests, and docs from normalized patch',
+              'Update the generator through exact anchored transformations',
+              'Compile and run the complete recovery suite',
+              'Validate permanent workflow and cumulative deterministic evidence',
+              'Scan intended scope for credentials and private material',
+          ]
+          output = Path('/tmp/den-2797-reviewed-steps.sh')
+          scripts: list[str] = ['#!/usr/bin/env bash', 'set -euo pipefail']
+          for name in names:
+              marker = f'      - name: {name}'
+              if lines.count(marker) != 1:
+                  raise SystemExit(f'reviewed step marker count for {name!r}: {lines.count(marker)}')
+              index = lines.index(marker) + 1
+              while index < len(lines) and lines[index] != '        run: |':
+                  index += 1
+              if index >= len(lines):
+                  raise SystemExit(f'run block missing for {name!r}')
+              index += 1
+              body: list[str] = []
+              while index < len(lines):
+                  line = lines[index]
+                  if line and not line.startswith('          '):
+                      break
+                  body.append(line[10:] if line.startswith('          ') else '')
+                  index += 1
+              scripts.extend(['', f"printf '%s\\n' '==> {name}'", *body])
+          output.write_text('\n'.join(scripts) + '\n', encoding='utf-8')
+          PY
+          bash -n /tmp/den-2797-reviewed-steps.sh
+
+      - name: Re-run reviewed application, tests, evidence, and secret scans
+        shell: bash
+        run: bash /tmp/den-2797-reviewed-steps.sh
+
+      - name: Commit product-only cumulative ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=624c2bae2ac92f65a3a0e86a842fed83758d0972
+
+          # The reviewed normalizer intentionally edits the carrier patch in-place.
+          # Restore that carrier before deleting it so no unreviewed bytes can enter
+          # the product commit.
+          git checkout -- .github/recovery/DEN-2797-backfill-wave-2.patch
+          git rm \
+            .github/recovery/DEN-2797-backfill-wave-2.patch \
+            .github/workflows/den-2797-backfill-wave-2-v2.yml \
+            .github/workflows/den-2797-backfill-wave-2-v3.yml \
+            .github/workflows/den-2797-backfill-wave-2-v4.yml \
+            .github/workflows/den-2797-backfill-wave-2.yml
+          git add \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py
+          git diff --cached --check
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(DEN-2797): extend artifact recovery backfill through wave 2'
+
+          product_commit="$(git rev-parse HEAD)"
+          product_tree="$(git rev-parse 'HEAD^{tree}')"
+          echo "PRODUCT_COMMIT=$product_commit"
+          echo "PRODUCT_TREE=$product_tree"
+          git diff --name-only "$base"...HEAD | sort > /tmp/product.actual
+          cat > /tmp/product.expected <<'EOF'
+          .github/workflows/nightly-artifact-recovery.yml
+          docs/artifact-recovery-initial-backfill.md
+          scripts/build_artifact_recovery_backfill.py
+          tests/test_artifact_recovery_ledger.py
+          EOF
+          diff -u /tmp/product.expected /tmp/product.actual
+
+          root="$RUNNER_TEMP/den-2797-wave-2-product"
+          mkdir -p "$root/.github/workflows" "$root/docs" "$root/scripts" "$root/tests"
+          cp .github/workflows/nightly-artifact-recovery.yml "$root/.github/workflows/nightly-artifact-recovery.yml"
+          cp docs/artifact-recovery-initial-backfill.md "$root/docs/artifact-recovery-initial-backfill.md"
+          cp scripts/build_artifact_recovery_backfill.py "$root/scripts/build_artifact_recovery_backfill.py"
+          cp tests/test_artifact_recovery_ledger.py "$root/tests/test_artifact_recovery_ledger.py"
+          cp -R "$RUNNER_TEMP/artifact-recovery-wave-2" "$root/evidence"
+          (
+            cd "$root"
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+          cat > "$root/RECOVERY_EVIDENCE.json" <<EOF
+          {
+            "schema_version": 1,
+            "source_branch_head": "${GITHUB_SHA}",
+            "base_commit": "$base",
+            "product_commit": "$product_commit",
+            "product_tree": "$product_tree",
+            "ledger_rows": 20,
+            "complete": 12,
+            "actionable": 8,
+            "cli_repository_creates": 8
+          }
+          EOF
+
+          set +e
+          push_output="$(git push origin HEAD:agent/den-2797-backfill-wave-2 2>&1)"
+          push_status=$?
+          set -e
+          printf '%s\n' "$push_output"
+          test "$push_status" -ne 0
+          grep -F 'refusing to allow a GitHub App to create or update workflow' <<<"$push_output"
+
+      - name: Upload product tree and cumulative evidence for App publication
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: den-2797-wave-2-product-${{ github.sha }}
+          path: ${{ runner.temp }}/den-2797-wave-2-product
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
