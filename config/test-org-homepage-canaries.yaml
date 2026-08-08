@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "registry_id": "github-linear-test-org-homepage-canaries",
+  "observed_at": "2026-08-08",
+  "authority": {
+    "source_of_truth": "ORESoftware/ai-agent-coordinator.rs",
+    "registry_path": "config/test-org-homepage-canaries.yaml",
+    "expected_default_ref": "main",
+    "sync_direction": "registry_to_test_org_github_mirrors",
+    "drift_policy": "fail_closed",
+    "scope": "test_organizations_only",
+    "public_context_policy": "identifiers_links_and_public_instructions_only"
+  },
+  "linear": {
+    "workspace_slug": "denman",
+    "team_id": "eb8ab169-5afe-4b6f-9cab-3f2aa3e887dc",
+    "team_key": "DEN",
+    "team_name": "Denman"
+  },
+  "resolution": {
+    "owner_identity_key": "github_account_id",
+    "login_case_insensitive": true,
+    "on_unmapped": "reject",
+    "on_ambiguous": "reject",
+    "runtime_routing": "forbidden",
+    "production_registry_precedence": true
+  },
+  "canaries": [
+    {
+      "github": {
+        "login": "claritas-viz-test",
+        "account_id": 313177891,
+        "account_type": "Organization",
+        "installation_id": 151312752,
+        "repository": "claritas-viz-test/.github",
+        "github_project_url": "https://github.com/orgs/claritas-viz-test/projects/1"
+      },
+      "linear": {
+        "project_id": "e142efcd-d4ff-494f-b985-5a7c9bc9da2d",
+        "project_name": "github.com/claritas-viz-test",
+        "project_url": "https://linear.app/denman/project/githubcomclaritas-viz-test-be061b785d84"
+      },
+      "parent_production": {
+        "github_login": "claritas-viz",
+        "github_account_id": 306201730,
+        "linear_project_id": "ff47fc82-5612-4bf6-a8cc-cc23da267931",
+        "linear_project_name": "github.com/claritas-viz",
+        "linear_project_url": "https://linear.app/denman/project/githubcomclaritas-viz-09fcc5d7dd9e"
+      },
+      "test_program": {
+        "purpose": "Independent acceptance and release-certification organization for Claritas Viz.",
+        "scope": [
+          "visualization SDK and API contracts",
+          "rendering and export behavior",
+          "Flutter and web user interfaces",
+          "accessibility",
+          "large-dataset performance"
+        ],
+        "profile_strategy": "preserve_specialized_acceptance_notes"
+      },
+      "runtime_route": null,
+      "public_context_only": true
+    },
+    {
+      "github": {
+        "login": "cliptown-test",
+        "account_id": 313178019,
+        "account_type": "Organization",
+        "installation_id": 151312784,
+        "repository": "cliptown-test/.github",
+        "github_project_url": "https://github.com/orgs/cliptown-test/projects/1"
+      },
+      "linear": {
+        "project_id": "e0914801-1cb8-4eb2-b70f-010369fdf771",
+        "project_name": "github.com/cliptown-test",
+        "project_url": "https://linear.app/denman/project/githubcomcliptown-test-8157daa8a324"
+      },
+      "parent_production": {
+        "github_login": "cliptown",
+        "github_account_id": 309492430,
+        "linear_project_id": "83b03121-db08-4e34-a69f-99fd1c873ced",
+        "linear_project_name": "github.com/cliptown",
+        "linear_project_url": "https://linear.app/denman/project/githubcomcliptown-adf62fab3f42"
+      },
+      "test_program": {
+        "purpose": "Independent acceptance and release-certification organization for Cliptown.",
+        "scope": [
+          "clipboard fidelity",
+          "SDK and API contracts",
+          "mobile, desktop, web, and extension behavior",
+          "cross-device synchronization",
+          "Memebank interoperability"
+        ],
+        "profile_strategy": "preserve_specialized_acceptance_notes"
+      },
+      "runtime_route": null,
+      "public_context_only": true
+    }
+  ]
+}
