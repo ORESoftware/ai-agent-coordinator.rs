@@ -97,11 +97,25 @@ jobs:
         run: |
           set -euo pipefail
           output="$(mktemp -d)"
-          trap 'rm -rf "$output"' EXIT
-          for owner in scintilla-run-test file-tunnel-test; do
+          owners="$(mktemp)"
+          trap 'rm -rf "$output" "$owners"' EXIT
+          python3 - <<'PY' > "$owners"
+          import json
+          from pathlib import Path
+
+          registry = json.loads(
+              Path("config/test-org-homepage-canaries.yaml").read_text(
+                  encoding="utf-8"
+              )
+          )
+          for canary in registry["canaries"]:
+              print(canary["github"]["login"])
+          PY
+          while IFS= read -r owner; do
+            test -n "$owner"
             python3 scripts/render_test_org_homepage_context.py \
               --registry config/test-org-homepage-canaries.yaml \
               --owner "$owner" \
               --registry-ref "$GITHUB_SHA" \
               --output-dir "$output/$owner"
-          done
+          done < "$owners"

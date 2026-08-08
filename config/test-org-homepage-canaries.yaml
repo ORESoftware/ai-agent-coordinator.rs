@@ -95,6 +95,41 @@
       },
       "runtime_route": null,
       "public_context_only": true
+    },
+    {
+      "github": {
+        "login": "discrete-event-systems-test",
+        "account_id": 313546124,
+        "account_type": "Organization",
+        "installation_id": 151523623,
+        "repository": "discrete-event-systems-test/.github",
+        "github_project_url": "https://github.com/orgs/discrete-event-systems-test/projects/1"
+      },
+      "linear": {
+        "project_id": "abc2c19e-7ec3-458a-a33d-0f8a105de450",
+        "project_name": "github.com/discrete-event-systems-test",
+        "project_url": "https://linear.app/denman/project/githubcomdiscrete-event-systems-test-2688194a677b"
+      },
+      "parent_production": {
+        "github_login": "discrete-event-systems",
+        "github_account_id": 306297904,
+        "linear_project_id": "b352c0c6-02f5-4a5a-8460-017aedb5352f",
+        "linear_project_name": "github.com/discrete-event-systems",
+        "linear_project_url": "https://linear.app/denman/project/githubcomdiscrete-event-systems-4a3086ae0c45"
+      },
+      "test_program": {
+        "purpose": "Independent browser and deployment-boundary acceptance organization for Discrete Event Systems.",
+        "scope": [
+          "Playwright and Chromium route contracts",
+          "independent Puppeteer browser evidence",
+          "immutable local server image startup",
+          "deployment and security boundaries",
+          "bounded gha-indie-worker planning contracts"
+        ],
+        "profile_strategy": "preserve_specialized_acceptance_notes"
+      },
+      "runtime_route": null,
+      "public_context_only": true
     }
   ]
 }
