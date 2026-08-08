@@ -178,6 +178,38 @@ class ArtifactRecoveryLedgerTests(unittest.TestCase):
         self.assertIn("claimed_pull_request_unverified", entry["classification"]["findings"])
         self.assertEqual(queue["items"], [])
 
+    def test_missing_repository_with_positive_claim_fails_closed(self) -> None:
+        claim_cases = {
+            "repository_url": "https://github.com/apostille-me/apme-e2e",
+            "commit_sha": "f" * 40,
+            "branch": "agent/den-2797-claimed-branch",
+            "pull_request_url": "https://github.com/apostille-me/apme-e2e/pull/1",
+        }
+        expected_findings = {
+            "repository_url": "claimed_repository_unverified",
+            "commit_sha": "claimed_commit_unverified",
+            "branch": "claimed_branch_unverified",
+            "pull_request_url": "claimed_pull_request_unverified",
+        }
+        for field, claimed_value in claim_cases.items():
+            with self.subTest(field=field):
+                item = next(
+                    copy.deepcopy(candidate)
+                    for candidate in self.fixture()["items"]
+                    if candidate["target"]["repository"] == "apme-e2e"
+                )
+                item["claims"][field] = claimed_value
+                value = self.fixture(); value["items"] = [item]
+                ledger, queue = self.reconcile(value)
+                entry = next(iter(ledger["entries"].values()))
+                self.assertEqual(entry["classification"]["status"], "blocked")
+                self.assertEqual(entry["classification"]["next_action"], "manual_review")
+                self.assertIn(
+                    expected_findings[field],
+                    entry["classification"]["findings"],
+                )
+                self.assertEqual(queue["items"], [])
+
     def test_ordinary_conversation_is_excluded(self) -> None:
         item = copy.deepcopy(self.fixture()["items"][0])
         item["origin"]["id"] = "conversation-no-artifact"
