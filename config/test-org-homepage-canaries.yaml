@@ -1,0 +1,100 @@
+{
+  "schema_version": 1,
+  "registry_id": "github-linear-test-org-homepage-canaries",
+  "observed_at": "2026-08-08",
+  "authority": {
+    "source_of_truth": "ORESoftware/ai-agent-coordinator.rs",
+    "registry_path": "config/test-org-homepage-canaries.yaml",
+    "expected_default_ref": "main",
+    "sync_direction": "registry_to_test_org_github_mirrors",
+    "drift_policy": "fail_closed",
+    "scope": "test_organizations_only",
+    "public_context_policy": "identifiers_links_and_public_instructions_only"
+  },
+  "linear": {
+    "workspace_slug": "denman",
+    "team_id": "eb8ab169-5afe-4b6f-9cab-3f2aa3e887dc",
+    "team_key": "DEN",
+    "team_name": "Denman"
+  },
+  "resolution": {
+    "owner_identity_key": "github_account_id",
+    "login_case_insensitive": true,
+    "on_unmapped": "reject",
+    "on_ambiguous": "reject",
+    "runtime_routing": "forbidden",
+    "production_registry_precedence": true
+  },
+  "canaries": [
+    {
+      "github": {
+        "login": "scintilla-run-test",
+        "account_id": 313179056,
+        "account_type": "Organization",
+        "installation_id": 151313324,
+        "repository": "scintilla-run-test/.github",
+        "github_project_url": "https://github.com/orgs/scintilla-run-test/projects/1"
+      },
+      "linear": {
+        "project_id": "f0c7eeef-c061-4d2f-981d-c0f8c3b1fd9c",
+        "project_name": "github.com/scintilla-run-test",
+        "project_url": "https://linear.app/denman/project/githubcomscintilla-run-test-260f59af5817"
+      },
+      "parent_production": {
+        "github_login": "scintilla-run",
+        "github_account_id": 306201161,
+        "linear_project_id": "f5da817a-9c48-48ff-abcd-c6dd21045c20",
+        "linear_project_name": "github.com/scintilla-run",
+        "linear_project_url": "https://linear.app/denman/project/githubcomscintilla-run-6d9dd5f5e244"
+      },
+      "test_program": {
+        "purpose": "Independent acceptance and release-certification organization for Scintilla Run.",
+        "scope": [
+          "runner and protocol conformance",
+          "revision and alias weighting",
+          "durable invocation and workflow behavior",
+          "KV, secret, and PostgreSQL boundaries",
+          "client, UI, and MCP contracts"
+        ],
+        "profile_strategy": "preserve_specialized_acceptance_notes"
+      },
+      "runtime_route": null,
+      "public_context_only": true
+    },
+    {
+      "github": {
+        "login": "file-tunnel-test",
+        "account_id": 313180937,
+        "account_type": "Organization",
+        "installation_id": 151313752,
+        "repository": "file-tunnel-test/.github",
+        "github_project_url": "https://github.com/orgs/file-tunnel-test/projects/1"
+      },
+      "linear": {
+        "project_id": "f571acda-b2bd-4289-864a-8091b65eb20d",
+        "project_name": "github.com/file-tunnel-test",
+        "project_url": "https://linear.app/denman/project/githubcomfile-tunnel-test-c8f644168247"
+      },
+      "parent_production": {
+        "github_login": "file-tunnel",
+        "github_account_id": 310631493,
+        "linear_project_id": "0cb3346d-19e0-4aff-8758-c5d5a4a1ed80",
+        "linear_project_name": "github.com/file-tunnel",
+        "linear_project_url": "https://linear.app/denman/project/githubcomfile-tunnel-f46884af1012"
+      },
+      "test_program": {
+        "purpose": "Independent acceptance and release-certification organization for File Tunnel.",
+        "scope": [
+          "transfer integrity and resumability",
+          "client and service contract compatibility",
+          "cross-platform desktop and mobile behavior",
+          "authorization and tenant isolation",
+          "large-file and interrupted-network recovery"
+        ],
+        "profile_strategy": "preserve_specialized_acceptance_notes"
+      },
+      "runtime_route": null,
+      "public_context_only": true
+    }
+  ]
+}
