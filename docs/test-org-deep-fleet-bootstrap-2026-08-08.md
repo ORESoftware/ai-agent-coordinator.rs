@@ -1,12 +1,14 @@
 # Deep-test repository fleet for every connected `*-test` organization
 
 **Tracking:** [ai-agent-coordinator.rs#139](https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/139)
+**Linear:** [DEN-3288](https://linear.app/denman/issue/DEN-3288/add-four-deep-test-repositories-across-every-connected-test)
 **Operation:** `deep-test-fleet-20260808`
 **Reviewed scope:** 25 GitHub organizations × 4 repositories = 100 repositories
+**Outcome:** 100 created, 100 PRs merged, 100 default branches hash-verified, 0 failures
 
 ## Purpose
 
-The existing test organizations need more than a single end-to-end repository. This operation adds four orthogonal, executable test suites to every connected organization whose login ends in `-test`:
+The existing test organizations need more than a single end-to-end repository. This operation added four orthogonal, executable test suites to every connected organization whose login ends in `-test`:
 
 | Repository | Deep-testing responsibility |
 |---|---|
@@ -45,35 +47,31 @@ Every foundation is dependency-light Python, uses synthetic data, runs without p
 24. `streempilot-test`
 25. `zed-pkg-test`
 
-`canonical-cloud-test` was not present in the connected GitHub installation and the public organization lookup returned `404`; it is therefore excluded rather than guessed into an authorized mutation set.
+`canonical-cloud-test` was not present in the connected GitHub installation and the public organization lookup returned `404`; it was excluded rather than guessed into an authorized mutation set.
 
 ## Fail-closed publication contract
 
-Before creating any repository, the publisher validates the complete manifest and generated trees locally, then verifies:
+Before creating any repository, the publisher validated the complete manifest and generated trees locally, then verified:
 
-1. the authenticated identity is exactly GitHub user `ORESoftware` with account ID `11139560`;
-2. that identity has active owner/admin membership in every listed organization;
-3. every existing target has the exact expected owner, public visibility, and non-archived state;
-4. the checked-in manifest remains `live_creation_enabled=false`;
-5. all 100 generated file sets have pinned Actions, read-only permissions, no conflict markers, no credential-shaped content, and the mandatory semantic-merge policy.
+1. the authenticated identity was exactly GitHub user `ORESoftware` with account ID `11139560`;
+2. that identity had active owner/admin membership in every listed organization;
+3. every existing target would have the exact expected owner, public visibility, and non-archived state;
+4. the checked-in manifest remained `live_creation_enabled=false`;
+5. all 100 generated file sets had pinned Actions, read-only permissions, no conflict markers, no credential-shaped content, and the mandatory semantic-merge policy.
 
-Only after the entire preflight succeeds may mutations begin. Repository creation is idempotent. Existing managed paths are accepted only when their Git blob hashes exactly match; divergent paths fail closed for conceptual reconciliation instead of being overwritten. A new GitHub-generated README is the only permitted initial replacement.
+Only after the complete preflight succeeded did mutation begin. Repository creation was idempotent. Existing managed paths would have been accepted only when their Git blob hashes exactly matched; divergent paths would have failed closed for conceptual reconciliation instead of being overwritten. No pre-existing target repositories were encountered in this run.
 
-Each foundation lands on `agent/deep-test-foundation-20260808`, opens a repository-local pull request, waits for the exact-head `verify` check, squash-merges only a successful head SHA, and verifies all managed Git blob hashes on the default branch. No force update or history rewrite is used.
+Each foundation landed on `agent/deep-test-foundation-20260808`, opened a repository-local pull request, waited for the exact-head `verify` check, squash-merged only a successful head SHA, and verified every managed Git blob on the default branch. No force update or history rewrite was used.
 
 ## Semantic conflict policy
 
 Any collision must be resolved semantically. Inspect the merge base, reread every affected file completely, and inspect 3–10 relevant commits from both sides when available. Include canonical interfaces, schemas, migrations, fixtures, CI behavior, same-organization repositories, and materially relevant external repositories. Never resolve by wholesale selection of `ours`, `theirs`, current, or incoming. Preserve compatible intent, add regression coverage for the reconciled behavior, scan the full tree for markers, and rerun the complete suite.
 
-## One-time credential boundary
+No target-repository collision occurred. The control branch was based on `25aff7209bde90d41494b4d6f98bf724aae33708`; `main` was rechecked after execution and still pointed to that exact commit, so there was no upstream conflict to reconcile before the audit pull request.
 
-The temporary live workflow does not contain a token. It creates a fresh RSA-3072 keypair on the runner and publishes only the public key plus a random run ID to issue #139. It accepts exactly one ciphertext authored by `ORESoftware`, bound to that run ID and the exact confirmation `create:25-test-orgs:4-deep-test-repos-each:100`, using RSA-OAEP/SHA-256.
+## Validation evidence
 
-The decrypted credential is immediately masked, written only to a mode-0600 runner-temporary file, and removed with the private key and payload files in an `always()` cleanup step. No plaintext credential is committed, placed in workflow configuration or command arguments, posted to GitHub or Linear, uploaded as an artifact, or included in completion evidence.
-
-After live execution, the relay workflow and trigger must be deleted from the feature branch before the permanent audit PR is merged. The manifest stays disabled.
-
-## Local validation evidence before activation
+Before activation:
 
 - exact 25-organization and 100-repository generation: pass;
 - four representative repository verifiers: pass;
@@ -82,10 +80,43 @@ After live execution, the relay workflow and trigger must be deleted from the fe
 - duplicate JSON keys, unsafe organizations, live-enablement drift, owner-ID drift, mutable Actions, conflict markers, redirects, and credential echoes: rejected;
 - credential-pattern and unresolved-conflict scans across staged source: clean.
 
-## Completion evidence
+The permanent exact-head control validation passed in [Actions run 31296343446](https://github.com/ORESoftware/ai-agent-coordinator.rs/actions/runs/31296343446).
 
-Issue #139 is the bounded execution ledger. A completion comment records counts for created/existing repositories, PRs created/merged/open, default-branch verification, and failures, followed by one state line per repository. This document must be updated with the exact workflow run and outcome after the one-time relay is retired.
+## Live execution outcome
 
-## Staging validation trigger
+The encrypted live bootstrap completed successfully in [Actions run 31296365557](https://github.com/ORESoftware/ai-agent-coordinator.rs/actions/runs/31296365557). Issue #139 contains the bounded per-repository execution ledger.
 
-The permanent contract workflow, the encrypted live relay, and retirement of the source materializer are all present at this branch head. This documentation-only commit intentionally triggers exact-head validation before any live repository mutation.
+| Metric | Count |
+|---|---:|
+| Repositories total | 100 |
+| Repositories created | 100 |
+| Pre-existing repositories reused | 0 |
+| Pull requests created or reused | 100 |
+| Pull requests merged | 100 |
+| Pull requests left open | 0 |
+| Already-initialized repositories | 0 |
+| Default branches hash-verified | 100 |
+| Failures | 0 |
+
+The first, middle, and final cohorts were sampled independently through the GitHub API while the publisher ran. The final repository, `zed-pkg-test/security-boundary-tests`, merged PR #1 at exact head `2441d1ad26d071e696d1079e483d8daf4ac19e95` and reports Python content on `main`. A fleet-wide query found 100 merged foundation PRs and zero closed-but-unmerged foundation PRs.
+
+## One-time credential boundary and retirement
+
+The temporary live workflow contained no token. It created a fresh RSA-3072 keypair on the runner and published only the public key plus a random run ID to issue #139. It accepted exactly one ciphertext authored by `ORESoftware`, bound to that run ID and the exact confirmation `create:25-test-orgs:4-deep-test-repos-each:100`, using RSA-OAEP/SHA-256.
+
+The decrypted credential was immediately masked, written only to a mode-0600 runner-temporary file, and removed with the private key and payload files in an unconditional cleanup step. No plaintext credential was committed, placed in workflow configuration or command arguments, posted to GitHub or Linear, uploaded as an artifact, or included in completion evidence.
+
+The workflow's `Destroy credential material` step completed successfully. After completion evidence was published, both the one-time relay workflow and its trigger were deleted from the feature branch. The checked-in manifest remains disabled, so merging the permanent audit changes cannot recreate repositories or reactivate credential handling.
+
+## Permanent artifacts
+
+The audit pull request retains only:
+
+- the exact disabled fleet manifest;
+- deterministic repository foundation templates;
+- the idempotent, fail-closed publisher implementation;
+- publisher and generated-suite regression tests;
+- this execution and security record;
+- the permanent read-only contract-validation workflow.
+
+The temporary relay, trigger, source materializer, source chunks, and all runner credential material are absent.
