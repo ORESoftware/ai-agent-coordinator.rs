@@ -12,6 +12,8 @@ Three high-value historical source bundles are now anchored in GitHub by immutab
 | `four-org-rust-bootstrap-2026-08-04.zip` | 2,195,312 | `a715a4919e3a7d9e7eb5b8b7878e2d9485e4228504e57fe7a6d703a166cb1d37` | 32 | Canonical organization repositories now exist and have advanced |
 | `mcp-rust-libs-scaffold.zip` | 120,181 | `a88df67f4c0ffc6cf0ee74f7cd2eec46004e2d8021bfbef6051cd1af7143ca3b` | 1 | Superseded by the current `ORESoftware/mcp-rust-libs` repository |
 
+The assembled recovery attachment `chatgpt-work-recovery-wave5-2026-08-09.tar.gz` is 3,445,824 bytes with SHA-256 `f3495474b963096451cd32b26f560f78be9d7e556ad2c598f13dc18aeaae19e5`. It contains the three selected archives plus `CURRENT_GITHUB_STATE.json`, `MANIFEST.json`, `README.md`, `SECRET_SCAN.json`, `SHA256SUMS`, and `verify.py`. GitHub records that identity while the opaque bytes remain a conversation attachment.
+
 ## Semantic reconciliation
 
 The Hypesiege/StreemPilot archive contains complete independent Git histories from July 31. Current product repositories contain newer commits and fleet-ownership changes. At least one sealed commit, `hypesiege-monorepo@ad06355d…`, is not an ancestor exposed by the live repository. The safe result is therefore to preserve the archive and checksum while leaving current history authoritative. Importing the archive onto `main` would not be a merge; it would be destructive replacement.
@@ -33,7 +35,7 @@ python3 scripts/validate_artifact_recovery_wave5_sealed_archives.py
 python3 -m unittest -v tests/test_artifact_recovery_wave5_sealed_archives.py
 ```
 
-The tests fail closed on checksum or byte-count drift, force-push policy changes, binary-upload claims, excluded targets, missing canonical evidence, repository-count drift, and credential-shaped values.
+The tests fail closed on component or aggregate checksum/byte-count drift, force-push policy changes, binary-upload claims, excluded targets, missing canonical evidence, repository-count drift, and credential-shaped values.
 
 ## Policy
 
