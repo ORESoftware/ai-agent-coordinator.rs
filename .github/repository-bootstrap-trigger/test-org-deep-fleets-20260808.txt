@@ -1,0 +1,6 @@
+operation=deep-test-fleet-20260808
+tracking_issue=https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/139
+confirmation=create:25-test-orgs:4-deep-test-repos-each:100
+expected_organizations=25
+repositories_per_organization=4
+expected_total=100
