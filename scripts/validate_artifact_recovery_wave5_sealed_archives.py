@@ -30,6 +30,19 @@ def load(path: Path = DATA) -> dict[str, Any]:
 def validate(value: dict[str, Any]) -> None:
     if value.get("schema_version") != "artifact_recovery_sealed_archives.v1":
         raise ValueError("unexpected schema version")
+    aggregate = value.get("aggregate_bundle")
+    if not isinstance(aggregate, dict):
+        raise ValueError("missing aggregate bundle")
+    if aggregate.get("bytes") != 3445824:
+        raise ValueError("aggregate bundle byte length changed")
+    if aggregate.get("sha256") != "f3495474b963096451cd32b26f560f78be9d7e556ad2c598f13dc18aeaae19e5":
+        raise ValueError("aggregate bundle checksum changed")
+    if aggregate.get("disposition") != "conversation_attachment_checksum_anchored_not_github_binary":
+        raise ValueError("aggregate bundle publication claim changed")
+    contents = aggregate.get("contents")
+    if not isinstance(contents, list) or len(contents) != 9 or len(contents) != len(set(contents)):
+        raise ValueError("aggregate bundle contents changed")
+
     policy = value.get("policy")
     if not isinstance(policy, dict):
         raise ValueError("missing policy")
