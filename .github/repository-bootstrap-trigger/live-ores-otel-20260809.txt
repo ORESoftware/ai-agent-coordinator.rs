@@ -1,10 +1,10 @@
 run=2026-08-09
-attempt=4
+attempt=5
 relay_issue=135
 canonical=ores-otel/ores.otel.log
 test_organization=ores-otel-test
 test_repositories=13
 force_push=false
 preserve_canonical_ahead=true
-chunked_executor=true
-chunk05_subdivided=true
+archive_divergent_non_default_refs=true
+chunked_executor=v2
