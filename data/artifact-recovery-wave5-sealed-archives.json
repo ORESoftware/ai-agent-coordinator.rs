@@ -1,4 +1,21 @@
 {
+  "aggregate_bundle": {
+    "bytes": 3445824,
+    "contents": [
+      "hypesiege-streempilot-bootstrap.tar.gz",
+      "four-org-rust-bootstrap-2026-08-04.zip",
+      "mcp-rust-libs-scaffold.zip",
+      "CURRENT_GITHUB_STATE.json",
+      "MANIFEST.json",
+      "README.md",
+      "SECRET_SCAN.json",
+      "SHA256SUMS",
+      "verify.py"
+    ],
+    "disposition": "conversation_attachment_checksum_anchored_not_github_binary",
+    "name": "chatgpt-work-recovery-wave5-2026-08-09.tar.gz",
+    "sha256": "f3495474b963096451cd32b26f560f78be9d7e556ad2c598f13dc18aeaae19e5"
+  },
   "archives": [
     {
       "bytes": 2025578,
