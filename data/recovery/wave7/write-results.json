@@ -1,0 +1,59 @@
+{
+  "schemaVersion": "ore.chatgpt-artifact-recovery.wave7.write-results.v1",
+  "auditedWindow": {
+    "from": "2026-06-30",
+    "through": "2026-08-09"
+  },
+  "generatedAt": "2026-08-09T00:00:00Z",
+  "safety": {
+    "forcePushUsed": false,
+    "historyRewritten": false,
+    "rebaseUsed": false,
+    "credentialsCommitted": false,
+    "existingRepositoryOverwritten": false
+  },
+  "published": [
+    {
+      "repository": "led-dynamo/.github",
+      "branch": "agent/den-3159-led-dynamo-recovery-seeds",
+      "head": "fb772d0f65113ebcb6c8026afc4467ddf168e977",
+      "pullRequest": 24,
+      "targetRepositories": [
+        "led-dynamo/leddy-sync",
+        "led-dynamo/leddy-mcp-server.rs"
+      ],
+      "disposition": "exact-git-histories-preserved-as-bundle-carriers; target-repository-creation-pending"
+    },
+    {
+      "repository": "canonical-cloud/.github",
+      "branch": "agent/den-1049-canonical-docs-recovery-seed",
+      "head": "18214bdc1bdf6d22d99eed4f4c100d0574e848d1",
+      "pullRequest": 19,
+      "targetRepositories": [
+        "canonical-cloud/canonical-docs"
+      ],
+      "disposition": "verified-source-archive-preserved; original-git-object-database-unavailable; reconstructed-commit-required"
+    },
+    {
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "branch": "agent/den-2797-artifact-recovery-wave-6",
+      "pullRequest": 137,
+      "disposition": "wave7-write-ledger-appended"
+    }
+  ],
+  "missingTargetRepositories": [
+    "led-dynamo/leddy-sync",
+    "led-dynamo/leddy-mcp-server.rs",
+    "canonical-cloud/canonical-docs",
+    "evento-globolo/evgl-e2e",
+    "hacker-house-medellin-test/hhm-e2e",
+    "apostille-me/apme-e2e",
+    "embedded-alerts/eal-e2e"
+  ],
+  "packageDigests": {
+    "zipSha256": "7612da788830571e1ffbbc1b13766e6d1b940c3b42c8fe017f2a4a053ddf9d3c",
+    "tarGzSha256": "73f540a22ee554673e342c50d1662b45c1fc58115e777c14fbf192878579377e",
+    "gitBundleSha256": "e7fe4b6491c1d8a84e579462b611e601befca88aecc219a67a6fe7778c804441"
+  },
+  "blocker": "DEN-319: connected GitHub app lacks organization repository creation; shell runner lacks working GitHub transport"
+}
