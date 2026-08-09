@@ -1,0 +1,55 @@
+name: Semantic merge guard
+
+on:
+  pull_request:
+    paths:
+      - "scripts/semantic_merge_guard.py"
+      - "tests/test_semantic_merge_guard.py"
+      - "docs/semantic-merge-guard.md"
+      - "docs/semantic-merge-incident-sweep-2026-08-09.json"
+      - ".github/workflows/semantic-merge-guard.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/semantic-merge-guard.yml
+      - name: Compile Python sources
+        run: python3 -m py_compile scripts/semantic_merge_guard.py tests/test_semantic_merge_guard.py
+      - name: Run adversarial Git fixtures
+        run: python3 -m unittest -v tests.test_semantic_merge_guard
+      - name: Reject unresolved markers in changed implementation files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -nE '^(<<<<<<<|>>>>>>>|\|\|\|\|\|\|\|)' \
+            scripts/semantic_merge_guard.py \
+            tests/test_semantic_merge_guard.py \
+            docs/semantic-merge-guard.md \
+            docs/semantic-merge-incident-sweep-2026-08-09.json; then
+            echo "unresolved conflict marker found" >&2
+            exit 1
+          fi
+      - name: Require a clean tracked worktree
+        run: git diff --exit-code

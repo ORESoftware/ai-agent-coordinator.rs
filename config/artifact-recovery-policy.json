@@ -1,0 +1,60 @@
+{
+  "schema_version": "artifact_recovery_policy.v1",
+  "schedule": {
+    "timezone": "America/Chicago",
+    "local_hour": 2,
+    "local_minute": 0,
+    "recovery_minutes": 60
+  },
+  "batch": {
+    "maximum_items": 50,
+    "resume_from_durable_cursor": true,
+    "revisit_changed_sources": true,
+    "retry_transient_blockers": true
+  },
+  "ledger": {
+    "schema_version": "artifact_recovery_ledger.v1",
+    "key_fields": [
+      "origin.source",
+      "origin.id",
+      "target.owner",
+      "target.repository"
+    ],
+    "default_new_repository_visibility": "private",
+    "artifact_kinds": [
+      "code",
+      "documentation"
+    ],
+    "ordinary_conversation_is_excluded": true
+  },
+  "evidence": {
+    "verify_remote_before_action": true,
+    "required_objects": [
+      "repository",
+      "branch",
+      "commit",
+      "pull_request"
+    ],
+    "reuse_existing_objects": true,
+    "claim_without_remote_evidence_is_incomplete": true
+  },
+  "delivery": {
+    "github_app_first": true,
+    "open_draft_pull_request": true,
+    "commit_only_intended_paths": true,
+    "secret_scan_required": true,
+    "repository_creation_fallback": "cli_recovery_queue",
+    "cli_task_id": "019fd526-f34d-7f72-94fa-2da6185f2d74",
+    "linear_issue": "DEN-2797",
+    "foundation_issue": "DEN-834"
+  },
+  "forbidden": [
+    "reuse_chat_pasted_credentials",
+    "force_push",
+    "broad_mixed_worktree_staging",
+    "direct_default_branch_write",
+    "protection_bypass",
+    "automatic_merge",
+    "unverified_delivery_claim"
+  ]
+}

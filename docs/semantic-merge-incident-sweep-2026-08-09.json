@@ -1,0 +1,164 @@
+{
+  "schema_version": "ore.semantic-merge-incident-sweep.v1",
+  "generated_on": "2026-08-09",
+  "linear_issue": "DEN-2775",
+  "search_signature": "semantic hunk reconciliation",
+  "commit_count": 50,
+  "repository_count": 13,
+  "scope_note": "GitHub's indexed commit search baseline. This is an incident-discovery inventory, not build or release certification.",
+  "known_breakages": [
+    {
+      "repository": "shared-auth/shared-auth-server.rs",
+      "commit_prefix": "ecee3b0",
+      "evidence": "DEN-2775 records 31 compile errors, duplicate auth_time fields, a dropped module, partial migrations, and a security regression. The compatible implementation was reconstructed from history in shared-auth pull request 47."
+    },
+    {
+      "repository": "zed-pkg/zed-cli",
+      "commit_prefix": "fa67411",
+      "evidence": "DEN-2775 records 14 compile errors and a duplicate TOML table. Remaining source repair and certification are tracked by DEN-2777."
+    }
+  ],
+  "repositories": [
+    {
+      "repository": "sonus-auris/sonus-auris-ui.dart",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "3e499fef89100e9bb16db665cc4fb466fb070bda",
+        "7053dc26adf074289f9a3ceec9994953ee2625ae",
+        "239d70f112cbeeaa862ca5ca992aa1735b693bcd",
+        "ff0ded10d352d54cba00853146d665dc10519424",
+        "51c7ddad617c0b3cd8b93d3caaa3f230f2c20bb3"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-web-desktop.dart",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "7bec2b156251e7a239a9c2e7a688bc0c9b19143a"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-site.web",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "08e3f31e50f5ae84b34566aa0fdf937245f8517a",
+        "9ecd3c64e412421b8de6e0772207de1d91cb3485"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-mcp-server.rs",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "eb25956f5869c04ae4573b549ad8e83c80cbc4c7",
+        "109d4dd1b30cc0604d40d597d2383653229f9520",
+        "87a34b4babad7d34afbd275148fceca6e6154d70"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-interfaces",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "f4f6f1b1a9e05f0fa43ad32024e3c2d4a9071310",
+        "af648f9a8d6af6fa582f3816e5c259802d44a7d8"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-e2e",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "050d8565fc065ae283695a5e5f3910f7de81e1c2",
+        "b3e7f0dd394960ea7872f868c78e65ff03c32980",
+        "53dc110ce18f42fc23ae67392c4f99c58c817501"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-desktop.rs",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "19f281a9c963606b1b403112788f1e20d5a0fcd8",
+        "f53fbf109f5b77e661064f5c5cec24924ab458ea",
+        "dcb0f189ab24c0894955454271e355259c60edce",
+        "3bfdc626df0f012212e2429db95c4180744f2bb6",
+        "dba0a9794164261328ead2bd396e0c73d30cd27d",
+        "e042f27704debca8ed86fad718c3c0a8a93ca46f",
+        "0ba4e1e41fc91a36d6ff574c6e8018933a15baab",
+        "7530daaee159d0483655f083f563166bef99ca89",
+        "f02a910f1b3436dec3b5b967d0612b81dd6b8634",
+        "2b2cac54d241c1128007b062e417587e412cdf0d",
+        "1fe69958fd4ec0019a58d529eb2d8654b2dfada9",
+        "e7cb1c665ea9f306613d6ea21600842316f9f204",
+        "656cff5f2da5cf51c8b82074a51cdbbf9d4b74e4",
+        "8b66ba5d847d5b1759b903ef9af0e79595b7644f",
+        "e14d350fcce8f8785b181db4e31116ced676df9c"
+      ]
+    },
+    {
+      "repository": "sonus-auris/sonus-auris-clients",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "45c30f42cb8824eeeb7295611c99c862c72bec44",
+        "d8289a00ba3e3f6436c1a3865f2946a80057b5bf"
+      ]
+    },
+    {
+      "repository": "ORESoftware/flags-2-env",
+      "build_status": "not_run",
+      "disposition": "diff_reviewed_but_build_certification_required",
+      "commits": [
+        "f95ba7da5ae6fd08192a1b690090ee5787bd53ba",
+        "f8a5b67971bb5c7c7f595643f7453b1cc3d597a8"
+      ]
+    },
+    {
+      "repository": "fiducia-cloud/fiducia-sync",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "8ea60b0563cc4cbe17158fc7e5432558cc27cb06"
+      ]
+    },
+    {
+      "repository": "fiducia-cloud/fiducia-mcp-server.rs",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "d9cf907a3e7e01c25db527d1012fe85ba6b94f66",
+        "bbb7d124f1697a7ba5e87dcf3c23111e1413778b"
+      ]
+    },
+    {
+      "repository": "fiducia-cloud/fiducia-edge",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "a52098a38e7684570c53f2398c848ec1b9f905eb",
+        "982dc020c519a77a60039c7888a62ed67140e4af"
+      ]
+    },
+    {
+      "repository": "fiducia-cloud/fiducia-e2e",
+      "build_status": "not_run",
+      "disposition": "requires_history_and_build_review",
+      "commits": [
+        "c9677f1aebf152737f1324b0d854e6117c0ba1aa",
+        "e80122b07d3de5355cd0a6e256512b6dc588117d",
+        "a1572c606e14aa9493341220b0bcc99e95383f73",
+        "c124350e5bf75f8e3c6b424a8ffce0b2e3d2f325",
+        "fc439d4802ce33b62431cceb195a1480aa3896e6",
+        "d379d59a153a59c57966d28491ef44cf07200af2",
+        "26382a52251b6a0d4cf73b223501fb9a54f0b4c5",
+        "2d27208df9fb1d06ba4cd950e820d7247ca227f9",
+        "c4d20f032da2690815d241591143b9bbe70996be",
+        "bcb314f9440f46bb3073d33f27d3eec20283d862"
+      ]
+    }
+  ]
+}
