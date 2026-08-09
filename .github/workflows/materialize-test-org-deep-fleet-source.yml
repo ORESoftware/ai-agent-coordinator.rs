@@ -48,11 +48,30 @@ jobs:
 
           payload_path = Path('.github/repository-bootstrap-source/deep-test-fleet-source-payload.json')
           payload = json.loads(payload_path.read_text())
-          if set(payload) != {'schema_version', 'operation', 'archive_sha256', 'archive_b64'}:
+          required = {
+              'schema_version',
+              'operation',
+              'archive_sha256',
+              'archive_b64_sha256',
+              'part_count',
+              'part_prefix',
+          }
+          if set(payload) != required:
               raise SystemExit('unexpected source payload keys')
           if payload['schema_version'] != 1 or payload['operation'] != 'deep-test-fleet-20260808':
               raise SystemExit('source payload identity drift')
-          archive = base64.b64decode(payload['archive_b64'], validate=True)
+          if payload['part_prefix'] != '.github/repository-bootstrap-source/deep-test-fleet-source-payload.part':
+              raise SystemExit('source payload prefix drift')
+          part_count = payload['part_count']
+          if not isinstance(part_count, int) or not 1 <= part_count <= 20:
+              raise SystemExit('source payload part count is outside bounds')
+          part_paths = [Path(f"{payload['part_prefix']}{index:02d}") for index in range(part_count)]
+          if any(not path.is_file() or path.stat().st_size > 6_000 for path in part_paths):
+              raise SystemExit('source payload part is missing or exceeds bounds')
+          archive_b64 = ''.join(path.read_text() for path in part_paths)
+          if hashlib.sha256(archive_b64.encode()).hexdigest() != payload['archive_b64_sha256']:
+              raise SystemExit('source payload base64 digest mismatch')
+          archive = base64.b64decode(archive_b64, validate=True)
           if hashlib.sha256(archive).hexdigest() != payload['archive_sha256']:
               raise SystemExit('source archive digest mismatch')
           if len(archive) > 100_000:
@@ -138,6 +157,7 @@ jobs:
           set -euo pipefail
           rm -f \
             .github/repository-bootstrap-source/deep-test-fleet-source-payload.json \
+            .github/repository-bootstrap-source/deep-test-fleet-source-payload.part* \
             .github/workflows/materialize-test-org-deep-fleet-source.yml
           rmdir .github/repository-bootstrap-source 2>/dev/null || true
           git config user.name 'github-actions[bot]'
