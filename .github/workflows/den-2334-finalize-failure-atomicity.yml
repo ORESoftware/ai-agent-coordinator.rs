@@ -1,0 +1,78 @@
+name: DEN-2334 finalize failure atomicity
+# Temporary branch-only helper; remove before review.
+
+on:
+  push:
+    branches:
+      - agent/den-2334-failure-atomicity-20260805
+    paths:
+      - '.github/workflows/den-2334-finalize-failure-atomicity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-2334-finalize-failure-atomicity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-2334-failure-atomicity-20260805
+          fetch-depth: 0
+          persist-credentials: true
+          submodules: false
+          show-progress: false
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt, clippy
+
+      - name: Restore bounded Rust cache
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
+      - name: Apply exact reviewed transformation
+        run: python3 scripts/ops/apply_den2334_failure_atomicity.py
+
+      - name: Format and run focused validation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all
+          cargo fmt --all -- --check
+          cargo test --locked --test daily_portfolio_delivery_state --no-run
+          cargo test --locked --test daily_portfolio_delivery_state -- --nocapture
+          cargo clippy --locked --lib --test daily_portfolio_delivery_state -- -D warnings
+
+      - name: Commit validated Rust, regressions, and documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The workflow file is published separately through the installed GitHub
+          # App because Actions' repository token cannot update workflow paths.
+          git restore .github/workflows/daily-portfolio-delivery-state.yml
+          git diff --check
+          actual="$(git diff --name-only | LC_ALL=C sort)"
+          expected="$(printf '%s\n' \
+            docs/daily-portfolio-delivery-state.md \
+            src/daily_portfolio_delivery.rs \
+            tests/daily_portfolio_delivery_state.rs \
+            | LC_ALL=C sort)"
+          test "$actual" = "$expected"
+          git add \
+            docs/daily-portfolio-delivery-state.md \
+            src/daily_portfolio_delivery.rs \
+            tests/daily_portfolio_delivery_state.rs
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(DEN-2334): preserve delivery failure atomicity'
+          git push origin HEAD:agent/den-2334-failure-atomicity-20260805

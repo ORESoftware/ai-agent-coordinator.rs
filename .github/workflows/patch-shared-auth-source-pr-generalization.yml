@@ -1,0 +1,33 @@
+name: Temporary generalize Shared Auth artifact source PR
+
+on:
+  push:
+    branches:
+      - agent/generalize-shared-auth-artifact-source-pr
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/generalize-shared-auth-artifact-source-pr
+          fetch-depth: 1
+      - name: Apply reviewed source-PR generalization
+        run: python3 scripts/patch_shared_auth_source_pr_generalization.py
+      - name: Commit exact broker patch and remove temporary files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add scripts/publish_shared_auth_client_artifacts.sh
+          git add .github/workflows/publish-shared-auth-client-artifacts-v2.yml
+          git add -u scripts/patch_shared_auth_source_pr_generalization.py
+          git add -u .github/workflows/patch-shared-auth-source-pr-generalization.yml
+          git commit -m 'feat: validate carrier-selected source PRs and sequential RCs'
+          git push origin HEAD:agent/generalize-shared-auth-artifact-source-pr
