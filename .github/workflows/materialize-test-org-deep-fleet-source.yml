@@ -150,6 +150,28 @@ jobs:
           path.write_text(corrected)
           PY
 
+      - name: Normalize reviewed source whitespace
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          paths = (
+              Path('.github/workflows/live-test-org-deep-fleet-bootstrap.yml'),
+              Path('.github/workflows/test-org-deep-fleet-contract.yml'),
+              Path('docs/test-org-deep-fleet-bootstrap-2026-08-08.md'),
+              Path('repository-fleets/test-org-deep-fleets.json'),
+              Path('scripts/bootstrap_test_org_deep_fleets_live.py'),
+              Path('scripts/deep_test_fleet_templates.py'),
+              Path('scripts/test_test_org_deep_fleets.py'),
+          )
+          for path in paths:
+              content = path.read_text()
+              normalized = '\n'.join(line.rstrip(' \t') for line in content.splitlines()) + '\n'
+              path.write_text(normalized)
+          PY
+
       - name: Validate materialized publisher and every foundation
         shell: bash
         run: |
