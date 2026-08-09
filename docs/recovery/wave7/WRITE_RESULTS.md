@@ -6,7 +6,7 @@ This document records the remote writes performed after the 40-day ChatGPT/Libra
 
 | Program | Repository | Branch | Head | Pull request | State |
 |---|---|---|---|---|---|
-| Led Dynamo recovery | `led-dynamo/.github` | `agent/den-3159-led-dynamo-recovery-seeds` | `fb772d0f65113ebcb6c8026afc4467ddf168e977` | #24 | Draft; privacy passed; baseline rerun after narrow `.b64` carrier policy fix |
+| Led Dynamo recovery | `led-dynamo/.github` | `agent/den-3159-led-dynamo-recovery-seeds` | `ce2ea36ef7e218a114776876d02cda04966bfdcf` | #24 | Draft; mergeable; privacy and organization-baseline checks passed |
 | Canonical Docs recovery | `canonical-cloud/.github` | `agent/den-1049-canonical-docs-recovery-seed` | `18214bdc1bdf6d22d99eed4f4c100d0574e848d1` | #19 | Draft; mergeable; both organization checks passed |
 | 40-day recovery coordination | `ORESoftware/ai-agent-coordinator.rs` | `agent/den-2797-artifact-recovery-wave-6` | this branch | #137 | Draft; Wave 7 evidence appended here |
 
@@ -15,7 +15,7 @@ This document records the remote writes performed after the 40-day ChatGPT/Libra
 - Existing tested Led Rust source and Zed manifests were retained rather than replaced by older donor trees.
 - The safer recovered publication behavior was merged into the current Led publishers: fail closed on existing targets, dirty/non-`main` worktrees, unrelated remotes, and missing prerequisites; accept authenticated `gh` or an environment token without embedding credentials in Git URLs.
 - Exact complete Git histories for `leddy-sync` and `leddy-mcp-server.rs` were preserved as checksum-pinned bundle carriers without rewriting the `.github` repository history.
-- The Led baseline validator keeps credential and workflow checks intact while exempting only checksum-pinned `.b64` carriers from the prose trailing-newline rule.
+- The Led baseline validator keeps credential and workflow checks intact while exempting only checksum-pinned `.b64` carriers from the prose trailing-newline rule. The explicit organization rule to prefer merge over rebase was restored; exact-head privacy and policy checks are green.
 - Canonical Docs is preserved as a verified source archive because the retained recovery did not include its original `.git` object database. Any future target commit must be represented as a new reconstructed commit, not an original historical head.
 - Already-merged Evento and HHM publisher work was not replayed. Review-gated Apostille and Embedded Alerts work was not falsely represented as validated or published.
 
