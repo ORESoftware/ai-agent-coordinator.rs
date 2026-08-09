@@ -120,6 +120,36 @@ jobs:
                   script.chmod(0o755)
           PY
 
+      - name: Apply bounded repository-layout correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          path = Path('scripts/test_test_org_deep_fleets.py')
+          old_digest = '055f45d96072ac5e1291197abcd5f14e6bdd0f54910a37111970750db2e7156c'
+          new_digest = '3e6e6d2de8cf56589b5214f850c38380d62d0ffe186feca334f2df5137aba871'
+          old = (
+              'ROOT = Path(__file__).resolve().parent\n'
+              'MANIFEST = ROOT / "test-org-deep-fleets.json"\n'
+          )
+          new = (
+              'ROOT = Path(__file__).resolve().parents[1]\n'
+              'MANIFEST = ROOT / "repository-fleets" / "test-org-deep-fleets.json"\n'
+          )
+          content = path.read_text()
+          if hashlib.sha256(content.encode()).hexdigest() != old_digest:
+              raise SystemExit('unexpected pre-correction test-source digest')
+          if content.count(old) != 1:
+              raise SystemExit('repository-layout correction anchor drift')
+          corrected = content.replace(old, new)
+          if hashlib.sha256(corrected.encode()).hexdigest() != new_digest:
+              raise SystemExit('unexpected post-correction test-source digest')
+          path.write_text(corrected)
+          PY
+
       - name: Validate materialized publisher and every foundation
         shell: bash
         run: |
