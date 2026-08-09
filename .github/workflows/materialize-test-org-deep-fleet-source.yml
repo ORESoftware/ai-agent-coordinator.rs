@@ -1,0 +1,148 @@
+name: Materialize reviewed deep-fleet source bundle
+
+on:
+  push:
+    branches:
+      - agent/deep-test-org-fleet-20260808
+    paths:
+      - .github/repository-bootstrap-source/deep-test-fleet-source-payload.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-test-org-deep-fleet-source
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out one-time staging branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+          cache: ''
+
+      - name: Verify and materialize exact source archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import gzip
+          import hashlib
+          import io
+          import json
+          import os
+          import tarfile
+          import tempfile
+          from pathlib import Path, PurePosixPath
+
+          payload_path = Path('.github/repository-bootstrap-source/deep-test-fleet-source-payload.json')
+          payload = json.loads(payload_path.read_text())
+          if set(payload) != {'schema_version', 'operation', 'archive_sha256', 'archive_b64'}:
+              raise SystemExit('unexpected source payload keys')
+          if payload['schema_version'] != 1 or payload['operation'] != 'deep-test-fleet-20260808':
+              raise SystemExit('source payload identity drift')
+          archive = base64.b64decode(payload['archive_b64'], validate=True)
+          if hashlib.sha256(archive).hexdigest() != payload['archive_sha256']:
+              raise SystemExit('source archive digest mismatch')
+          if len(archive) > 100_000:
+              raise SystemExit('source archive exceeds bound')
+
+          expected = {
+              '.github/workflows/live-test-org-deep-fleet-bootstrap.yml',
+              '.github/workflows/test-org-deep-fleet-contract.yml',
+              'docs/test-org-deep-fleet-bootstrap-2026-08-08.md',
+              'repository-fleets/test-org-deep-fleets.json',
+              'scripts/bootstrap_test_org_deep_fleets_live.py',
+              'scripts/deep_test_fleet_templates.py',
+              'scripts/test_test_org_deep_fleets.py',
+          }
+          raw_tar = gzip.decompress(archive)
+          with tempfile.TemporaryDirectory(prefix='deep-fleet-source-') as raw:
+              root = Path(raw)
+              with tarfile.open(fileobj=io.BytesIO(raw_tar), mode='r:') as bundle:
+                  names = set(bundle.getnames())
+                  if names != expected:
+                      raise SystemExit(f'archive path set drift: {sorted(names ^ expected)}')
+                  for member in bundle.getmembers():
+                      path = PurePosixPath(member.name)
+                      if not member.isfile() or path.is_absolute() or '..' in path.parts:
+                          raise SystemExit(f'unsafe archive member: {member.name}')
+                      if member.size > 100_000:
+                          raise SystemExit(f'archive member exceeds bound: {member.name}')
+                      source = bundle.extractfile(member)
+                      if source is None:
+                          raise SystemExit(f'missing archive data: {member.name}')
+                      destination = root / member.name
+                      destination.parent.mkdir(parents=True, exist_ok=True)
+                      destination.write_bytes(source.read())
+              for relative in sorted(expected):
+                  source = root / relative
+                  destination = Path(relative)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  temporary = destination.with_suffix(destination.suffix + '.materializing')
+                  temporary.write_bytes(source.read_bytes())
+                  os.replace(temporary, destination)
+              for script in (
+                  Path('scripts/bootstrap_test_org_deep_fleets_live.py'),
+                  Path('scripts/deep_test_fleet_templates.py'),
+                  Path('scripts/test_test_org_deep_fleets.py'),
+              ):
+                  script.chmod(0o755)
+          PY
+
+      - name: Validate materialized publisher and every foundation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/deep_test_fleet_templates.py \
+            scripts/bootstrap_test_org_deep_fleets_live.py \
+            scripts/test_test_org_deep_fleets.py
+          PYTHONPATH=scripts python -m unittest -v scripts/test_test_org_deep_fleets.py
+          PYTHONPATH=scripts python scripts/bootstrap_test_org_deep_fleets_live.py \
+            --manifest repository-fleets/test-org-deep-fleets.json \
+            --validate-only
+          credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_'"'"'api_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY'
+          files=(
+            repository-fleets/test-org-deep-fleets.json
+            scripts/deep_test_fleet_templates.py
+            scripts/bootstrap_test_org_deep_fleets_live.py
+            scripts/test_test_org_deep_fleets.py
+            docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+            .github/workflows/test-org-deep-fleet-contract.yml
+            .github/workflows/live-test-org-deep-fleet-bootstrap.yml
+          )
+          if grep -nE "$credential_pattern" "${files[@]}"; then
+            echo 'Credential-shaped source is forbidden.' >&2
+            exit 1
+          fi
+          if grep -nE '^(<{7}|={7}|>{7})' "${files[@]}"; then
+            echo 'Conflict markers are forbidden.' >&2
+            exit 1
+          fi
+
+      - name: Commit reviewed source and retire materializer
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/repository-bootstrap-source/deep-test-fleet-source-payload.json \
+            .github/workflows/materialize-test-org-deep-fleet-source.yml
+          rmdir .github/repository-bootstrap-source 2>/dev/null || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git diff --cached --check
+          git commit -m 'feat: stage exact deep-test fleet publisher and relay'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
