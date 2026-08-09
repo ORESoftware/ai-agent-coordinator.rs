@@ -85,3 +85,7 @@ After live execution, the relay workflow and trigger must be deleted from the fe
 ## Completion evidence
 
 Issue #139 is the bounded execution ledger. A completion comment records counts for created/existing repositories, PRs created/merged/open, default-branch verification, and failures, followed by one state line per repository. This document must be updated with the exact workflow run and outcome after the one-time relay is retired.
+
+## Staging validation trigger
+
+The permanent contract workflow, the encrypted live relay, and retirement of the source materializer are all present at this branch head. This documentation-only commit intentionally triggers exact-head validation before any live repository mutation.
