@@ -1,0 +1,321 @@
+{
+  "archiveCarrier": {
+    "concatenatedBytes": 38000,
+    "concatenatedSha256": "5b62bc113dfa11699fad036adc4de91a255018111b81fe888b1f08f6699c613f",
+    "deterministic": true,
+    "encoding": "concatenated-base64(gzip(tar))",
+    "memberCount": 5,
+    "parts": [
+      "data/wave6-recovered-artifacts.part01.b64",
+      "data/wave6-recovered-artifacts.part02.b64",
+      "data/wave6-recovered-artifacts.part03.b64",
+      "data/wave6-recovered-artifacts.part04.b64",
+      "data/wave6-recovered-artifacts.part05.b64"
+    ]
+  },
+  "artifacts": [
+    {
+      "bytes": 56173,
+      "carrierParts": [
+        "data/wave6-recovered-artifacts.part01.b64",
+        "data/wave6-recovered-artifacts.part02.b64",
+        "data/wave6-recovered-artifacts.part03.b64",
+        "data/wave6-recovered-artifacts.part04.b64",
+        "data/wave6-recovered-artifacts.part05.b64"
+      ],
+      "disposition": "archived-exactly; do-not-execute",
+      "executeAllowed": false,
+      "origin": "recovered-library-artifact",
+      "path": ".artifacts/chatgpt-work-recovery-wave6/zed-fleet-reconcile.original.sh",
+      "sha256": "70e7bcdfa3a8a3e15bcbf8bd635a240baca53c9b95a36f01f4aa312f66fd18ae",
+      "storage": "archive-member"
+    },
+    {
+      "bytes": 56024,
+      "carrierParts": [
+        "data/zed-fleet-reconcile-no-force.part01.b64",
+        "data/zed-fleet-reconcile-no-force.part02.b64",
+        "data/zed-fleet-reconcile-no-force.part03.b64"
+      ],
+      "disposition": "reviewable execution candidate; dry-run by default",
+      "executeAllowed": true,
+      "origin": "semantic-no-force-derivative",
+      "path": "scripts/zed-fleet-reconcile-no-force.payload.sh",
+      "sha256": "1f0415e2452b6b7fc2c3a6e9e2b28e3934327e13c2460905f411307274fe4e0e",
+      "storage": "chunked-gzip-base64"
+    },
+    {
+      "bytes": 1425,
+      "carrierParts": [
+        "data/wave6-recovered-artifacts.part01.b64",
+        "data/wave6-recovered-artifacts.part02.b64",
+        "data/wave6-recovered-artifacts.part03.b64",
+        "data/wave6-recovered-artifacts.part04.b64",
+        "data/wave6-recovered-artifacts.part05.b64"
+      ],
+      "disposition": "published as audit evidence; no implementation patch existed",
+      "executeAllowed": false,
+      "origin": "recovered-library-artifact",
+      "path": ".artifacts/chatgpt-work-recovery-wave6/zed_pkg_dependency_graph_audit_status.md",
+      "sha256": "504cc76ff0e529d78f149601d3212d44379de0c59b412850b7f8ba9073d084f9",
+      "storage": "archive-member"
+    },
+    {
+      "bytes": 21643,
+      "carrierParts": [
+        "data/wave6-recovered-artifacts.part01.b64",
+        "data/wave6-recovered-artifacts.part02.b64",
+        "data/wave6-recovered-artifacts.part03.b64",
+        "data/wave6-recovered-artifacts.part04.b64",
+        "data/wave6-recovered-artifacts.part05.b64"
+      ],
+      "disposition": "historical semantic-transplant helper; partially superseded by merged PRs #789 and #823",
+      "executeAllowed": false,
+      "origin": "recovered-library-artifact",
+      "path": ".artifacts/chatgpt-work-recovery-wave6/apply-pr659-product-only.sh",
+      "sha256": "b05944e04ff8d2a8c59d03fbd4f3692ce5e9e3f084f7fa0705ea4a963917b667",
+      "storage": "archive-member"
+    },
+    {
+      "bytes": 11482,
+      "carrierParts": [
+        "data/wave6-recovered-artifacts.part01.b64",
+        "data/wave6-recovered-artifacts.part02.b64",
+        "data/wave6-recovered-artifacts.part03.b64",
+        "data/wave6-recovered-artifacts.part04.b64",
+        "data/wave6-recovered-artifacts.part05.b64"
+      ],
+      "disposition": "historical repair helper; stale PR #711 closed, permanent pieces decomposed",
+      "executeAllowed": false,
+      "origin": "recovered-library-artifact",
+      "path": ".artifacts/chatgpt-work-recovery-wave6/pr711_product_only_repair.py",
+      "sha256": "59d39132d1eebb34b7e766c8b7b68614f3af2ea23bbf9930191c37e4d03c990d",
+      "storage": "archive-member"
+    },
+    {
+      "bytes": 7808,
+      "carrierParts": [
+        "data/wave6-recovered-artifacts.part01.b64",
+        "data/wave6-recovered-artifacts.part02.b64",
+        "data/wave6-recovered-artifacts.part03.b64",
+        "data/wave6-recovered-artifacts.part04.b64",
+        "data/wave6-recovered-artifacts.part05.b64"
+      ],
+      "disposition": "published as current-state handoff; four canonical E2E repositories remain missing",
+      "executeAllowed": false,
+      "origin": "recovered-library-artifact",
+      "path": ".artifacts/chatgpt-work-recovery-wave6/four-org-next-steps-2026-08-08.md",
+      "sha256": "cdcf466a00360a412ef3b37b7f2127bd9cd96b2623e9ca6c0fa00294b4ec0b85",
+      "storage": "archive-member"
+    }
+  ],
+  "coverage": {
+    "limitations": [
+      "deleted or inaccessible chats cannot be reconstructed",
+      "private model chain-of-thought is not an artifact source",
+      "repository creation is unavailable through the connected GitHub action surface",
+      "the container has no outbound GitHub DNS path and no authenticated gh CLI"
+    ],
+    "sources": [
+      "conversation and Library artifact retrieval",
+      "existing Wave 1-5 recovery ledgers",
+      "current GitHub repository, branch, pull-request, and workflow reads",
+      "current Linear issue reads and updates"
+    ]
+  },
+  "excludedTargets": [
+    "dancing-dragons"
+  ],
+  "executionWrapper": {
+    "bytes": 925,
+    "path": "scripts/zed-fleet-reconcile-no-force.sh",
+    "payloadCompressedSha256": "e4d2c86cf928d2cd64934b2faece5a8908ac189524fa5c2f22a32bd1d69e2237",
+    "payloadDecodedBytes": 56024,
+    "payloadDecodedSha256": "1f0415e2452b6b7fc2c3a6e9e2b28e3934327e13c2460905f411307274fe4e0e",
+    "payloadEncoding": "concatenated-base64(gzip)",
+    "payloadParts": [
+      "data/zed-fleet-reconcile-no-force.part01.b64",
+      "data/zed-fleet-reconcile-no-force.part02.b64",
+      "data/zed-fleet-reconcile-no-force.part03.b64"
+    ],
+    "sha256": "9acf5b8dff23be05bef4dab7705932230d0e4a83821d6bd48ec00fb56d87c511"
+  },
+  "generatedDate": "2026-08-08",
+  "githubEvodence": [
+    {
+      "disposition": "review-only recovery archive",
+      "draft": true,
+      "head": "05c9ecb92393bde77e2700d1a29b39a63694e79f",
+      "pullRequest": 133,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "state": "open",
+      "workflowConclusions": [
+        "success",
+        "success",
+        "success"
+      ]
+    },
+    {
+      "disposition": "review-only Wave 4 ledger",
+      "draft": true,
+      "head": "068c65d8d54b64e0d885147bc0b6450334337eb9",
+      "pullRequest": 134,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "state": "open",
+      "workflowConclusions": [
+        "success",
+        "success",
+        "success",
+        "success",
+        "success"
+      ]
+    },
+    {
+      "disposition": "review-only Wave 5 ledger",
+      "draft": true,
+      "head": "c9604de26f4ebc0b8878a0400551fee061c77810",
+      "pullRequest": 136,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "state": "open",
+      "workflowConclusions": [
+        "success",
+        "success",
+        "success",
+        "success",
+        "success"
+      ]
+    },
+    {
+      "disposition": "durable-worker patch published; exact-base materializer green; permanent PR workflows still gate merge",
+      "draft": true,
+      "head": "e30b9b759bfd00e2ea279ff1f2621aecc2522387",
+      "pullRequest": 1215,
+      "repository": "ORESoftware/k8s-cluster",
+      "state": "open"
+    },
+    {
+      "disposition": "Messaging Intel fixed profiles and exact repository policy landed",
+      "mergeCommit": "0f7b338c37685b5fa3b54f7b2ae737ca12dd9208",
+      "merged": true,
+      "pullRequest": 789,
+      "repository": "ORESoftware/k8s-cluster",
+      "state": "closed"
+    },
+    {
+      "disposition": "Messaging Intel reserved workflow/planner contract landed",
+      "mergeCommit": "416bb7b73dc5c317647fba1a59070f63ffb39edd",
+      "merged": true,
+      "pullRequest": 823,
+      "repository": "ORESoftware/k8s-cluster",
+      "state": "closed"
+    },
+    {
+      "disposition": "previously unpushed E2E/CI patch landed",
+      "mergeCommit": "c472f00a257d76d796d6a7156a45ba212d76ad15",
+      "merged": true,
+      "pullRequest": 1,
+      "repository": "meta-agents-demo/metacog",
+      "state": "closed"
+    },
+    {
+      "disposition": "minor-only nightly dependency policy represented on GitHub",
+      "merged": true,
+      "pullRequest": 33,
+      "repository": "ORESoftware/project-registry",
+      "state": "closed"
+    },
+    {
+      "disposition": "code published; hosted job never started due billing/spending restriction",
+      "draft": true,
+      "head": "54b9a85a600e653451b063fbc5bb16bb5856be16",
+      "pullRequest": 7,
+      "repository": "ORESoftware/chat.vibe",
+      "state": "open"
+    }
+  ],
+  "linearUpdatesRequired": [
+    "DEN-2797",
+    "DEN-319",
+    "DEN-2957",
+    "DEN-977",
+    "DEN-2253"
+  ],
+  "missingRepositories": [
+    {
+      "canonicalInterface": "apostille-me/apme-interfaces",
+      "repository": "apostille-me/apme-e2e",
+      "verified": "404"
+    },
+    {
+      "canonicalInterface": "embedded-alerts/eal-interfaces",
+      "repository": "embedded-alerts/eal-e2e",
+      "verified": "404"
+    },
+    {
+      "canonicalInterface": "evento-globolo/evgl-interfaces",
+      "repository": "evento-globolo/evgl-e2e",
+      "verified": "404"
+    },
+    {
+      "canonicalInterface": "hacker-house-medellin/hhm-interfaces",
+      "repository": "hacker-house-medellin/hhm-e2e",
+      "verified": "404"
+    }
+  ],
+  "safety": {
+    "automaticMergeUsed": false,
+    "cloudflareMutationUsed": false,
+    "credentialsCommitted": false,
+    "forcePushUsed": false,
+    "historyRewriteUsed": false,
+    "productionDeploymentUsed": false,
+    "recoveryIsAcceptance": false
+  },
+  "schemaVersion": "ore.chatgpt-artifact-recovery.wave6.v1",
+  "semanticReconciliation": [
+    {
+      "original": "70e7bcdfa3a8a3e15bcbf8bd635a240baca53c9b95a36f01f4aa312f66fd18ae",
+      "resolution": "preserve the original bytes as non-executable evidence and publish a derivative that merges current default-branch history into an existing recovery branch, aborts on conflicts, performs a normal push, and disables automatic merge/archive options",
+      "subject": "four-organization Zed fleet reconciler"
+    },
+    {
+      "resolution": "do not replay stale PR #659/#711 history; merged PR #789 owns fixed profiles/policy and merged PR #823 owns strict planner admission; remaining actual-binary evidence stays under DEN-977 on current dev",
+      "subject": "Messaging Intel continuity helper"
+    },
+    {
+      "resolution": "recovered patch is already published in draft PR #1215 at exact head e30b9b759bfd00e2ea279ff1f2621aecc2522387; do not duplicate or merge before permanent workflows pass",
+      "subject": "Rust durable worker lifecycle hardening"
+    },
+    {
+      "resolution": "publish the exact audit report and its four findings; do not fabricate a patch because the earlier attempt produced no checkout, base SHA, head SHA, or implementation bytes",
+      "subject": "Zed dependency-inventory post-merge audit"
+    }
+  ],
+  "unresolvedFindings": [
+    {
+      "finding": "create the four missing canonical E2E repositories through a write path that exposes repository creation; current connector cannot create repositories and the container cannot reach GitHub",
+      "owner": "DEN-319"
+    },
+    {
+      "finding": "harden GitHub Enterprise pagination with path prefixes, include Zed build-dependency edges, make missing-sha contradiction sorting deterministic, and validate Git tree mode/type pairs",
+      "owner": "DEN-2957"
+    },
+    {
+      "finding": "add current-dev actual-binary Messaging Intel dispatch, retry, and zero-submission evidence; do not replay stale PR #659/#711 branches",
+      "owner": "DEN-977"
+    },
+    {
+      "finding": "keep durable-worker PR #1215 draft until permanent exact-head workflows pass",
+      "owner": "DEN-2253"
+    },
+    {
+      "finding": "review and merge recovery ledgers separately from product acceptance",
+      "owner": "DEN-2797"
+    }
+  ],
+  "window": {
+    "days": 40,
+    "end": "2026-08-08",
+    "start": "2026-06-29"
+  }
+}
