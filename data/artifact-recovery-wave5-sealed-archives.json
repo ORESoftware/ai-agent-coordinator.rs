@@ -1,0 +1,97 @@
+{
+  "archives": [
+    {
+      "bytes": 2025578,
+      "canonical_heads": [
+        {
+          "commit": "e7b3719d9a97aa24bf03da0084cde6fa6f590b34",
+          "repository": "hypesiege/hypesiege-monorepo"
+        },
+        {
+          "commit": "616c4ae531556f853eaabd4392ba551b85a3cbf3",
+          "repository": "StreemPilot/streempilot-monorepo"
+        }
+      ],
+      "disposition": "checksum_anchored_no_destructive_replay",
+      "expected_repository_histories": 32,
+      "id": "hypesiege-streempilot-bootstrap",
+      "library_file_id": "file_000000006ed881f7b68a273c24747b86",
+      "name": "hypesiege-streempilot-bootstrap.tar.gz",
+      "note": "The sealed July 31 fleet is older than the live product repositories. The archived Hypesiege monorepo commit ad06355d56ca1dbf4e1d03a70f7e164283ad2fa1 is not present in the current live repository, so the archive is preserved as historical recovery evidence rather than replayed over newer work.",
+      "sha256": "0b38d197161b91db0a2a3d08def94d1e965fa8d48bb6aa998ba9614b667728e0"
+    },
+    {
+      "bytes": 2195312,
+      "canonical_heads": [
+        {
+          "commit": "f6faf1cf77ff1979ae69e90c8e952788e9f6d6f7",
+          "repository": "apostille-me/apme-monorepo"
+        },
+        {
+          "commit": "9e45984b8c129f67bdeaeacf89950c958ba53f60",
+          "repository": "embedded-alerts/eal-monorepo"
+        },
+        {
+          "commit": "c9859d9c5dcd343e4d5944a1e9dd30f44c9cf94b",
+          "repository": "evento-globolo/evgl-monorepo"
+        },
+        {
+          "commit": "a4adf73f846640864f67eaa85fd08eddcd2cf1ba",
+          "repository": "hacker-house-medellin/hhm-monorepo"
+        }
+      ],
+      "disposition": "checksum_anchored_canonical_repositories_exist",
+      "expected_repository_histories": 32,
+      "id": "four-org-rust-bootstrap",
+      "library_file_id": "file_000000003394820e88957c11b7545ecf",
+      "name": "four-org-rust-bootstrap-2026-08-04.zip",
+      "note": "The original archive was produced before those organization repositories were reachable. Current canonical repositories now exist and contain newer delivery-state work; the archive remains an exact historical source snapshot and is not pushed over current main branches.",
+      "sha256": "a715a4919e3a7d9e7eb5b8b7878e2d9485e4228504e57fe7a6d703a166cb1d37"
+    },
+    {
+      "bytes": 120181,
+      "canonical_heads": [
+        {
+          "commit": "47e411311523013f90db98390671d683475d6c74",
+          "repository": "ORESoftware/mcp-rust-libs"
+        }
+      ],
+      "disposition": "checksum_anchored_superseded_by_canonical_repository",
+      "expected_repository_histories": 1,
+      "id": "mcp-rust-libs-scaffold",
+      "library_file_id": "file_00000000fc6481f78fde0f94771694ec",
+      "name": "mcp-rust-libs-scaffold.zip",
+      "note": "The scaffold predates the canonical repository, which now contains later merged runtime, configuration, API-documentation, and certification work. Replaying the scaffold would regress the repository.",
+      "sha256": "a88df67f4c0ffc6cf0ee74f7cd2eec46004e2d8021bfbef6051cd1af7143ca3b"
+    }
+  ],
+  "generated_at": "2026-08-09T01:52:00Z",
+  "limitations": [
+    "The connected GitHub write surface accepts repository source and metadata but does not expose organization repository creation or release-asset upload.",
+    "The execution container cannot reach GitHub transport endpoints, so the opaque archive bytes cannot be transferred through git or gh from this runtime.",
+    "Exact archive bytes remain in the persistent file library; this repository commits their immutable checksums, byte lengths, provenance, and non-destructive disposition.",
+    "A checksum anchor is recovery evidence, not a claim that every archived commit exists in a live repository."
+  ],
+  "policy": {
+    "binary_payload_committed": false,
+    "conflict_resolution": "Preserve current canonical history, compare archived intent with live repositories, and add only a semantic union through ordinary forward commits and pull requests.",
+    "credential_persistence": false,
+    "excluded_targets": [
+      "dancing-dragons"
+    ],
+    "force_push": false,
+    "history_rewrite": false
+  },
+  "scan": {
+    "credential_shaped_material": false,
+    "git_remotes_with_embedded_credentials": false,
+    "private_key_material": false,
+    "result": "pass",
+    "test_fixture_exception": "One separately reviewed MCP test archive contains an intentionally rejected credential-in-URL fixture; that archive is not part of this three-archive publication ledger."
+  },
+  "schema_version": "artifact_recovery_sealed_archives.v1",
+  "window": {
+    "end": "2026-08-09",
+    "start": "2026-06-30"
+  }
+}
