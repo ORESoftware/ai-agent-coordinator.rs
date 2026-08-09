@@ -1,0 +1,450 @@
+{
+  "artifacts": [
+    {
+      "bytes": 12290,
+      "classification": "code_and_review_bundle",
+      "disposition": "source_published_on_github",
+      "evidence_ids": [
+        "next-loggers-pr14"
+      ],
+      "name": "next-loggers-hardening-review-bundle.zip",
+      "note": "Archive contains Gleam/BEAM runtime conformance source plus reports; the live PR is authoritative.",
+      "sha256": "026d3809b5468629d86c91632b03f73e79901f2d0eb3a0b711069ad496eb353b"
+    },
+    {
+      "bytes": 22204,
+      "classification": "source_patch",
+      "disposition": "semantically_reconciled_to_source_only_pr",
+      "evidence_ids": [
+        "canonical-pr20",
+        "canonical-pr19"
+      ],
+      "name": "canonical-cloud-canonical-api-server-rs.patch",
+      "note": "The source-only successor preserves product files and excludes packed/self-modifying transport machinery.",
+      "sha256": "2366b020941b48d451e3b6ca15b255edc163055601200643bbdc521c5589c024"
+    },
+    {
+      "bytes": 245505,
+      "classification": "polyglot_source_and_evidence_bundle",
+      "disposition": "mapped_to_live_pr_matrix",
+      "evidence_ids": [
+        "polyglot-test-pr7",
+        "act-rust-pr8",
+        "act-node-pr2",
+        "gleam-pr1",
+        "cm-pay-pr1",
+        "cp-go-pr1",
+        "next-loggers-pr14",
+        "memebank-rest-test-pr2",
+        "memebank-ocr-test-pr2",
+        "memebank-rest-pr9",
+        "memebank-ocr-pr26"
+      ],
+      "name": "graceful-shutdown-rollout(1).zip",
+      "note": "No binary payload is checked into the coordinator repository; exact live GitHub heads are the durable source.",
+      "sha256": "2f792e204ac9ea17d5db0f785cb451233a43b4b2d8eca445c18f8744d8d63381"
+    },
+    {
+      "bytes": 7687,
+      "classification": "execution_report_bundle",
+      "disposition": "preserved_as_non_claim",
+      "evidence_ids": [
+        "wave3-pr133",
+        "wave4-pr134"
+      ],
+      "name": "chatgpt-work-recovery-2026-08-08.zip",
+      "note": "The archive reports zero mounted repositories and zero code PRs; it is evidence of an unsuccessful recovery attempt, not a publication claim.",
+      "sha256": "552b0ebc094d35c6de25518cb4f021a6dbe07977c6575f39493669192ab8733a"
+    },
+    {
+      "bytes": 2900,
+      "classification": "registry_document_bundle",
+      "disposition": "merged_on_github",
+      "evidence_ids": [
+        "threefa-pr18"
+      ],
+      "name": "3fa-app-project-registry-main-dc013985.zip",
+      "note": "Registry documents are durable in the merged organization-profile PR.",
+      "sha256": "10533a6a63162c85c27b24721e7384fea2c1256e3b2c9c3226e2b5525b1aaba7"
+    },
+    {
+      "bytes": 6891,
+      "classification": "failed_execution_report",
+      "disposition": "preserved_as_non_claim",
+      "evidence_ids": [],
+      "name": "api_docs_rollout_execution_report.md",
+      "note": "Records missing local checkouts, unavailable validator state, and no published Messaging-Intel source PRs.",
+      "sha256": "75b09c4c322b5f90a0c0f8311166b1851049f8fa8ee740e21711eba98c6f7972"
+    },
+    {
+      "bytes": 17224,
+      "classification": "failed_execution_status",
+      "disposition": "preserved_as_non_claim",
+      "evidence_ids": [],
+      "name": "api_docs_rollout_status.json",
+      "note": "Records blocked/not-published API-docs work and no Cloudflare mutation.",
+      "sha256": "2e14c0989d0de8c864578b2b28b32732d3508639866d421aa42c4cd6a96bfb1c"
+    }
+  ],
+  "excluded_targets": [
+    "dancing-dragons"
+  ],
+  "generated_at": "2026-08-09T01:36:40Z",
+  "github_evidence": [
+    {
+      "draft": true,
+      "head": "05c9ecb92393bde77e2700d1a29b39a63694e79f",
+      "id": "wave3-pr133",
+      "mergeable": true,
+      "pull_request": 133,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "state": "open",
+      "url": "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/133",
+      "validation": "archival baseline"
+    },
+    {
+      "draft": true,
+      "head": "068c65d8d54b64e0d885147bc0b6450334337eb9",
+      "id": "wave4-pr134",
+      "mergeable": true,
+      "pull_request": 134,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "state": "open",
+      "url": "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/134",
+      "validation": "wave-4 deterministic ledger and tests green"
+    },
+    {
+      "draft": false,
+      "head": "98c669e016c44fd0a83448adfbd11637f0d36fae",
+      "id": "threefa-pr18",
+      "merge_commit": "dc01398596340556271250cfb3290ea1067f5ef4",
+      "mergeable": null,
+      "pull_request": 18,
+      "repository": "3FA-app/.github",
+      "state": "merged",
+      "url": "https://github.com/3FA-app/.github/pull/18",
+      "validation": "merged registry documents"
+    },
+    {
+      "draft": true,
+      "head": "agent/graceful-shutdown",
+      "id": "canonical-pr19",
+      "mergeable": false,
+      "pull_request": 19,
+      "repository": "canonical-cloud/canonical-api-server.rs",
+      "state": "closed",
+      "url": "https://github.com/canonical-cloud/canonical-api-server.rs/pull/19",
+      "validation": "closed unmerged; superseded unsafe transport branch"
+    },
+    {
+      "draft": true,
+      "head": "843add7e3124b800032427c653df8d069a90ed2d",
+      "id": "canonical-pr20",
+      "mergeable": true,
+      "pull_request": 20,
+      "repository": "canonical-cloud/canonical-api-server.rs",
+      "state": "open",
+      "url": "https://github.com/canonical-cloud/canonical-api-server.rs/pull/20",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31287827409,
+            "name": "declarative-postgres"
+          },
+          {
+            "conclusion": "success",
+            "id": 31287827400,
+            "name": "ci"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "ede6848cf207c8622834b63648e19b9ab34dfa1e",
+      "id": "polyglot-test-pr7",
+      "mergeable": true,
+      "pull_request": 7,
+      "repository": "fiducia-cloud-test/mcp-contract-e2e",
+      "state": "open",
+      "url": "https://github.com/fiducia-cloud-test/mcp-contract-e2e/pull/7",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31280686437,
+            "name": "generated test harness contract"
+          },
+          {
+            "conclusion": "success",
+            "id": 31280686423,
+            "name": "polyglot server shutdown contract"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "c61c9185bd5b76c3de53713b5d672b246a8444b5",
+      "id": "act-rust-pr8",
+      "mergeable": true,
+      "pull_request": 8,
+      "repository": "anticaptrad/act-api-server.rs",
+      "state": "open",
+      "url": "https://github.com/anticaptrad/act-api-server.rs/pull/8",
+      "validation": {
+        "note": "Source-level EOF-watcher isolation superseded the temporary CI stdin workaround without rewriting history.",
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31288527614,
+            "name": "CI"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "d62d86ec927ef6b79ec2f7c2287ff314dbb17dfc",
+      "id": "act-node-pr2",
+      "mergeable": true,
+      "pull_request": 2,
+      "repository": "anticaptrad/act-ai-server.ts",
+      "state": "open",
+      "url": "https://github.com/anticaptrad/act-ai-server.ts/pull/2",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31284955940,
+            "name": "CI"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "610ce59beb14f4f492607d8891790e3e989479c8",
+      "id": "gleam-pr1",
+      "mergeable": true,
+      "pull_request": 1,
+      "repository": "ORESoftware/server.gleam",
+      "state": "open",
+      "url": "https://github.com/ORESoftware/server.gleam/pull/1",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31281419159,
+            "name": "test"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "8ec708fbf3ccb3a54914ac8be735f92fb75077e2",
+      "id": "cm-pay-pr1",
+      "mergeable": true,
+      "pull_request": 1,
+      "repository": "ORESoftware/cm-pay-api",
+      "state": "open",
+      "url": "https://github.com/ORESoftware/cm-pay-api/pull/1",
+      "validation": {
+        "reason": "GitHub did not start the job because account payments failed or the Actions spending limit must be increased.",
+        "run": {
+          "conclusion": "failure",
+          "id": 31281160890,
+          "name": "graceful shutdown contract"
+        },
+        "status": "infrastructure_blocked"
+      }
+    },
+    {
+      "draft": true,
+      "head": "3f6598b91ccb9a7fa332b67e73b080a5cf38e345",
+      "id": "cp-go-pr1",
+      "mergeable": true,
+      "pull_request": 1,
+      "repository": "ORESoftware/cp-go-api",
+      "state": "open",
+      "url": "https://github.com/ORESoftware/cp-go-api/pull/1",
+      "validation": {
+        "reason": "GitHub did not start the job because account payments failed or the Actions spending limit must be increased.",
+        "run": {
+          "conclusion": "failure",
+          "id": 31288218555,
+          "name": "graceful shutdown contract"
+        },
+        "status": "infrastructure_blocked"
+      }
+    },
+    {
+      "draft": true,
+      "head": "9b27646b0eb25c8888a1b24406430f9e5f1774f6",
+      "id": "next-loggers-pr14",
+      "mergeable": true,
+      "pull_request": 14,
+      "repository": "ORESoftware/next-loggers.ts",
+      "state": "open",
+      "url": "https://github.com/ORESoftware/next-loggers.ts/pull/14",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31287345716,
+            "name": "Context and shutdown contract"
+          },
+          {
+            "conclusion": "success",
+            "id": 31287345708,
+            "name": "Server lifecycle audit"
+          },
+          {
+            "conclusion": "success",
+            "id": 31287345717,
+            "name": "no monkey patching E2E"
+          },
+          {
+            "conclusion": "success",
+            "id": 31287345701,
+            "name": "r2g installed consumer"
+          },
+          {
+            "conclusion": "success",
+            "id": 31287345710,
+            "name": "CI"
+          },
+          {
+            "conclusion": "success",
+            "id": 31287345706,
+            "name": "Polyglot packaging"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "certifies": "a6d2975345c5b7ca7d0dec6ccf4be3288778a9f5",
+      "draft": true,
+      "head": "97ef7aeea9e663a3a3b817efaedf26cc9b830ab6",
+      "id": "memebank-rest-test-pr2",
+      "mergeable": true,
+      "pull_request": 2,
+      "repository": "memebank-test/rest-api-contract-e2e",
+      "state": "open",
+      "url": "https://github.com/memebank-test/rest-api-contract-e2e/pull/2",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31286227411,
+            "name": "generated test harness contract"
+          },
+          {
+            "conclusion": "success",
+            "id": 31286227415,
+            "name": "REST graceful shutdown contract"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "certifies": "1e18a41a3370a243646f0402be5c162a15267b85",
+      "draft": true,
+      "head": "e80fcfcf04846eacb3d2f8a4e508832d438e5190",
+      "id": "memebank-ocr-test-pr2",
+      "mergeable": true,
+      "pull_request": 2,
+      "repository": "memebank-test/ocr-pipeline-e2e",
+      "state": "open",
+      "url": "https://github.com/memebank-test/ocr-pipeline-e2e/pull/2",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31286327702,
+            "name": "generated test harness contract"
+          },
+          {
+            "conclusion": "success",
+            "id": 31286327700,
+            "name": "OCR graceful shutdown contract"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "a6d2975345c5b7ca7d0dec6ccf4be3288778a9f5",
+      "id": "memebank-rest-pr9",
+      "mergeable": true,
+      "pull_request": 9,
+      "repository": "memebank/mbk-rest-api",
+      "state": "open",
+      "url": "https://github.com/memebank/mbk-rest-api/pull/9",
+      "validation": {
+        "runs": [
+          {
+            "conclusion": "success",
+            "id": 31286207358,
+            "name": "ci"
+          },
+          {
+            "conclusion": "success",
+            "id": 31286207355,
+            "name": "media-security"
+          }
+        ],
+        "status": "green"
+      }
+    },
+    {
+      "draft": true,
+      "head": "1e18a41a3370a243646f0402be5c162a15267b85",
+      "id": "memebank-ocr-pr26",
+      "mergeable": true,
+      "pull_request": 26,
+      "repository": "memebank/mbk-ocr-api",
+      "state": "open",
+      "url": "https://github.com/memebank/mbk-ocr-api/pull/26",
+      "validation": {
+        "note": "All workflows fetched for the exact product head succeeded, including ci and OCR contract tests.",
+        "status": "green",
+        "workflow_count": 9
+      }
+    }
+  ],
+  "linear_umbrella": [
+    "DEN-2797",
+    "DEN-3175"
+  ],
+  "non_claims": [
+    "The API-docs report did not publish Messaging-Intel source PRs and does not establish a successful rollout.",
+    "The chatgpt-work-recovery archive reports zero mounted repositories and zero code PRs; Wave 5 supersedes it as evidence, not as a success claim.",
+    "The two Go canaries are not code-failing on current evidence; their jobs never started because of GitHub Actions billing/spending restrictions.",
+    "Open or draft pull requests are durable recovery evidence, not approval to merge.",
+    "No Cloudflare, DNS, Worker, R2, Kubernetes, database, or production-service mutation is claimed."
+  ],
+  "policy": {
+    "automatic_merge": false,
+    "binary_payloads_checked_in": false,
+    "credential_values_stored": false,
+    "force_push": false,
+    "production_mutation": false,
+    "recovery_is_acceptance": false
+  },
+  "schema_version": "artifact_recovery_wave5.v1",
+  "window": {
+    "end": "2026-08-08",
+    "start": "2026-06-29"
+  }
+}

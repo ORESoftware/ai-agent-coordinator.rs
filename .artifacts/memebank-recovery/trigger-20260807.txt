@@ -1,0 +1,1 @@
+Trigger the existing hash-verified one-shot MemeBank recovery publisher after its workflow is present on the default branch.
