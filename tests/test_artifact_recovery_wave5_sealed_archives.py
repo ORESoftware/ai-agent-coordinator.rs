@@ -33,6 +33,12 @@ class SealedArchiveRecoveryTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             module.validate(value)
 
+    def test_aggregate_bundle_drift_is_rejected(self) -> None:
+        value = copy.deepcopy(self.fixture)
+        value["aggregate_bundle"]["sha256"] = "0" * 64
+        with self.assertRaises(ValueError):
+            module.validate(value)
+
     def test_checksum_drift_is_rejected(self) -> None:
         value = copy.deepcopy(self.fixture)
         value["archives"][0]["sha256"] = "0" * 64
