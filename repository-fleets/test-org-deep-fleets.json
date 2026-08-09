@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "bootstrap_date": "2026-08-08",
+  "tracking_issue": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/139",
+  "live_creation_enabled": false,
+  "visibility": "public",
+  "expected_owner": {
+    "login": "ORESoftware",
+    "id": 11139560
+  },
+  "organizations": [
+    "3fa-app-test",
+    "apostille-me-test",
+    "claritas-viz-test",
+    "cliptown-test",
+    "declarative-migrations-test",
+    "discrete-event-systems-test",
+    "embedded-alerts-test",
+    "evento-globolo-test",
+    "fiducia-cloud-test",
+    "file-tunnel-test",
+    "flags-2-env-test",
+    "hacker-house-medellin-test",
+    "hypesiege-test",
+    "memebank-test",
+    "messaging-intel-test",
+    "networking-components-test",
+    "opto-sync-test",
+    "ores-otel-test",
+    "quaestor-ledger-test",
+    "r2g-test",
+    "scintilla-run-test",
+    "shared-auth-test",
+    "sonus-auris-test",
+    "streempilot-test",
+    "zed-pkg-test"
+  ],
+  "repositories": [
+    {
+      "order": 1,
+      "name": "contract-conformance-tests",
+      "suite": "contract",
+      "description": "Deterministic state-model, idempotency, serialization, and protocol contract conformance tests."
+    },
+    {
+      "order": 2,
+      "name": "chaos-recovery-tests",
+      "suite": "chaos",
+      "description": "Deterministic fault-injection, crash recovery, retry, partition, duplicate-delivery, and convergence tests."
+    },
+    {
+      "order": 3,
+      "name": "upgrade-compatibility-tests",
+      "suite": "upgrade",
+      "description": "Forward/backward schema compatibility, migration round-trip, negotiation, snapshot replay, and destructive-change guard tests."
+    },
+    {
+      "order": 4,
+      "name": "security-boundary-tests",
+      "suite": "security",
+      "description": "Tenant isolation, replay protection, signature verification, path traversal, SSRF, redaction, and CI supply-chain boundary tests."
+    }
+  ]
+}

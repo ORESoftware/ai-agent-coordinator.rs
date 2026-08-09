@@ -1,0 +1,78 @@
+name: Test organization deep-fleet contract
+
+on:
+  pull_request:
+    paths:
+      - repository-fleets/test-org-deep-fleets.json
+      - scripts/deep_test_fleet_templates.py
+      - scripts/bootstrap_test_org_deep_fleets_live.py
+      - scripts/test_test_org_deep_fleets.py
+      - docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+      - .github/workflows/test-org-deep-fleet-contract.yml
+  push:
+    paths:
+      - repository-fleets/test-org-deep-fleets.json
+      - scripts/deep_test_fleet_templates.py
+      - scripts/bootstrap_test_org_deep_fleets_live.py
+      - scripts/test_test_org_deep_fleets.py
+      - docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+      - .github/workflows/test-org-deep-fleet-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+          cache: ''
+      - name: Compile publisher and tests
+        run: |
+          python -m py_compile \
+            scripts/deep_test_fleet_templates.py \
+            scripts/bootstrap_test_org_deep_fleets_live.py \
+            scripts/test_test_org_deep_fleets.py
+      - name: Run fail-closed fleet tests
+        env:
+          PYTHONPATH: scripts
+        run: python -m unittest -v scripts/test_test_org_deep_fleets.py
+      - name: Validate all generated foundations
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python scripts/bootstrap_test_org_deep_fleets_live.py \
+            --manifest repository-fleets/test-org-deep-fleets.json \
+            --validate-only
+      - name: Reject credentials and conflict markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_'"'"'api_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY'
+          files=(
+            repository-fleets/test-org-deep-fleets.json
+            scripts/deep_test_fleet_templates.py
+            scripts/bootstrap_test_org_deep_fleets_live.py
+            scripts/test_test_org_deep_fleets.py
+            docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+            .github/workflows/test-org-deep-fleet-contract.yml
+          )
+          if grep -nE "$credential_pattern" "${files[@]}"; then
+            echo 'Credential-shaped source is forbidden.' >&2
+            exit 1
+          fi
+          if grep -nE '^(<{7}|={7}|>{7})' "${files[@]}"; then
+            echo 'Conflict markers are forbidden.' >&2
+            exit 1
+          fi
