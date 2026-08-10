@@ -45,8 +45,13 @@ store_path.write_text(
 
 adapter_path = Path("src/bin/prompt-reconciliation-adapter-policy.rs")
 adapter_text = adapter_path.read_text(encoding="utf-8")
-old_import = "    io::{self, Read},\n"
-new_import = "    io::Read,\n"
+old_import = '''use std::{
+    collections::BTreeSet,
+    fmt,
+    io::{self, Read},
+};
+'''
+new_import = "use std::{collections::BTreeSet, fmt, io::Read};\n"
 import_count = adapter_text.count(old_import)
 if import_count != 1:
     raise SystemExit(
