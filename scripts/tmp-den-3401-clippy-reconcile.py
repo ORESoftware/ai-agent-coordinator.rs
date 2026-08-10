@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Apply the exact semantics-preserving DEN-3401 Clippy reconciliation."""
+"""Apply the exact semantics-preserving DEN-3401 Clippy reconciliations."""
 
 from pathlib import Path
 
-path = Path("src/daily_portfolio_delivery_store.rs")
-text = path.read_text(encoding="utf-8")
-old = '''            if candidate_date > current_date {
+store_path = Path("src/daily_portfolio_delivery_store.rs")
+store_text = store_path.read_text(encoding="utf-8")
+old_ordering = '''            if candidate_date > current_date {
                 true
             } else if candidate_date < current_date {
                 false
@@ -18,7 +18,7 @@ old = '''            if candidate_date > current_date {
                 return Err(domain(DeliveryStateError::BaselineConflict));
             }
 '''
-new = '''            match candidate_date.cmp(&current_date) {
+new_ordering = '''            match candidate_date.cmp(&current_date) {
                 std::cmp::Ordering::Greater => true,
                 std::cmp::Ordering::Less => false,
                 std::cmp::Ordering::Equal
@@ -33,7 +33,31 @@ new = '''            match candidate_date.cmp(&current_date) {
                 }
             }
 '''
-count = text.count(old)
-if count != 1:
-    raise SystemExit(f"expected exactly one baseline ordering target, found {count}")
-path.write_text(text.replace(old, new, 1), encoding="utf-8")
+ordering_count = store_text.count(old_ordering)
+if ordering_count != 1:
+    raise SystemExit(
+        f"expected exactly one baseline ordering target, found {ordering_count}"
+    )
+store_path.write_text(
+    store_text.replace(old_ordering, new_ordering, 1),
+    encoding="utf-8",
+)
+
+adapter_path = Path("src/bin/prompt-reconciliation-adapter-policy.rs")
+adapter_text = adapter_path.read_text(encoding="utf-8")
+old_import = "    io::{self, Read},\n"
+new_import = "    io::Read,\n"
+import_count = adapter_text.count(old_import)
+if import_count != 1:
+    raise SystemExit(
+        f"expected exactly one prompt adapter io import target, found {import_count}"
+    )
+cursor_count = adapter_text.count("io::Cursor::new")
+if cursor_count == 0:
+    raise SystemExit("expected at least one test-only io::Cursor reference")
+adapter_path.write_text(
+    adapter_text.replace(old_import, new_import, 1).replace(
+        "io::Cursor::new", "std::io::Cursor::new"
+    ),
+    encoding="utf-8",
+)
