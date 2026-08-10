@@ -654,17 +654,19 @@ async fn reconcile_baseline(
         None => true,
         Some(current) => {
             let current_date = scheduled_date(&current.baseline.scheduled_run_key)?;
-            if candidate_date > current_date {
-                true
-            } else if candidate_date < current_date {
-                false
-            } else if current.baseline.plan_digest == run.spec.plan_digest
-                && current.baseline.delivery_digest == run.spec.delivery_digest
-                && current.baseline.receipt_id == receipt.receipt_id
-            {
-                false
-            } else {
-                return Err(domain(DeliveryStateError::BaselineConflict));
+            match candidate_date.cmp(&current_date) {
+                std::cmp::Ordering::Greater => true,
+                std::cmp::Ordering::Less => false,
+                std::cmp::Ordering::Equal
+                    if current.baseline.plan_digest == run.spec.plan_digest
+                        && current.baseline.delivery_digest == run.spec.delivery_digest
+                        && current.baseline.receipt_id == receipt.receipt_id =>
+                {
+                    false
+                }
+                std::cmp::Ordering::Equal => {
+                    return Err(domain(DeliveryStateError::BaselineConflict));
+                }
             }
         }
     };
