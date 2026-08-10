@@ -1,0 +1,96 @@
+name: Mutation receipts contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/artifact-recovery-mutation-receipts.schema.json'
+      - '.github/workflows/mutation-receipts-contract.yml'
+      - 'docs/artifact-recovery-mutation-receipts.md'
+      - 'tools/artifact_recovery/mutation_receipts.py'
+      - 'tools/artifact_recovery/mutation_receipts_contract.py'
+      - 'tools/artifact_recovery_mutation_receipts.py'
+      - 'tests/test_artifact_recovery_mutation_receipts.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/artifact-recovery-mutation-receipts.schema.json'
+      - '.github/workflows/mutation-receipts-contract.yml'
+      - 'docs/artifact-recovery-mutation-receipts.md'
+      - 'tools/artifact_recovery/mutation_receipts.py'
+      - 'tools/artifact_recovery/mutation_receipts_contract.py'
+      - 'tools/artifact_recovery_mutation_receipts.py'
+      - 'tests/test_artifact_recovery_mutation_receipts.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mutation-receipts-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Install schema validator
+        run: python3 -m pip install --disable-pip-version-check 'jsonschema==4.26.0'
+      - name: Compile and run adversarial contract tests
+        run: |
+          python3 -m py_compile \
+            tools/artifact_recovery/mutation_receipts.py \
+            tools/artifact_recovery/mutation_receipts_contract.py \
+            tools/artifact_recovery_mutation_receipts.py \
+            tests/test_artifact_recovery_mutation_receipts.py
+          python3 -m unittest -v tests/test_artifact_recovery_mutation_receipts.py
+      - name: Validate schema and deterministic fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m json.tool .github/artifact-recovery-mutation-receipts.schema.json >/dev/null
+          evidence="$RUNNER_TEMP/mutation-receipts"
+          mkdir -p "$evidence"
+          python3 tools/artifact_recovery_mutation_receipts.py example \
+            --output "$evidence/mutation-receipts-ci-fixture.json" \
+            --now 2026-08-10T20:00:00Z
+          python3 tools/artifact_recovery_mutation_receipts.py validate \
+            "$evidence/mutation-receipts-ci-fixture.json" \
+            --now 2026-08-10T20:00:00Z
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          from jsonschema import Draft202012Validator, FormatChecker
+
+          schema = json.loads(
+              Path('.github/artifact-recovery-mutation-receipts.schema.json').read_text()
+          )
+          report = json.loads(
+              (Path(os.environ['EVIDENCE']) / 'mutation-receipts-ci-fixture.json').read_text()
+          )
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(
+              schema, format_checker=FormatChecker()
+          ).validate(report)
+          assert report['summary']['status'] == 'complete'
+          assert report['summary']['ready'] == 1
+          assert report['summary']['replay'] == 0
+          assert report['failure_ledger']['summary']['items'] == 0
+          assert len(report['report_sha256']) == 64
+          assert len(report['failure_ledger']['ledger_sha256']) == 64
+          PY
+      - name: Upload bounded contract evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: mutation-receipts-${{ github.sha }}
+          path: ${{ runner.temp }}/mutation-receipts
+          retention-days: 14
+          if-no-files-found: error
