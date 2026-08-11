@@ -16,9 +16,6 @@ concurrency:
 
 jobs:
   repair:
-    if: >-
-      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
-      github.ref == 'refs/heads/agent/fix-coordinator-rustfmt-20260811'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
