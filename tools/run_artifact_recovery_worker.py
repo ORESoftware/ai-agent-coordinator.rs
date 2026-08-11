@@ -17,6 +17,12 @@ from artifact_recovery_worker_runtime.sources import _deduplicate_items
 from artifact_recovery_worker_runtime.delivery import *
 from artifact_recovery_worker_runtime.engine import *
 
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--once', action='store_true', help='claim at most one artifact-recovery job and exit')
+    parser.add_argument('--check-config', action='store_true', help='validate protected configuration without contacting a source')
+    return parser
+
 def main(argv: Sequence[str] | None=None) -> int:
     args = build_parser().parse_args(argv)
     try:
