@@ -1,6 +1,10 @@
 name: Bootstrap Astro Pages portfolio
 
 on:
+  pull_request:
+    paths:
+      - '.github/workflows/bootstrap-astro-pages-portfolio-20260810.yml'
+      - 'scripts/bootstrap_astro_pages_portfolio_20260810.py'
   push:
     branches: [main]
     paths:
@@ -54,6 +58,7 @@ jobs:
 
   bootstrap:
     needs: validate
+    if: github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       max-parallel: 3
