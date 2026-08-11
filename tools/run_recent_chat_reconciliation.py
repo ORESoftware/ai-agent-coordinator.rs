@@ -83,6 +83,7 @@ def build_recent_payload(
         "require_every_accessible_authorized_chatgpt_thread": True,
         "require_durable_source_cursor": True,
         "require_duplicate_free_mutations": True,
+        "require_all_work_complete": True,
     }
     source = generic._object(contract.get("source_contract"), "source_contract")
     source["primary_source"] = "chatgpt_threads"
@@ -142,6 +143,10 @@ def _completion_summary(job: Mapping[str, Any]) -> dict[str, Any]:
         "unfinished_items": unfinished,
         "all_work_complete": unfinished == 0,
     }
+
+
+def _completion_exit_code(summary: Mapping[str, Any]) -> int:
+    return 0 if summary.get("all_work_complete") is True else 3
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -222,19 +227,30 @@ def main(argv: Sequence[str] | None = None) -> int:
             timeout_seconds=args.terminal_timeout_seconds,
             poll_interval_seconds=args.poll_interval_seconds,
         )
+        completion = _completion_summary(job)
         receipt.update(
             {
                 "status": "complete",
+                "work_status": (
+                    "complete" if completion["all_work_complete"] else "incomplete"
+                ),
                 "job_status": job.get("status"),
                 "attempts": job.get("attempts"),
                 "updated_at": job.get("updated_at"),
                 "validation": validation.as_dict(),
-                "completion_summary": _completion_summary(job),
+                "completion_summary": completion,
             }
         )
         generic.write_receipt(args.evidence_output, receipt)
         print(json.dumps(receipt, indent=2, sort_keys=True))
-        return 0
+        exit_code = _completion_exit_code(completion)
+        if exit_code != 0:
+            print(
+                "error: reconciliation completed but "
+                f"{completion['unfinished_items']} actionable item(s) remain unfinished",
+                file=sys.stderr,
+            )
+        return exit_code
     except (generic.NightlyRunError, scheduler.SchedulerError) as exc:
         receipt["error_class"] = exc.__class__.__name__
         receipt["error"] = str(exc)
