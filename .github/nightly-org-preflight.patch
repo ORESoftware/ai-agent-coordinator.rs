@@ -1,0 +1,123 @@
+diff --git a/.github/workflows/nightly-org-maintenance.yml b/.github/workflows/nightly-org-maintenance.yml
+index 435638a..e70963d 100644
+--- a/.github/workflows/nightly-org-maintenance.yml
++++ b/.github/workflows/nightly-org-maintenance.yml
+@@ -110,11 +110,117 @@ jobs:
+         with:
+           args: .github/workflows/nightly-org-maintenance.yml
+ 
+-  matrix:
++  preflight:
+     needs: validate
+     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+     runs-on: ubuntu-24.04
+     timeout-minutes: 5
++    environment:
++      name: nightly-org-maintenance
++      deployment: false
++    outputs:
++      live: ${{ steps.mode.outputs.live }}
++    steps:
++      - name: Determine whether live execution is requested
++        id: mode
++        shell: bash
++        env:
++          EVENT_NAME: ${{ github.event_name }}
++          DISPATCH_MODE: ${{ inputs.mode }}
++        run: |
++          set -euo pipefail
++          live=false
++          if [[ "$EVENT_NAME" == schedule || "${DISPATCH_MODE:-dry-run}" == enqueue ]]; then
++            live=true
++          fi
++          echo "live=$live" >> "$GITHUB_OUTPUT"
++
++      - name: Verify protected configuration before fan-out
++        if: steps.mode.outputs.live == 'true'
++        shell: bash
++        env:
++          PORTFOLIO_GITHUB_APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
++          PORTFOLIO_GITHUB_APP_PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
++          LINEAR_API_TOKEN: ${{ secrets.LINEAR_API_TOKEN }}
++          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
++        run: |
++          set -euo pipefail
++          missing=()
++          [[ "$PORTFOLIO_GITHUB_APP_ID" =~ ^[0-9]+$ ]] || missing+=(PORTFOLIO_GITHUB_APP_ID)
++          [[ -n "$PORTFOLIO_GITHUB_APP_PRIVATE_KEY" ]] || missing+=(PORTFOLIO_GITHUB_APP_PRIVATE_KEY)
++          [[ -n "$LINEAR_API_TOKEN" ]] || missing+=(LINEAR_API_TOKEN)
++          [[ -n "$OPENAI_API_KEY" ]] || missing+=(OPENAI_API_KEY)
++          if ((${#missing[@]})); then
++            printf '::error title=Nightly organization maintenance is not configured::Missing or invalid protected setting: %s\n' "${missing[@]}"
++            {
++              echo '## Nightly organization maintenance blocked before fan-out'
++              echo
++              echo 'One or more required protected settings are missing or invalid:'
++              printf -- '- `%s`\n' "${missing[@]}"
++              echo
++              echo 'No organization maintenance jobs were started.'
++            } >> "$GITHUB_STEP_SUMMARY"
++            exit 78
++          fi
++
++      - name: Mint one read-only canary GitHub App token
++        if: steps.mode.outputs.live == 'true'
++        id: canary-token
++        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
++        with:
++          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
++          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
++          owner: zed-pkg
++          skip-token-revoke: true
++          permission-contents: read
++          permission-metadata: read
++          permission-pull-requests: read
++
++      - name: Verify canary token can enumerate its installation
++        if: steps.mode.outputs.live == 'true'
++        shell: bash
++        env:
++          GH_TOKEN: ${{ steps.canary-token.outputs.token }}
++        run: |
++          set -euo pipefail
++          repository_count="$(gh api /installation/repositories --paginate --jq '.repositories | length' | awk '{ total += $1 } END { print total + 0 }')"
++          if (( repository_count == 0 )); then
++            echo '::error title=GitHub App installation is empty::The canary installation exposes zero repositories.'
++            exit 69
++          fi
++          echo "Canary installation exposes $repository_count repositories." >> "$GITHUB_STEP_SUMMARY"
++
++      - name: Revoke canary token
++        if: always() && steps.canary-token.outcome == 'success'
++        shell: bash
++        env:
++          GH_TOKEN: ${{ steps.canary-token.outputs.token }}
++        run: gh api --method DELETE /installation/token
++
++      - name: Record validation-only dispatch
++        if: steps.mode.outputs.live != 'true'
++        shell: bash
++        run: |
++          {
++            echo '## Nightly organization maintenance preflight'
++            echo
++            echo 'Validation-only dispatch: protected credentials were not read and no organization jobs will be started.'
++          } >> "$GITHUB_STEP_SUMMARY"
++
++      - name: Record fail-fast preflight outcome
++        if: failure()
++        shell: bash
++        run: |
++          {
++            echo
++            echo 'The protected preflight failed, so the organization matrix was not launched.'
++          } >> "$GITHUB_STEP_SUMMARY"
++
++  matrix:
++    needs: [validate, preflight]
++    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
++    runs-on: ubuntu-24.04
++    timeout-minutes: 5
+     outputs:
+       execute: ${{ steps.plan.outputs.execute }}
+       due: ${{ steps.plan.outputs.due }}

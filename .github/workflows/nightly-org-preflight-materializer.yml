@@ -1,0 +1,83 @@
+name: Nightly organization preflight patch materializer
+
+on:
+  push:
+    branches:
+      - agent/harden-nightly-org-preflight-20260810
+    paths:
+      - '.github/nightly-org-preflight.patch'
+      - '.github/workflows/nightly-org-preflight-materializer.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nightly-org-preflight-materializer
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.ref == 'refs/heads/agent/harden-nightly-org-preflight-20260810'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact carrier commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Verify and apply reviewed workflow patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REPOSITORY" = ORESoftware/ai-agent-coordinator.rs
+          test "$GITHUB_REF_NAME" = agent/harden-nightly-org-preflight-20260810
+          echo '7716a95749b8d36e374164c0a77eb8f2ccd68f27597d038373aa6d3377746c74  .github/nightly-org-preflight.patch' | sha256sum --check -
+          git apply --check .github/nightly-org-preflight.patch
+          git apply .github/nightly-org-preflight.patch
+          test "$(git hash-object .github/workflows/nightly-org-maintenance.yml)" = e70963d7fb5b9d64290deb95661936509f08f31b
+          git diff --check
+
+      - name: Compile and run the nightly controller tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/nightly_org_maintenance.py \
+            tools/nightly_org_maintenance_impl/*.py \
+            tests/test_nightly_org_maintenance.py \
+            tests/test_nightly_org_tracking.py
+          python3 -m unittest -v \
+            tests/test_nightly_org_maintenance.py \
+            tests/test_nightly_org_tracking.py
+
+      - name: Validate materialized workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/nightly-org-maintenance.yml
+
+      - name: Replace carriers with the hardened workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/nightly-org-preflight.patch \
+            .github/workflows/nightly-org-preflight-materializer.yml
+          git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
+          cat > "$RUNNER_TEMP/expected-changed" <<'EOF'
+          .github/nightly-org-preflight.patch
+          .github/workflows/nightly-org-maintenance.yml
+          .github/workflows/nightly-org-preflight-materializer.yml
+          EOF
+          diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: fail fast before nightly organization fan-out'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
