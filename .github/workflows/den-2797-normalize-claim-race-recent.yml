@@ -216,3 +216,5 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix: normalize serializable claim races'
           git push origin HEAD:agent/den-2797-recent-chat-watchdog-20260810
+
+# Manual authenticated retrigger for the product-only repair.
