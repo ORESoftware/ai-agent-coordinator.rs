@@ -49,11 +49,13 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
-      - name: Normalize claim race, baseline ordering, and strict test
+      - name: Normalize serializable losers and make the race test strict
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
+          import re
+          import textwrap
           from pathlib import Path
 
           source = Path('src/daily_portfolio_delivery_store.rs')
@@ -64,7 +66,8 @@ jobs:
               raise SystemExit('claim/renew structural anchors are not unique')
           start = text.index(start_marker)
           end = text.index(end_marker, start)
-          replacement = '''    pub async fn claim(
+          replacement = textwrap.indent(textwrap.dedent('''\
+          pub async fn claim(
               &self,
               run_key: &str,
               owner: &str,
@@ -138,11 +141,12 @@ jobs:
                   expires_at_ms: datetime_millis(expires_at)?,
               })
           }
-
-          '''
+          '''), '    ') + '\n'
           text = text[:start] + replacement + text[end:]
+
           helper_anchor = 'async fn serializable(connection: &DatabaseConnection) -> Result<DatabaseTransaction> {\n'
-          helper = '''fn is_serialization_failure(error: &anyhow::Error) -> bool {
+          helper = textwrap.dedent('''\
+          fn is_serialization_failure(error: &anyhow::Error) -> bool {
               error.chain().any(|cause| {
                   let message = cause.to_string().to_ascii_lowercase();
                   message.contains("could not serialize access")
@@ -150,90 +154,30 @@ jobs:
               })
           }
 
-          '''
+          ''')
           if text.count(helper_anchor) != 1 or 'fn is_serialization_failure(' in text:
               raise SystemExit('serialization helper anchor changed')
-          text = text.replace(helper_anchor, helper + helper_anchor)
-
-          old_baseline = '''            if candidate_date > current_date {
-                  true
-              } else if candidate_date < current_date {
-                  false
-              } else if current.baseline.plan_digest == run.spec.plan_digest
-                  && current.baseline.delivery_digest == run.spec.delivery_digest
-                  && current.baseline.receipt_id == receipt.receipt_id
-              {
-                  false
-              } else {
-                  return Err(domain(DeliveryStateError::BaselineConflict));
-              }
-          '''
-          new_baseline = '''            match candidate_date.cmp(&current_date) {
-                  std::cmp::Ordering::Greater => true,
-                  std::cmp::Ordering::Less => false,
-                  std::cmp::Ordering::Equal
-                      if current.baseline.plan_digest == run.spec.plan_digest
-                          && current.baseline.delivery_digest == run.spec.delivery_digest
-                          && current.baseline.receipt_id == receipt.receipt_id =>
-                  {
-                      false
-                  }
-                  std::cmp::Ordering::Equal => {
-                      return Err(domain(DeliveryStateError::BaselineConflict));
-                  }
-              }
-          '''
-          if text.count(old_baseline) != 1:
-              raise SystemExit('baseline ordering anchor changed')
-          source.write_text(text.replace(old_baseline, new_baseline), encoding='utf-8')
+          source.write_text(text.replace(helper_anchor, helper + helper_anchor), encoding='utf-8')
 
           test = Path('tests/daily_portfolio_delivery_store.rs')
           test_text = test.read_text(encoding='utf-8')
-          old_digest = '''fn digest(seed: char) -> String {
-              let nibble = seed.to_digit(36).expect("test digest seed") % 16;
-              let character = char::from_digit(nibble, 16).expect("hex digest character");
-              std::iter::repeat_n(character, 64).collect()
-          }
-          '''
-          new_digest = '''fn digest(seed: char) -> String {
-              let nibble = u32::from(seed) % 16;
-              let character = char::from_digit(nibble, 16).expect("hex digest character");
-              std::iter::repeat_n(character, 64).collect()
-          }
-          '''
-          if test_text.count(old_digest) != 1:
-              raise SystemExit('digest helper anchor changed')
-          test_text = test_text.replace(old_digest, new_digest)
-          old_assertion = '''            assert!(
-                  has_state_error(&error, DeliveryStateError::LeaseHeld)
-                      || error.to_string().contains("serialize"),
-                  "unexpected losing claim error: {error:#}"
-              );
-          '''
-          new_assertion = '''            assert!(
-                  has_state_error(&error, DeliveryStateError::LeaseHeld),
-                  "claim race was not normalized to LeaseHeld: {error:#}"
-              );
-          '''
-          if test_text.count(old_assertion) != 1:
+          pattern = re.compile(
+              r'(?ms)^(?P<indent>[ \t]*)assert!\(\s*'
+              r'has_state_error\(&error,\s*DeliveryStateError::LeaseHeld\)\s*'
+              r'\|\|\s*error\.to_string\(\)\.contains\("serialize"\),\s*'
+              r'"unexpected losing claim error: \{error:#\}"\s*\);'
+          )
+          match = pattern.search(test_text)
+          if match is None:
               raise SystemExit('claim-race assertion anchor changed')
-          test.write_text(test_text.replace(old_assertion, new_assertion), encoding='utf-8')
-
-          lib = Path('src/lib.rs')
-          lib_text = lib.read_text(encoding='utf-8')
-          old_allow = '''/// PostgreSQL-backed fenced delivery repository for durable coordinator execution.
-          #[allow(
-              clippy::if_same_then_else,
-              reason = "older scheduled baselines and exact same-day replays are both intentional no-ops"
-          )]
-          pub mod daily_portfolio_delivery_store;
-          '''
-          new_allow = '''/// PostgreSQL-backed fenced delivery repository for durable coordinator execution.
-          pub mod daily_portfolio_delivery_store;
-          '''
-          if lib_text.count(old_allow) != 1:
-              raise SystemExit('temporary Clippy allowance anchor changed')
-          lib.write_text(lib_text.replace(old_allow, new_allow), encoding='utf-8')
+          indent = match.group('indent')
+          strict = (
+              f'{indent}assert!(\n'
+              f'{indent}    has_state_error(&error, DeliveryStateError::LeaseHeld),\n'
+              f'{indent}    "claim race was not normalized to LeaseHeld: {{error:#}}"\n'
+              f'{indent});'
+          )
+          test.write_text(pattern.sub(strict, test_text, count=1), encoding='utf-8')
           PY
           cargo fmt --all
 
@@ -264,7 +208,6 @@ jobs:
           git add \
             src/daily_portfolio_delivery_store.rs \
             tests/daily_portfolio_delivery_store.rs \
-            src/lib.rs \
             .github/workflows/den-2797-normalize-claim-race.yml
           git diff --cached --check
           test -z "$(git diff --name-only)"
