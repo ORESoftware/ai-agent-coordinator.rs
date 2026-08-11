@@ -26,7 +26,8 @@ from urllib.request import Request, build_opener
 
 import enqueue_artifact_recovery as scheduler
 
-DEFAULT_LOCAL_TIME = "02:17"
+DEFAULT_TIMEZONE = "America/New_York"
+DEFAULT_LOCAL_TIME = "00:37"
 DEFAULT_RECOVERY_AFTER_MINUTES = 60
 DEFAULT_MAX_LATENESS_MINUTES = 240
 DEFAULT_WINDOW_HOURS = 96
@@ -412,7 +413,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--enabled-env", default="ARTIFACT_RECOVERY_ENQUEUE_ENABLED")
     parser.add_argument(
         "--timezone",
-        default=os.getenv("ARTIFACT_RECOVERY_TIMEZONE", scheduler.DEFAULT_TIMEZONE),
+        default=os.getenv("ARTIFACT_RECOVERY_TIMEZONE", DEFAULT_TIMEZONE),
     )
     parser.add_argument(
         "--local-time",
