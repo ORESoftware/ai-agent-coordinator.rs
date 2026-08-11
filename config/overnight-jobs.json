@@ -1,0 +1,36 @@
+{
+  "schema_version": "overnight_jobs.v1",
+  "jobs": [
+    {
+      "id": "recent-chat-reconciliation",
+      "workflow": "last-30-hours-introspection.yml",
+      "branch": "main",
+      "timezone": "America/Lima",
+      "local_time": "00:30",
+      "max_dispatch_delay_minutes": 240,
+      "required_job_names": [
+        "enqueue-and-verify"
+      ],
+      "required_artifact_prefixes": [
+        "recent-chat-reconciliation-terminal-",
+        "recent-chat-reconciliation-report-"
+      ]
+    },
+    {
+      "id": "nightly-artifact-recovery",
+      "workflow": "nightly-artifact-recovery.yml",
+      "branch": "main",
+      "timezone": "America/Chicago",
+      "local_time": "02:17",
+      "max_dispatch_delay_minutes": 240,
+      "required_job_names": [
+        "enqueue-and-verify",
+        "report"
+      ],
+      "required_artifact_prefixes": [
+        "artifact-recovery-terminal-",
+        "nightly-artifact-recovery-report-"
+      ]
+    }
+  ]
+}
