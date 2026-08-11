@@ -37,10 +37,10 @@ jobs:
           test "$GITHUB_EVENT_NAME" = push
           test "$GITHUB_REPOSITORY" = ORESoftware/ai-agent-coordinator.rs
           test "$GITHUB_REF_NAME" = agent/harden-nightly-org-preflight-20260810
-          echo '7716a95749b8d36e374164c0a77eb8f2ccd68f27597d038373aa6d3377746c74  .github/nightly-org-preflight.patch' | sha256sum --check -
+          echo '98192b733d7e2f5e48383669e840d94b986f66bfc2039731acda0cc58c9db5b2  .github/nightly-org-preflight.patch' | sha256sum --check -
           git apply --check .github/nightly-org-preflight.patch
           git apply .github/nightly-org-preflight.patch
-          test "$(git hash-object .github/workflows/nightly-org-maintenance.yml)" = e70963d7fb5b9d64290deb95661936509f08f31b
+          test "$(git hash-object .github/workflows/nightly-org-maintenance.yml)" = f2bd3af7e5b727883abe4aef3e81548686d920cb
           git diff --check
 
       - name: Compile and run the nightly controller tests
