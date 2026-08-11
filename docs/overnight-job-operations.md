@@ -53,22 +53,24 @@ A run is successful only when all of the following exist and agree:
 - `artifact_recovery_completion.v1` with complete source coverage;
 - zero unclassified, unowned, or missing-evidence items;
 - `all_work_complete=true` and zero in-review, blocked, or deferred items;
-- a terminal receipt with a digest;
-- `overnight_run_ledger.v1`;
-- a human-readable reconciliation report;
-- an artifact manifest naming both the terminal and report artifacts;
+- a terminal receipt with a self-consistent SHA-256 digest;
+- `overnight_run_ledger.v1` bound to the same run ID, attempt, logical date, receipt digest, and completion summary;
+- a human-readable reconciliation report recording success;
+- an exact artifact manifest naming both the terminal and report artifacts;
 - a delivery receipt when a report recipient is configured.
 
-HTTP 202, `queued`, a successful fixture-validation job, a fully classified but unfinished ledger, or an assistant statement is not completion evidence.
+HTTP 202, `queued`, a successful fixture-validation job, artifact names without content validation, a fully classified but unfinished ledger, or an assistant statement is not completion evidence.
 
 ## Failure and recovery behavior
 
 - GitHub schedule delivery may be late. Both the primary and recovery invocation target the same daily key: `recent-chat-reconciliation:scheduled:YYYY-MM-DD`.
 - Delivery up to 240 minutes after 00:30 is accepted and marked recovered after 60 minutes.
+- The logical run settles at 05:45 America/Lima; the independent watchdog runs at 08:30.
 - Missing activation variables, endpoint, token, worker, source coverage, terminal receipt, report, or completed work fails red.
 - In-review, blocked, or deferred items remain visible in the durable ledger and cause the dedicated workflow and the independent watchdog to fail until they are completed or already landed.
 - The live step uses `continue-on-error` only long enough to upload bounded failure evidence; a final gate restores the failure conclusion.
-- At 08:30, the independent watchdog queries GitHub Actions and requires a successful workflow run, required job, terminal artifact, and report artifact. A green run with only validation is rejected.
+- At 08:30, the watchdog requires a successful schedule-event run, a successful executor, and exact terminal/report artifacts. It downloads both artifacts and validates the receipt digest, logical run key, source coverage, disposition totals, zero unfinished work, ledger identity, receipt binding, completion-summary equality, artifact manifest, and human-readable success report.
+- A green run with only validation, missing evidence, tampered evidence, mismatched run identity, or unfinished work is rejected.
 - Reports and watchdog evidence are retained for 90 days.
 
 ## Protected configuration
@@ -103,13 +105,13 @@ Production is certified only after:
 
 1. PR 146’s source-coverage contract is merged and deployed.
 2. PR 149’s generic fail-closed terminal verifier and report are merged.
-3. The dedicated recent-chat workflow and watchdog are merged.
+3. The dedicated recent-chat workflow and content-validating watchdog are merged.
 4. DEN-3474 deploys an authorized `artifact_recovery` worker and live ChatGPT source adapter.
 5. The protected environment is configured without committed secrets.
 6. A manual canary returns a terminal receipt with real complete source coverage, `all_work_complete=true`, and zero unfinished items.
 7. An identical rerun proves zero duplicate mutations.
 8. The 00:30 and 02:07 invocations resolve to the same daily job.
-9. The 08:30 watchdog resolves both terminal and report artifacts.
+9. The 08:30 watchdog downloads both artifacts and validates their contents, receipt digest, ledger binding, and zero unfinished work.
 10. The native ChatGPT Scheduled page shows the updated task enabled with the correct next run.
 
 Until all ten gates pass, the design is hardened against false success but is not production-certified.
