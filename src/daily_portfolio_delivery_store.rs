@@ -154,6 +154,31 @@ impl DailyPortfolioDeliveryStore {
         validate_identifier(owner)?;
         validate_lease_seconds(lease_seconds)?;
 
+        match self.claim_once(run_key, owner, now, lease_seconds).await {
+            Ok(token) => Ok(token),
+            Err(error) if is_serialization_failure(&error) => {
+                let now_ms = datetime_millis(now)?;
+                if self
+                    .get_run(run_key)
+                    .await?
+                    .and_then(|run| run.lease)
+                    .is_some_and(|lease| lease.expires_at_ms > now_ms)
+                {
+                    return Err(domain(DeliveryStateError::LeaseHeld));
+                }
+                self.claim_once(run_key, owner, now, lease_seconds).await
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    async fn claim_once(
+        &self,
+        run_key: &str,
+        owner: &str,
+        now: DateTime<Utc>,
+        lease_seconds: i64,
+    ) -> Result<LeaseToken> {
         let transaction = serializable(&self.connection).await?;
         let record = load_run_for_update(&transaction, run_key)
             .await?
@@ -161,10 +186,11 @@ impl DailyPortfolioDeliveryStore {
         if record.status == DeliveryStatus::Delivered {
             return Err(domain(DeliveryStateError::InvalidTransition));
         }
+        let now_ms = datetime_millis(now)?;
         if record
             .lease
             .as_ref()
-            .is_some_and(|lease| lease.expires_at_ms > datetime_millis(now).unwrap_or(u64::MAX))
+            .is_some_and(|lease| lease.expires_at_ms > now_ms)
         {
             return Err(domain(DeliveryStateError::LeaseHeld));
         }
@@ -173,20 +199,15 @@ impl DailyPortfolioDeliveryStore {
         let row = transaction
             .query_one(statement(
                 r#"
-                UPDATE ai_agent_coordinator.daily_portfolio_delivery_runs
-                   SET lease_owner = $2,
-                       lease_fence = nextval('ai_agent_coordinator.daily_portfolio_delivery_fence_seq'),
-                       lease_expires_at = $3,
-                       updated_at = $4
-                 WHERE run_key = $1
-                 RETURNING lease_fence
-                "#,
-                vec![
-                    run_key.into(),
-                    owner.into(),
-                    expires_at.into(),
-                    now.into(),
-                ],
+            UPDATE ai_agent_coordinator.daily_portfolio_delivery_runs
+               SET lease_owner = $2,
+                   lease_fence = nextval('ai_agent_coordinator.daily_portfolio_delivery_fence_seq'),
+                   lease_expires_at = $3,
+                   updated_at = $4
+             WHERE run_key = $1
+             RETURNING lease_fence
+            "#,
+                vec![run_key.into(), owner.into(), expires_at.into(), now.into()],
             ))
             .await
             .context("failed to claim the daily portfolio delivery run")?
@@ -548,6 +569,13 @@ impl DailyPortfolioDeliveryStore {
         transaction.commit().await?;
         Ok(MutationOutcome::Applied)
     }
+}
+
+fn is_serialization_failure(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        let message = cause.to_string().to_ascii_lowercase();
+        message.contains("could not serialize access") || message.contains("sqlstate 40001")
+    })
 }
 
 async fn serializable(connection: &DatabaseConnection) -> Result<DatabaseTransaction> {
