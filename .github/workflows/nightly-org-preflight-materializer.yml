@@ -69,7 +69,7 @@ jobs:
           cp .github/workflows/nightly-org-maintenance.yml .nightly-staging/nightly-org-maintenance.yml
           test "$(git hash-object .nightly-staging/nightly-org-maintenance.yml)" = f2bd3af7e5b727883abe4aef3e81548686d920cb
           git checkout -- .github/workflows/nightly-org-maintenance.yml
-          git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
+          git status --porcelain=v1 --untracked-files=all | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
           printf '%s\n' '.nightly-staging/nightly-org-maintenance.yml' > "$RUNNER_TEMP/expected-changed"
           diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
           git add .nightly-staging/nightly-org-maintenance.yml
