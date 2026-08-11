@@ -20,7 +20,7 @@ jobs:
       github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
       github.ref == 'refs/heads/agent/fix-coordinator-rustfmt-20260811'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - name: Check out exact carrier commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,7 +35,7 @@ jobs:
           toolchain: 1.97.0
           components: rustfmt, clippy
 
-      - name: Replace the duplicated baseline predicate with total ordering
+      - name: Apply reviewed mechanical baseline repairs
         shell: bash
         run: |
           set -euo pipefail
@@ -45,30 +45,30 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          path = Path('src/daily_portfolio_delivery_store.rs')
-          text = path.read_text()
+          delivery_path = Path('src/daily_portfolio_delivery_store.rs')
+          delivery = delivery_path.read_text()
           start_marker = "            if candidate_date > current_date {\n"
           end_marker = (
               "                return Err(domain(DeliveryStateError::BaselineConflict));\n"
               "            }\n"
           )
-          if text.count(start_marker) != 1:
+          if delivery.count(start_marker) != 1:
               raise SystemExit('expected exactly one baseline predicate start')
-          start = text.index(start_marker)
-          end = text.find(end_marker, start)
+          start = delivery.index(start_marker)
+          end = delivery.find(end_marker, start)
           if end < 0:
               raise SystemExit('baseline predicate end marker not found')
           end += len(end_marker)
-          old = text[start:end]
+          old_predicate = delivery[start:end]
           required = (
               "candidate_date < current_date",
               "current.baseline.plan_digest == run.spec.plan_digest",
               "current.baseline.delivery_digest == run.spec.delivery_digest",
               "current.baseline.receipt_id == receipt.receipt_id",
           )
-          if not all(fragment in old for fragment in required):
+          if not all(fragment in old_predicate for fragment in required):
               raise SystemExit('baseline predicate did not match the reviewed structure')
-          new = (
+          new_predicate = (
               "            match candidate_date.cmp(&current_date) {\n"
               "                std::cmp::Ordering::Greater => true,\n"
               "                std::cmp::Ordering::Less => false,\n"
@@ -84,16 +84,89 @@ jobs:
               "                }\n"
               "            }\n"
           )
-          path.write_text(text[:start] + new + text[end:])
+          delivery = delivery[:start] + new_predicate + delivery[end:]
+
+          closure_old = "current.map(|row| to_baseline(row)).transpose()?"
+          closure_new = "current.map(to_baseline).transpose()?"
+          if delivery.count(closure_old) != 1:
+              raise SystemExit('expected exactly one redundant to_baseline closure')
+          delivery = delivery.replace(closure_old, closure_new, 1)
+          delivery_path.write_text(delivery)
+
+          admin_path = Path('src/github_admin.rs')
+          admin_lines = admin_path.read_text().splitlines(keepends=True)
+          struct_line = 'pub struct GithubRepositoryPaginationHooks {'
+          struct_indexes = [
+              index for index, line in enumerate(admin_lines)
+              if line.rstrip('\n') == struct_line
+          ]
+          if len(struct_indexes) != 1:
+              raise SystemExit('expected exactly one GithubRepositoryPaginationHooks struct')
+          struct_index = struct_indexes[0]
+
+          attribute_start = struct_index
+          while attribute_start > 0 and admin_lines[attribute_start - 1].startswith('#['):
+              attribute_start -= 1
+          derive_indexes = [
+              index for index in range(attribute_start, struct_index)
+              if admin_lines[index].startswith('#[derive(')
+          ]
+          if len(derive_indexes) > 1:
+              raise SystemExit('multiple derive attributes on pagination hooks are ambiguous')
+          if derive_indexes:
+              derive_index = derive_indexes[0]
+              derive_line = admin_lines[derive_index]
+              if 'Default' not in derive_line:
+                  if ')]' not in derive_line:
+                      raise SystemExit('pagination hooks derive attribute is malformed')
+                  admin_lines[derive_index] = derive_line.replace(')]', ', Default)]', 1)
+          else:
+              admin_lines.insert(struct_index, '#[derive(Default)]\n')
+
+          impl_header = 'impl Default for GithubRepositoryPaginationHooks {'
+          impl_indexes = [
+              index for index, line in enumerate(admin_lines)
+              if line.rstrip('\n') == impl_header
+          ]
+          if len(impl_indexes) != 1:
+              raise SystemExit('expected exactly one manual pagination hooks Default impl')
+          impl_start = impl_indexes[0]
+          impl_end = None
+          for index in range(impl_start + 1, len(admin_lines)):
+              if admin_lines[index].rstrip('\n') == '}':
+                  impl_end = index
+                  break
+          if impl_end is None:
+              raise SystemExit('pagination hooks Default impl was not terminated')
+          impl_block = ''.join(admin_lines[impl_start:impl_end + 1])
+          if 'fn default() -> Self' not in impl_block:
+              raise SystemExit('pagination hooks Default impl did not match reviewed structure')
+          delete_end = impl_end + 1
+          if delete_end < len(admin_lines) and admin_lines[delete_end].strip() == '':
+              delete_end += 1
+          del admin_lines[impl_start:delete_end]
+          admin_path.write_text(''.join(admin_lines))
           PY
+
+      - name: Run the complete Rust gate
+        shell: bash
+        run: |
+          set -euo pipefail
           cargo fmt --all
           cargo fmt --all --check
           cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-targets --all-features
+
+      - name: Verify exact repair scope
+        shell: bash
+        run: |
+          set -euo pipefail
           rm -f .github/workflows/clippy-baseline-materializer.yml
           git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
           cat > "$RUNNER_TEMP/expected-changed" <<'EOF'
           .github/workflows/clippy-baseline-materializer.yml
           src/daily_portfolio_delivery_store.rs
+          src/github_admin.rs
           EOF
           diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
           git diff --check
@@ -106,5 +179,5 @@ jobs:
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix: make scheduled baseline ordering explicit'
+          git commit -m 'fix: restore coordinator baseline CI'
           git push origin "HEAD:${GITHUB_REF_NAME}"
