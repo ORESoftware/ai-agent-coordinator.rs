@@ -47,37 +47,44 @@ jobs:
 
           path = Path('src/daily_portfolio_delivery_store.rs')
           text = path.read_text()
-          old = '''            if candidate_date > current_date {
-                true
-            } else if candidate_date < current_date {
-                false
-            } else if current.baseline.plan_digest == run.spec.plan_digest
-                && current.baseline.delivery_digest == run.spec.delivery_digest
-                && current.baseline.receipt_id == receipt.receipt_id
-            {
-                false
-            } else {
-                return Err(domain(DeliveryStateError::BaselineConflict));
-            }
-          '''
-          new = '''            match candidate_date.cmp(&current_date) {
-                std::cmp::Ordering::Greater => true,
-                std::cmp::Ordering::Less => false,
-                std::cmp::Ordering::Equal
-                    if current.baseline.plan_digest == run.spec.plan_digest
-                        && current.baseline.delivery_digest == run.spec.delivery_digest
-                        && current.baseline.receipt_id == receipt.receipt_id =>
-                {
-                    false
-                }
-                std::cmp::Ordering::Equal => {
-                    return Err(domain(DeliveryStateError::BaselineConflict));
-                }
-            }
-          '''
-          if text.count(old) != 1:
-              raise SystemExit('expected exactly one baseline predicate to replace')
-          path.write_text(text.replace(old, new, 1))
+          start_marker = "            if candidate_date > current_date {\n"
+          end_marker = (
+              "                return Err(domain(DeliveryStateError::BaselineConflict));\n"
+              "            }\n"
+          )
+          if text.count(start_marker) != 1:
+              raise SystemExit('expected exactly one baseline predicate start')
+          start = text.index(start_marker)
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('baseline predicate end marker not found')
+          end += len(end_marker)
+          old = text[start:end]
+          required = (
+              "candidate_date < current_date",
+              "current.baseline.plan_digest == run.spec.plan_digest",
+              "current.baseline.delivery_digest == run.spec.delivery_digest",
+              "current.baseline.receipt_id == receipt.receipt_id",
+          )
+          if not all(fragment in old for fragment in required):
+              raise SystemExit('baseline predicate did not match the reviewed structure')
+          new = (
+              "            match candidate_date.cmp(&current_date) {\n"
+              "                std::cmp::Ordering::Greater => true,\n"
+              "                std::cmp::Ordering::Less => false,\n"
+              "                std::cmp::Ordering::Equal\n"
+              "                    if current.baseline.plan_digest == run.spec.plan_digest\n"
+              "                        && current.baseline.delivery_digest == run.spec.delivery_digest\n"
+              "                        && current.baseline.receipt_id == receipt.receipt_id =>\n"
+              "                {\n"
+              "                    false\n"
+              "                }\n"
+              "                std::cmp::Ordering::Equal => {\n"
+              "                    return Err(domain(DeliveryStateError::BaselineConflict));\n"
+              "                }\n"
+              "            }\n"
+          )
+          path.write_text(text[:start] + new + text[end:])
           PY
           cargo fmt --all
           cargo fmt --all --check
