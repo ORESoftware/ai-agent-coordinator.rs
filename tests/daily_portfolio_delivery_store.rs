@@ -44,6 +44,12 @@ fn has_state_error(error: &anyhow::Error, expected: DeliveryStateError) -> bool 
     error.downcast_ref::<DeliveryStateError>() == Some(&expected)
 }
 
+fn error_chain_contains(error: &anyhow::Error, fragment: &str) -> bool {
+    error
+        .chain()
+        .any(|cause| cause.to_string().contains(fragment))
+}
+
 async fn reset(database_url: &str) {
     let connection = Database::connect(database_url)
         .await
@@ -98,7 +104,7 @@ async fn postgres_repository_preserves_fences_receipts_and_restart_state() {
         (Ok(token), Err(error)) | (Err(error), Ok(token)) => {
             assert!(
                 has_state_error(&error, DeliveryStateError::LeaseHeld)
-                    || error.to_string().contains("serialize"),
+                    || error_chain_contains(&error, "serialize"),
                 "unexpected losing claim error: {error:#}"
             );
             token
