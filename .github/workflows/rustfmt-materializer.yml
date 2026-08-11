@@ -1,0 +1,65 @@
+name: One-shot coordinator rustfmt repair
+
+on:
+  push:
+    branches:
+      - agent/fix-coordinator-rustfmt-20260811
+    paths:
+      - '.github/workflows/rustfmt-materializer.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-coordinator-rustfmt-repair
+  cancel-in-progress: false
+
+jobs:
+  format:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.ref == 'refs/heads/agent/fix-coordinator-rustfmt-20260811'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact carrier commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Install canonical Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.97.0
+          components: rustfmt
+
+      - name: Format and verify the exact repair scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REPOSITORY" = ORESoftware/ai-agent-coordinator.rs
+          test "$GITHUB_REF_NAME" = agent/fix-coordinator-rustfmt-20260811
+          cargo fmt --all
+          rm -f .github/workflows/rustfmt-materializer.yml
+          git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
+          cat > "$RUNNER_TEMP/expected-changed" <<'EOF'
+          .github/workflows/rustfmt-materializer.yml
+          src/bin/prompt-reconciliation-adapter-policy.rs
+          EOF
+          diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
+          cargo fmt --all --check
+          git diff --check
+
+      - name: Commit the canonical formatter result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'style: apply canonical Rust formatting'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
