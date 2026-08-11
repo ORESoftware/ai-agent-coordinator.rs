@@ -1,0 +1,90 @@
+{
+  "optional_sources": [
+    "claude"
+  ],
+  "required_sources": [
+    "chatgpt",
+    "file_library",
+    "github",
+    "linear",
+    "local_repo"
+  ],
+  "schema_version": "artifact_recovery_sources.v1",
+  "sources": [
+    {
+      "capabilities": [
+        "complete-pagination",
+        "durable-high-water-mark",
+        "include-unresolved",
+        "prompt-metadata-without-bodies"
+      ],
+      "endpoint": "https://chatgpt-source.example.invalid/v1/artifact-recovery/pages",
+      "identity": "authorized-chatgpt-history-primary",
+      "max_age_seconds": 900,
+      "source": "chatgpt",
+      "token_env": "CHATGPT_RECOVERY_SOURCE_TOKEN"
+    },
+    {
+      "capabilities": [
+        "branches",
+        "commits",
+        "pull-requests",
+        "repository-metadata"
+      ],
+      "endpoint": "https://github-source.example.invalid/v1/artifact-recovery/pages",
+      "identity": "github-app-installations-primary",
+      "max_age_seconds": 900,
+      "source": "github",
+      "token_env": "GITHUB_RECOVERY_SOURCE_TOKEN"
+    },
+    {
+      "capabilities": [
+        "comments",
+        "issues",
+        "project-routing",
+        "state-history"
+      ],
+      "endpoint": "https://linear-source.example.invalid/v1/artifact-recovery/pages",
+      "identity": "linear-denman-primary",
+      "max_age_seconds": 900,
+      "source": "linear",
+      "token_env": "LINEAR_RECOVERY_SOURCE_TOKEN"
+    },
+    {
+      "capabilities": [
+        "dirty-paths",
+        "local-branches",
+        "local-heads",
+        "remote-presence"
+      ],
+      "endpoint": "https://repo-source.example.invalid/v1/artifact-recovery/pages",
+      "identity": "authorized-workspaces-primary",
+      "max_age_seconds": 900,
+      "source": "local_repo",
+      "token_env": "LOCAL_REPO_RECOVERY_SOURCE_TOKEN"
+    },
+    {
+      "capabilities": [
+        "artifact-metadata",
+        "complete-pagination",
+        "durable-high-water-mark"
+      ],
+      "endpoint": "https://file-source.example.invalid/v1/artifact-recovery/pages",
+      "identity": "authorized-file-library-primary",
+      "max_age_seconds": 900,
+      "source": "file_library",
+      "token_env": "FILE_LIBRARY_RECOVERY_SOURCE_TOKEN"
+    },
+    {
+      "capabilities": [
+        "complete-pagination",
+        "session-export-metadata"
+      ],
+      "endpoint": "https://claude-source.example.invalid/v1/artifact-recovery/pages",
+      "identity": "authorized-claude-exports-primary",
+      "max_age_seconds": 3600,
+      "source": "claude",
+      "token_env": "CLAUDE_RECOVERY_SOURCE_TOKEN"
+    }
+  ]
+}
