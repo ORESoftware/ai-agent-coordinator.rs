@@ -1,4 +1,4 @@
-name: One-shot coordinator Clippy baseline repair
+name: One-shot coordinator baseline repair
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: one-shot-coordinator-clippy-baseline-repair
+  group: one-shot-coordinator-baseline-repair
   cancel-in-progress: false
 
 jobs:
@@ -20,7 +20,7 @@ jobs:
       github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
       github.ref == 'refs/heads/agent/fix-coordinator-rustfmt-20260811'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out exact carrier commit
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,7 +35,7 @@ jobs:
           toolchain: 1.97.0
           components: rustfmt, clippy
 
-      - name: Apply reviewed mechanical baseline repairs
+      - name: Apply only verified baseline repairs
         shell: bash
         run: |
           set -euo pipefail
@@ -59,16 +59,16 @@ jobs:
           if end < 0:
               raise SystemExit('baseline predicate end marker not found')
           end += len(end_marker)
-          old_predicate = delivery[start:end]
+          reviewed = delivery[start:end]
           required = (
               "candidate_date < current_date",
               "current.baseline.plan_digest == run.spec.plan_digest",
               "current.baseline.delivery_digest == run.spec.delivery_digest",
               "current.baseline.receipt_id == receipt.receipt_id",
           )
-          if not all(fragment in old_predicate for fragment in required):
+          if not all(fragment in reviewed for fragment in required):
               raise SystemExit('baseline predicate did not match the reviewed structure')
-          new_predicate = (
+          replacement = (
               "            match candidate_date.cmp(&current_date) {\n"
               "                std::cmp::Ordering::Greater => true,\n"
               "                std::cmp::Ordering::Less => false,\n"
@@ -84,68 +84,15 @@ jobs:
               "                }\n"
               "            }\n"
           )
-          delivery = delivery[:start] + new_predicate + delivery[end:]
+          delivery_path.write_text(delivery[:start] + replacement + delivery[end:])
 
-          closure_old = "current.map(|row| to_baseline(row)).transpose()?"
-          closure_new = "current.map(to_baseline).transpose()?"
-          if delivery.count(closure_old) != 1:
-              raise SystemExit('expected exactly one redundant to_baseline closure')
-          delivery = delivery.replace(closure_old, closure_new, 1)
-          delivery_path.write_text(delivery)
-
-          admin_path = Path('src/github_admin.rs')
-          admin_lines = admin_path.read_text().splitlines(keepends=True)
-          struct_line = 'pub struct GithubRepositoryPaginationHooks {'
-          struct_indexes = [
-              index for index, line in enumerate(admin_lines)
-              if line.rstrip('\n') == struct_line
-          ]
-          if len(struct_indexes) != 1:
-              raise SystemExit('expected exactly one GithubRepositoryPaginationHooks struct')
-          struct_index = struct_indexes[0]
-
-          attribute_start = struct_index
-          while attribute_start > 0 and admin_lines[attribute_start - 1].startswith('#['):
-              attribute_start -= 1
-          derive_indexes = [
-              index for index in range(attribute_start, struct_index)
-              if admin_lines[index].startswith('#[derive(')
-          ]
-          if len(derive_indexes) > 1:
-              raise SystemExit('multiple derive attributes on pagination hooks are ambiguous')
-          if derive_indexes:
-              derive_index = derive_indexes[0]
-              derive_line = admin_lines[derive_index]
-              if 'Default' not in derive_line:
-                  if ')]' not in derive_line:
-                      raise SystemExit('pagination hooks derive attribute is malformed')
-                  admin_lines[derive_index] = derive_line.replace(')]', ', Default)]', 1)
-          else:
-              admin_lines.insert(struct_index, '#[derive(Default)]\n')
-
-          impl_header = 'impl Default for GithubRepositoryPaginationHooks {'
-          impl_indexes = [
-              index for index, line in enumerate(admin_lines)
-              if line.rstrip('\n') == impl_header
-          ]
-          if len(impl_indexes) != 1:
-              raise SystemExit('expected exactly one manual pagination hooks Default impl')
-          impl_start = impl_indexes[0]
-          impl_end = None
-          for index in range(impl_start + 1, len(admin_lines)):
-              if admin_lines[index].rstrip('\n') == '}':
-                  impl_end = index
-                  break
-          if impl_end is None:
-              raise SystemExit('pagination hooks Default impl was not terminated')
-          impl_block = ''.join(admin_lines[impl_start:impl_end + 1])
-          if 'fn default() -> Self' not in impl_block:
-              raise SystemExit('pagination hooks Default impl did not match reviewed structure')
-          delete_end = impl_end + 1
-          if delete_end < len(admin_lines) and admin_lines[delete_end].strip() == '':
-              delete_end += 1
-          del admin_lines[impl_start:delete_end]
-          admin_path.write_text(''.join(admin_lines))
+          policy_path = Path('src/bin/prompt-reconciliation-adapter-policy.rs')
+          policy = policy_path.read_text()
+          old_import = "    io::{self, Read},\n"
+          new_import = "    io::Read,\n"
+          if policy.count(old_import) != 1:
+              raise SystemExit('expected exactly one verified unused self import')
+          policy_path.write_text(policy.replace(old_import, new_import, 1))
           PY
 
       - name: Run the complete Rust gate
@@ -165,8 +112,8 @@ jobs:
           git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
           cat > "$RUNNER_TEMP/expected-changed" <<'EOF'
           .github/workflows/clippy-baseline-materializer.yml
+          src/bin/prompt-reconciliation-adapter-policy.rs
           src/daily_portfolio_delivery_store.rs
-          src/github_admin.rs
           EOF
           diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
           git diff --check
