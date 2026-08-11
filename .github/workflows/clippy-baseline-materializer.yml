@@ -1,0 +1,103 @@
+name: One-shot coordinator Clippy baseline repair
+
+on:
+  push:
+    branches:
+      - agent/fix-coordinator-rustfmt-20260811
+    paths:
+      - '.github/workflows/clippy-baseline-materializer.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-coordinator-clippy-baseline-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.ref == 'refs/heads/agent/fix-coordinator-rustfmt-20260811'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact carrier commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Install canonical Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.97.0
+          components: rustfmt, clippy
+
+      - name: Replace the duplicated baseline predicate with total ordering
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_EVENT_NAME" = push
+          test "$GITHUB_REPOSITORY" = ORESoftware/ai-agent-coordinator.rs
+          test "$GITHUB_REF_NAME" = agent/fix-coordinator-rustfmt-20260811
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/daily_portfolio_delivery_store.rs')
+          text = path.read_text()
+          old = '''            if candidate_date > current_date {
+                true
+            } else if candidate_date < current_date {
+                false
+            } else if current.baseline.plan_digest == run.spec.plan_digest
+                && current.baseline.delivery_digest == run.spec.delivery_digest
+                && current.baseline.receipt_id == receipt.receipt_id
+            {
+                false
+            } else {
+                return Err(domain(DeliveryStateError::BaselineConflict));
+            }
+'''
+          new = '''            match candidate_date.cmp(&current_date) {
+                std::cmp::Ordering::Greater => true,
+                std::cmp::Ordering::Less => false,
+                std::cmp::Ordering::Equal
+                    if current.baseline.plan_digest == run.spec.plan_digest
+                        && current.baseline.delivery_digest == run.spec.delivery_digest
+                        && current.baseline.receipt_id == receipt.receipt_id =>
+                {
+                    false
+                }
+                std::cmp::Ordering::Equal => {
+                    return Err(domain(DeliveryStateError::BaselineConflict));
+                }
+            }
+'''
+          if text.count(old) != 1:
+              raise SystemExit('expected exactly one baseline predicate to replace')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          cargo fmt --all
+          cargo fmt --all --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          rm -f .github/workflows/clippy-baseline-materializer.yml
+          git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
+          cat > "$RUNNER_TEMP/expected-changed" <<'EOF'
+          .github/workflows/clippy-baseline-materializer.yml
+          src/daily_portfolio_delivery_store.rs
+          EOF
+          diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
+          git diff --check
+
+      - name: Commit the validated baseline repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix: make scheduled baseline ordering explicit'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
