@@ -1,10 +1,6 @@
 //! Fail-closed policy primitives for authenticated prompt reconciliation adapters.
 
-use std::{
-    collections::BTreeSet,
-    fmt,
-    io::{self, Read},
-};
+use std::{collections::BTreeSet, fmt, io::Read};
 
 const MAX_RETRY_AFTER_SECONDS: u64 = 300;
 const MAX_IDENTIFIER_BYTES: usize = 128;
@@ -275,6 +271,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::io;
+
     use super::*;
 
     #[test]
