@@ -1,10 +1,6 @@
 //! Fail-closed policy primitives for authenticated prompt reconciliation adapters.
 
-use std::{
-    collections::BTreeSet,
-    fmt,
-    io::{self, Read},
-};
+use std::{collections::BTreeSet, fmt, io::Read};
 
 const MAX_RETRY_AFTER_SECONDS: u64 = 300;
 const MAX_IDENTIFIER_BYTES: usize = 128;
@@ -275,6 +271,8 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
     use super::*;
 
     #[test]
@@ -356,10 +354,10 @@ mod tests {
     #[test]
     fn responses_are_bounded_before_parsing() {
         assert_eq!(
-            read_bounded(io::Cursor::new(b"hello"), 5).ok(),
+            read_bounded(Cursor::new(b"hello"), 5).ok(),
             Some(b"hello".to_vec())
         );
-        assert!(read_bounded(io::Cursor::new(b"hello!"), 5).is_err());
+        assert!(read_bounded(Cursor::new(b"hello!"), 5).is_err());
     }
 
     #[test]
