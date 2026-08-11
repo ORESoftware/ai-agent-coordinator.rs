@@ -71,11 +71,11 @@ def complete_job(run_key: str) -> dict:
 
 
 class NightlyArtifactRecoveryTests(unittest.TestCase):
-    def test_real_august_10_delay_is_recovered_not_silently_ignored(self) -> None:
+    def test_delayed_primary_is_recovered_not_silently_ignored(self) -> None:
         decision = nightly.robust_schedule_decision(
-            datetime(2026, 8, 10, 8, 24, 56, tzinfo=timezone.utc),
-            timezone_name="America/Chicago",
-            local_time="02:17",
+            datetime(2026, 8, 10, 6, 1, tzinfo=timezone.utc),
+            timezone_name="America/New_York",
+            local_time="00:37",
             recovery_after_minutes=60,
             max_lateness_minutes=240,
         )
@@ -87,13 +87,21 @@ class NightlyArtifactRecoveryTests(unittest.TestCase):
 
     def test_outside_lateness_window_is_not_due(self) -> None:
         decision = nightly.robust_schedule_decision(
-            datetime(2026, 8, 10, 12, 18, tzinfo=timezone.utc),
-            timezone_name="America/Chicago",
-            local_time="02:17",
+            datetime(2026, 8, 10, 8, 38, tzinfo=timezone.utc),
+            timezone_name="America/New_York",
+            local_time="00:37",
             recovery_after_minutes=60,
             max_lateness_minutes=240,
         )
         self.assertFalse(decision.due)
+
+    def test_parser_defaults_match_user_facing_schedule(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            args = nightly.build_parser().parse_args([])
+        self.assertEqual(args.timezone, "America/New_York")
+        self.assertEqual(args.local_time, "00:37")
+        self.assertEqual(args.window_hours, 96)
+        self.assertEqual(args.overlap_hours, 6)
 
     def test_schedule_requires_explicit_activation(self) -> None:
         with self.assertRaises(nightly.NightlyRunError):
@@ -105,16 +113,16 @@ class NightlyArtifactRecoveryTests(unittest.TestCase):
 
     def test_payload_requires_96_hour_window_and_terminal_receipts(self) -> None:
         decision = nightly.robust_schedule_decision(
-            datetime(2026, 8, 10, 7, 17, tzinfo=timezone.utc),
-            timezone_name="America/Chicago",
-            local_time="02:17",
+            datetime(2026, 8, 10, 4, 37, tzinfo=timezone.utc),
+            timezone_name="America/New_York",
+            local_time="00:37",
             recovery_after_minutes=60,
             max_lateness_minutes=240,
         )
         payload = nightly.build_hardened_payload(
             decision,
-            timezone_name="America/Chicago",
-            local_time="02:17",
+            timezone_name="America/New_York",
+            local_time="00:37",
             recovery_after_minutes=60,
             max_lateness_minutes=240,
             window_hours=96,
@@ -172,7 +180,7 @@ class NightlyArtifactRecoveryTests(unittest.TestCase):
                     "--endpoint",
                     "https://coordinator.example.invalid",
                     "--now",
-                    "2026-08-10T07:17:00Z",
+                    "2026-08-10T04:37:00Z",
                     "--dry-run",
                 ]
             )
