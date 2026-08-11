@@ -49,7 +49,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
-      - name: Normalize serializable losers and make the race test strict
+      - name: Normalize serializable losers and harden the PostgreSQL fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -161,13 +161,13 @@ jobs:
 
           test = Path('tests/daily_portfolio_delivery_store.rs')
           test_text = test.read_text(encoding='utf-8')
-          pattern = re.compile(
+          assertion = re.compile(
               r'(?ms)^(?P<indent>[ \t]*)assert!\(\s*'
               r'has_state_error\(&error,\s*DeliveryStateError::LeaseHeld\)\s*'
               r'\|\|\s*error\.to_string\(\)\.contains\("serialize"\),\s*'
               r'"unexpected losing claim error: \{error:#\}"\s*\);'
           )
-          match = pattern.search(test_text)
+          match = assertion.search(test_text)
           if match is None:
               raise SystemExit('claim-race assertion anchor changed')
           indent = match.group('indent')
@@ -177,7 +177,20 @@ jobs:
               f'{indent}    "claim race was not normalized to LeaseHeld: {{error:#}}"\n'
               f'{indent});'
           )
-          test.write_text(pattern.sub(strict, test_text, count=1), encoding='utf-8')
+          test_text = assertion.sub(strict, test_text, count=1)
+
+          stale_seed = '''\
+              let stale_case = plan(
+                  RunMode::Manual,
+                  "daily-portfolio:manual:stale-fence",
+                  "2026-08-06",
+                  '9',
+              );
+          '''
+          fixed_seed = stale_seed.replace("'9'", "'5'")
+          if test_text.count(stale_seed) != 1:
+              raise SystemExit('stale-fence seed anchor changed')
+          test.write_text(test_text.replace(stale_seed, fixed_seed), encoding='utf-8')
           PY
           cargo fmt --all
 
@@ -216,5 +229,3 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit -m 'fix: normalize serializable claim races'
           git push origin HEAD:agent/den-2797-recent-chat-watchdog-20260810
-
-# Manual authenticated retrigger for the product-only repair.
