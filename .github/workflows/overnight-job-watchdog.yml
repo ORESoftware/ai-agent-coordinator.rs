@@ -1,0 +1,104 @@
+name: Overnight job watchdog
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/last-30-hours-introspection.yml'
+      - '.github/workflows/nightly-artifact-recovery.yml'
+      - '.github/workflows/overnight-job-watchdog.yml'
+      - 'config/overnight-jobs.json'
+      - 'docs/overnight-job-operations.md'
+      - 'tools/overnight_job_watchdog.py'
+      - 'tests/test_overnight_job_watchdog.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/last-30-hours-introspection.yml'
+      - '.github/workflows/nightly-artifact-recovery.yml'
+      - '.github/workflows/overnight-job-watchdog.yml'
+      - 'config/overnight-jobs.json'
+      - 'docs/overnight-job-operations.md'
+      - 'tools/overnight_job_watchdog.py'
+      - 'tests/test_overnight_job_watchdog.py'
+  schedule:
+    - cron: '30 8 * * *'
+      timezone: 'America/Lima'
+  workflow_dispatch:
+    inputs:
+      date:
+        description: Optional local YYYY-MM-DD reporting date; defaults to today in each job timezone.
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: overnight-job-watchdog-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Validate syntax and catalog
+        run: |
+          python3 -m py_compile tools/overnight_job_watchdog.py tests/test_overnight_job_watchdog.py
+          python3 -m unittest -v tests/test_overnight_job_watchdog.py
+          python3 -m json.tool config/overnight-jobs.json >/dev/null
+      - name: Validate workflow YAML
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/last-30-hours-introspection.yml
+            .github/workflows/nightly-artifact-recovery.yml
+            .github/workflows/overnight-job-watchdog.yml
+
+  audit:
+    needs: validate
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      REQUESTED_DATE: ${{ inputs.date }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Verify live post-schedule evidence
+        id: watchdog
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--output-dir "$RUNNER_TEMP/overnight-job-watchdog")
+          if [[ -n "$REQUESTED_DATE" ]]; then
+            args+=(--date "$REQUESTED_DATE")
+          fi
+          python3 tools/overnight_job_watchdog.py "${args[@]}"
+      - name: Publish watchdog summary
+        if: always()
+        run: |
+          if [[ -f "$RUNNER_TEMP/overnight-job-watchdog/watchdog.md" ]]; then
+            cat "$RUNNER_TEMP/overnight-job-watchdog/watchdog.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload watchdog evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: overnight-job-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/overnight-job-watchdog
+          retention-days: 90
+          if-no-files-found: error
