@@ -1,10 +1,9 @@
-name: Overnight job watchdog
+name: Recent-chat reconciliation evidence watchdog
 
 on:
   pull_request:
     paths:
       - '.github/workflows/last-30-hours-introspection.yml'
-      - '.github/workflows/nightly-artifact-recovery.yml'
       - '.github/workflows/overnight-job-watchdog.yml'
       - 'config/overnight-jobs.json'
       - 'docs/overnight-job-operations.md'
@@ -14,19 +13,20 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/last-30-hours-introspection.yml'
-      - '.github/workflows/nightly-artifact-recovery.yml'
       - '.github/workflows/overnight-job-watchdog.yml'
       - 'config/overnight-jobs.json'
       - 'docs/overnight-job-operations.md'
       - 'tools/overnight_job_watchdog.py'
       - 'tests/test_overnight_job_watchdog.py'
   schedule:
+    # The 00:30 logical run settles by 05:45 after the governed dispatch,
+    # execution, and evidence-publication windows. Audit independently at 08:30.
     - cron: '30 8 * * *'
       timezone: 'America/Lima'
   workflow_dispatch:
     inputs:
       date:
-        description: Optional local YYYY-MM-DD reporting date; defaults to today in each job timezone.
+        description: Optional America/Lima logical date in YYYY-MM-DD.
         required: false
         default: ''
         type: string
@@ -36,7 +36,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: overnight-job-watchdog-${{ github.run_id }}
+  group: recent-chat-reconciliation-watchdog-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -50,24 +50,54 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Validate syntax and catalog
+      - name: Compile and exercise adversarial evidence tests
+        shell: bash
         run: |
-          python3 -m py_compile tools/overnight_job_watchdog.py tests/test_overnight_job_watchdog.py
+          set -euo pipefail
+          python3 -m py_compile \
+            tools/overnight_job_watchdog.py \
+            tests/test_overnight_job_watchdog.py
           python3 -m unittest -v tests/test_overnight_job_watchdog.py
           python3 -m json.tool config/overnight-jobs.json >/dev/null
+          fixture="$RUNNER_TEMP/recent-chat-watchdog-fixture"
+          mkdir -p "$fixture"
+          python3 tools/overnight_job_watchdog.py emit-fixtures \
+            --snapshot-output "$fixture/snapshot.json" \
+            --terminal-receipt-output "$fixture/recent-chat-reconciliation-terminal.json" \
+            --report-dir "$fixture/report"
+          python3 tools/overnight_job_watchdog.py locate \
+            --repository ORESoftware/ai-agent-coordinator.rs \
+            --snapshot "$fixture/snapshot.json" \
+            --now 2026-08-10T13:30:00Z \
+            --output-json "$fixture/workflow-evidence.json" \
+            --output-markdown "$fixture/summary.md"
+          python3 tools/overnight_job_watchdog.py validate-evidence \
+            --terminal-receipt "$fixture/recent-chat-reconciliation-terminal.json" \
+            --report-dir "$fixture/report" \
+            --expected-run-key recent-chat-reconciliation:scheduled:2026-08-10 \
+            --run-id 42 --run-attempt 1 \
+            --terminal-artifact-name recent-chat-reconciliation-terminal-42-1 \
+            --report-artifact-name recent-chat-reconciliation-report-42-1 \
+            --output-json "$fixture/evidence-validation.json"
       - name: Validate workflow YAML
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
         with:
           args: >-
             .github/workflows/last-30-hours-introspection.yml
-            .github/workflows/nightly-artifact-recovery.yml
             .github/workflows/overnight-job-watchdog.yml
+      - name: Upload bounded fixture evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recent-chat-watchdog-validation-${{ github.sha }}
+          path: ${{ runner.temp }}/recent-chat-watchdog-fixture
+          retention-days: 14
+          if-no-files-found: error
 
   audit:
     needs: validate
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
       GITHUB_TOKEN: ${{ github.token }}
       REQUESTED_DATE: ${{ inputs.date }}
@@ -78,27 +108,99 @@ jobs:
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
-      - name: Verify live post-schedule evidence
-        id: watchdog
+      - name: Locate one fully evidenced logical-night attempt
+        id: locate
+        shell: bash
+        run: |
+          set -uo pipefail
+          root="$RUNNER_TEMP/recent-chat-reconciliation-watchdog"
+          mkdir -p "$root"
+          args=(
+            locate
+            --output-json "$root/workflow-evidence.json"
+            --output-markdown "$root/summary.md"
+            --github-output "$GITHUB_OUTPUT"
+          )
+          if [[ -n "$REQUESTED_DATE" ]]; then
+            args+=(--logical-date "$REQUESTED_DATE")
+          fi
+          python3 tools/overnight_job_watchdog.py "${args[@]}"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Download selected terminal receipt
+        if: steps.locate.outputs.status == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          repository: ORESoftware/ai-agent-coordinator.rs
+          run-id: ${{ steps.locate.outputs.run_id }}
+          name: ${{ steps.locate.outputs.terminal_artifact_name }}
+          path: ${{ runner.temp }}/recent-chat-reconciliation-watchdog/terminal
+      - name: Download selected reconciliation report
+        if: steps.locate.outputs.status == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          repository: ORESoftware/ai-agent-coordinator.rs
+          run-id: ${{ steps.locate.outputs.run_id }}
+          name: ${{ steps.locate.outputs.report_artifact_name }}
+          path: ${{ runner.temp }}/recent-chat-reconciliation-watchdog/report
+      - name: Validate downloaded receipt and ledger contents
+        id: evidence
+        if: steps.locate.outputs.status == 'success'
+        shell: bash
+        run: |
+          set -uo pipefail
+          root="$RUNNER_TEMP/recent-chat-reconciliation-watchdog"
+          python3 tools/overnight_job_watchdog.py validate-evidence \
+            --terminal-receipt "$root/terminal/${{ steps.locate.outputs.terminal_receipt_file }}" \
+            --report-dir "$root/report" \
+            --expected-run-key '${{ steps.locate.outputs.expected_run_key }}' \
+            --run-id '${{ steps.locate.outputs.run_id }}' \
+            --run-attempt '${{ steps.locate.outputs.run_attempt }}' \
+            --terminal-artifact-name '${{ steps.locate.outputs.terminal_artifact_name }}' \
+            --report-artifact-name '${{ steps.locate.outputs.report_artifact_name }}' \
+            --output-json "$root/evidence-validation.json" \
+            --github-output "$GITHUB_OUTPUT"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Publish watchdog summary
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
-          args=(--output-dir "$RUNNER_TEMP/overnight-job-watchdog")
-          if [[ -n "$REQUESTED_DATE" ]]; then
-            args+=(--date "$REQUESTED_DATE")
+          root="$RUNNER_TEMP/recent-chat-reconciliation-watchdog"
+          if [[ -f "$root/summary.md" ]]; then
+            cat "$root/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            printf '# Recent-chat reconciliation watchdog\n\n**FAILURE:** no summary was produced.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
-          python3 tools/overnight_job_watchdog.py "${args[@]}"
-      - name: Publish watchdog summary
-        if: always()
-        run: |
-          if [[ -f "$RUNNER_TEMP/overnight-job-watchdog/watchdog.md" ]]; then
-            cat "$RUNNER_TEMP/overnight-job-watchdog/watchdog.md" >> "$GITHUB_STEP_SUMMARY"
+          if [[ -f "$root/evidence-validation.json" ]]; then
+            printf '\n## Downloaded evidence\n\nValidated terminal receipt, run ledger, artifact manifest, source coverage, and zero unfinished work.\n' >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload watchdog evidence
+      - name: Upload bounded watchdog evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: overnight-job-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/overnight-job-watchdog
+          name: recent-chat-reconciliation-watchdog-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recent-chat-reconciliation-watchdog
           retention-days: 90
           if-no-files-found: error
+      - name: Preserve watchdog failure after evidence upload
+        if: always()
+        shell: bash
+        env:
+          LOCATE_EXIT: ${{ steps.locate.outputs.exit_code }}
+          LOCATE_STATUS: ${{ steps.locate.outputs.status }}
+          EVIDENCE_EXIT: ${{ steps.evidence.outputs.exit_code }}
+          EVIDENCE_STATUS: ${{ steps.evidence.outputs.status }}
+        run: |
+          set -euo pipefail
+          locate="${LOCATE_EXIT:-2}"
+          evidence="${EVIDENCE_EXIT:-2}"
+          [[ "$locate" =~ ^[0-9]+$ ]] || exit 2
+          [[ "$evidence" =~ ^[0-9]+$ ]] || exit 2
+          [[ "$LOCATE_STATUS" == success ]] || exit "$locate"
+          [[ "$EVIDENCE_STATUS" == success ]] || exit "$evidence"
