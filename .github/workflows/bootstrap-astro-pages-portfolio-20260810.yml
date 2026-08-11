@@ -1,0 +1,147 @@
+name: Bootstrap Astro Pages portfolio
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/bootstrap-astro-pages-portfolio-20260810.yml'
+      - 'scripts/bootstrap_astro_pages_portfolio_20260810.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-astro-pages-portfolio-20260810
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out control repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          package-manager-cache: false
+
+      - name: Validate the allowlist and generated source
+        run: |
+          set -euo pipefail
+          python3 -m py_compile scripts/bootstrap_astro_pages_portfolio_20260810.py
+          python3 scripts/bootstrap_astro_pages_portfolio_20260810.py --self-test
+
+      - name: Render and build a representative Astro site
+        env:
+          ASTRO_TELEMETRY_DISABLED: '1'
+        run: |
+          set -euo pipefail
+          render="$RUNNER_TEMP/astro-pages-template"
+          python3 scripts/bootstrap_astro_pages_portfolio_20260810.py \
+            --org messaging-intel \
+            --render-dir "$render"
+          cd "$render"
+          npm install --no-audit --no-fund
+          npm test
+          test -s dist/index.html
+          grep -q 'x-site-bootstrap' dist/index.html
+
+  bootstrap:
+    needs: validate
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        org:
+          - embedded-alerts
+          - evento-globolo
+          - hacker-house-medellin
+          - apostille-me
+          - messaging-intel
+          - networking-components
+          - StreemPilot
+          - hypesiege
+          - opto-sync
+          - ores-otel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment:
+      name: nightly-org-maintenance
+      deployment: false
+    steps:
+      - name: Check out control repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Mint owner-scoped GitHub App token
+        id: token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ${{ matrix.org }}
+          permission-actions: write
+          permission-administration: write
+          permission-contents: write
+          permission-metadata: read
+          permission-pages: write
+          permission-workflows: write
+
+      - name: Create, repair, deploy, and verify Astro Pages site
+        id: bootstrap
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          TARGET_ORG: ${{ matrix.org }}
+          RESULT_PATH: ${{ runner.temp }}/astro-pages-${{ matrix.org }}.json
+        run: |
+          set -euo pipefail
+          python3 scripts/bootstrap_astro_pages_portfolio_20260810.py \
+            --org "$TARGET_ORG" \
+            --result "$RESULT_PATH"
+
+      - name: Add site evidence to the run summary
+        if: always()
+        env:
+          TARGET_ORG: ${{ matrix.org }}
+          RESULT_PATH: ${{ runner.temp }}/astro-pages-${{ matrix.org }}.json
+        run: |
+          set -euo pipefail
+          if [[ ! -f "$RESULT_PATH" ]]; then
+            printf '## %s\n\nNo result ledger was produced.\n' "$TARGET_ORG" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 - "$RESULT_PATH" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+
+          row = json.load(open(sys.argv[1]))
+          print(f"## {row.get('organization', 'unknown')}")
+          print()
+          if row.get('status') == 'failed':
+              print(f"**Failed:** `{row.get('error_type')}` — {row.get('error')}")
+          else:
+              print(f"- Repository: [{row['repository']}]({row['repository_url']})")
+              print(f"- Pages: [{row['pages_url']}]({row['pages_url']})")
+              print(f"- Repository created: `{row['repository_created']}`")
+              print(f"- Source action: `{row['source_action']}`")
+              print(f"- Build type: `{row['pages_build_type']}`")
+              print(f"- Workflow: [{row['workflow_conclusion']}]({row['workflow_run_url']})")
+              print(f"- Live HTTP status: `{row['live']['status']}`")
+              print(f"- Commit: `{row['commit_sha']}`")
+          PY
+
+      - name: Upload redacted site ledger
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: astro-pages-${{ matrix.org }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/astro-pages-${{ matrix.org }}.json
+          retention-days: 30
+          if-no-files-found: warn
