@@ -5,11 +5,13 @@ on:
     paths:
       - '.github/workflows/bootstrap-astro-pages-portfolio-20260810.yml'
       - 'scripts/bootstrap_astro_pages_portfolio_20260810.py'
+      - 'scripts/run_astro_pages_bootstrap_20260810.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/bootstrap-astro-pages-portfolio-20260810.yml'
       - 'scripts/bootstrap_astro_pages_portfolio_20260810.py'
+      - 'scripts/run_astro_pages_bootstrap_20260810.py'
   workflow_dispatch:
 
 permissions:
@@ -38,7 +40,9 @@ jobs:
       - name: Validate the allowlist and generated source
         run: |
           set -euo pipefail
-          python3 -m py_compile scripts/bootstrap_astro_pages_portfolio_20260810.py
+          python3 -m py_compile \
+            scripts/bootstrap_astro_pages_portfolio_20260810.py \
+            scripts/run_astro_pages_bootstrap_20260810.py
           python3 scripts/bootstrap_astro_pages_portfolio_20260810.py --self-test
 
       - name: Render and build a representative Astro site
@@ -107,7 +111,7 @@ jobs:
           RESULT_PATH: ${{ runner.temp }}/astro-pages-${{ matrix.org }}.json
         run: |
           set -euo pipefail
-          python3 scripts/bootstrap_astro_pages_portfolio_20260810.py \
+          python3 scripts/run_astro_pages_bootstrap_20260810.py \
             --org "$TARGET_ORG" \
             --result "$RESULT_PATH"
 
