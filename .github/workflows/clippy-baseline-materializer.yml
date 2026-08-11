@@ -16,6 +16,9 @@ concurrency:
 
 jobs:
   repair:
+    if: >-
+      github.repository == 'ORESoftware/ai-agent-coordinator.rs' &&
+      github.ref == 'refs/heads/agent/fix-coordinator-rustfmt-20260811'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -56,7 +59,7 @@ jobs:
             } else {
                 return Err(domain(DeliveryStateError::BaselineConflict));
             }
-'''
+          '''
           new = '''            match candidate_date.cmp(&current_date) {
                 std::cmp::Ordering::Greater => true,
                 std::cmp::Ordering::Less => false,
@@ -71,7 +74,7 @@ jobs:
                     return Err(domain(DeliveryStateError::BaselineConflict));
                 }
             }
-'''
+          '''
           if text.count(old) != 1:
               raise SystemExit('expected exactly one baseline predicate to replace')
           path.write_text(text.replace(old, new, 1))
