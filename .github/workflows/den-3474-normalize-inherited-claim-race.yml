@@ -51,7 +51,7 @@ jobs:
           components: rustfmt, clippy
       - name: Restore bounded Rust caches
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
-      - name: Normalize serializable claim losers to the LeaseHeld domain result
+      - name: Normalize serializable claim losers and repair the masked digest fixture
         shell: bash
         run: |
           set -euo pipefail
@@ -170,20 +170,33 @@ jobs:
 
           test = Path('tests/daily_portfolio_delivery_store.rs')
           test_text = test.read_text(encoding='utf-8')
-          old = '''            assert!(
+          old_assertion = '''            assert!(
                           has_state_error(&error, DeliveryStateError::LeaseHeld)
                               || error.to_string().contains("serialize"),
                           "unexpected losing claim error: {error:#}"
                       );
           '''
-          new = '''            assert!(
+          new_assertion = '''            assert!(
                           has_state_error(&error, DeliveryStateError::LeaseHeld),
                           "claim race was not normalized to LeaseHeld: {error:#}"
                       );
           '''
-          if test_text.count(old) != 1:
-              raise SystemExit(f'claim assertion anchor count={test_text.count(old)}')
-          test.write_text(test_text.replace(old, new), encoding='utf-8')
+          if test_text.count(old_assertion) != 1:
+              raise SystemExit(f'claim assertion anchor count={test_text.count(old_assertion)}')
+          test_text = test_text.replace(old_assertion, new_assertion)
+          old_seed = '''        "daily-portfolio:manual:stale-fence",
+                  "2026-08-06",
+                  '9',
+              );
+          '''
+          new_seed = '''        "daily-portfolio:manual:stale-fence",
+                  "2026-08-06",
+                  '7',
+              );
+          '''
+          if test_text.count(old_seed) != 1:
+              raise SystemExit(f'stale digest seed anchor count={test_text.count(old_seed)}')
+          test.write_text(test_text.replace(old_seed, new_seed), encoding='utf-8')
           PY
           cargo fmt --all
           git diff --check
