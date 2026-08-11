@@ -1,4 +1,4 @@
-name: Nightly ChatGPT reconciliation
+name: Nightly artifact recovery
 
 on:
   pull_request:
@@ -37,13 +37,12 @@ on:
       - 'tests/test_enqueue_artifact_recovery.py'
       - 'tests/test_run_nightly_artifact_recovery.py'
   schedule:
-    # User-facing task target was 12:30 AM. Offset seven minutes to avoid
-    # GitHub Actions' busiest scheduling boundary while preserving the intent.
-    - cron: '37 0 * * *'
-      timezone: 'America/New_York'
-    # Independent watchdog; same daily idempotency key, never a duplicate run.
-    - cron: '7 2 * * *'
-      timezone: 'America/New_York'
+    # Offset from the top of the hour to reduce delayed/dropped schedule risk.
+    - cron: '17 2 * * *'
+      timezone: 'America/Chicago'
+    # Independent recovery invocation; same daily idempotency key.
+    - cron: '47 3 * * *'
+      timezone: 'America/Chicago'
   workflow_dispatch:
     inputs:
       mode:
@@ -62,7 +61,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: nightly-chatgpt-reconciliation-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
+  group: nightly-artifact-recovery-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
   cancel-in-progress: false
 
 jobs:
@@ -138,8 +137,8 @@ jobs:
         run: >-
           python3 tools/run_nightly_artifact_recovery.py
           --endpoint https://coordinator.example.invalid
-          --timezone America/New_York --local-time 00:37
-          --now 2026-08-10T04:37:00Z --dry-run
+          --timezone America/Chicago --local-time 02:17
+          --now 2026-08-10T07:17:00Z --dry-run
           --evidence-output "$RUNNER_TEMP/artifact-recovery-enqueue-plan-receipt.json"
           > "$RUNNER_TEMP/artifact-recovery-enqueue-plan.json"
       - name: Upload bounded validation evidence
@@ -167,8 +166,8 @@ jobs:
       AI_AGENT_COORDINATOR_URL: ${{ vars.AI_AGENT_COORDINATOR_URL }}
       AI_AGENT_COORDINATOR_API_TOKEN: ${{ secrets.AI_AGENT_COORDINATOR_API_TOKEN }}
       ARTIFACT_RECOVERY_ENQUEUE_ENABLED: ${{ vars.ARTIFACT_RECOVERY_ENQUEUE_ENABLED }}
-      ARTIFACT_RECOVERY_TIMEZONE: America/New_York
-      ARTIFACT_RECOVERY_LOCAL_TIME: '00:37'
+      ARTIFACT_RECOVERY_TIMEZONE: America/Chicago
+      ARTIFACT_RECOVERY_LOCAL_TIME: '02:17'
       ARTIFACT_RECOVERY_RECOVERY_MINUTES: '60'
       ARTIFACT_RECOVERY_MAX_LATENESS_MINUTES: '240'
       ARTIFACT_RECOVERY_WINDOW_HOURS: '96'
@@ -201,5 +200,101 @@ jobs:
         with:
           name: artifact-recovery-terminal-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/artifact-recovery-terminal-receipt.json
-          retention-days: 30
+          retention-days: 90
           if-no-files-found: warn
+
+  report:
+    needs: [validate, enqueue-and-verify]
+    if: >-
+      always() &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && inputs.mode == 'enqueue'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      VALIDATION_RESULT: ${{ needs.validate.result }}
+      EXECUTION_RESULT: ${{ needs.enqueue-and-verify.result }}
+      EVENT_NAME: ${{ github.event_name }}
+      EVENT_SCHEDULE: ${{ github.event.schedule }}
+      RUN_ID: ${{ github.run_id }}
+      RUN_ATTEMPT: ${{ github.run_attempt }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      REPOSITORY: ${{ github.repository }}
+      SHA: ${{ github.sha }}
+    steps:
+      - name: Write durable run ledger and human report
+        shell: bash
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/nightly-artifact-recovery-report"
+          mkdir -p "$report"
+          REPORT="$report" python3 - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          validation_ok = os.environ['VALIDATION_RESULT'] == 'success'
+          execution_ok = os.environ['EXECUTION_RESULT'] == 'success'
+          errors = []
+          if not validation_ok:
+              errors.append(f"validation concluded {os.environ['VALIDATION_RESULT']!r}")
+          if not execution_ok:
+              errors.append(f"enqueue-and-verify concluded {os.environ['EXECUTION_RESULT']!r}")
+          ledger = {
+              'schema_version': 'overnight_run_ledger.v1',
+              'job_id': 'nightly-artifact-recovery',
+              'workflow': 'nightly-artifact-recovery.yml',
+              'repository': os.environ['REPOSITORY'],
+              'event': os.environ['EVENT_NAME'],
+              'schedule': os.environ.get('EVENT_SCHEDULE') or None,
+              'timezone': 'America/Chicago',
+              'local_time': '02:17',
+              'lookback_hours': 96,
+              'run_id': int(os.environ['RUN_ID']),
+              'run_attempt': int(os.environ['RUN_ATTEMPT']),
+              'run_url': os.environ['RUN_URL'],
+              'sha': os.environ['SHA'],
+              'reported_at': datetime.now(timezone.utc).isoformat(),
+              'outcome': 'success' if validation_ok and execution_ok else 'failure',
+              'stages': {
+                  'validate': os.environ['VALIDATION_RESULT'],
+                  'enqueue_and_verify': os.environ['EXECUTION_RESULT'],
+              },
+              'error_summary': errors,
+              'artifact_manifest': [
+                  f"artifact-recovery-terminal-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}",
+                  f"nightly-artifact-recovery-report-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}",
+              ],
+          }
+          root = Path(os.environ['REPORT'])
+          (root / 'run-ledger.json').write_text(
+              json.dumps(ledger, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          (root / 'report.md').write_text(
+              '# Nightly artifact recovery\n\n'
+              f"- Outcome: **{ledger['outcome'].upper()}**\n"
+              '- Scheduled: `02:17 America/Chicago` plus `03:47` recovery invocation\n'
+              f"- Rolling window: `{ledger['lookback_hours']} hours`\n"
+              f"- Validation: `{ledger['stages']['validate']}`\n"
+              f"- Enqueue + terminal verification: `{ledger['stages']['enqueue_and_verify']}`\n"
+              f"- Errors: `{'; '.join(ledger['error_summary']) or 'none'}`\n"
+              f"- Run: `{ledger['run_id']}` attempt `{ledger['run_attempt']}`\n",
+              encoding='utf-8',
+          )
+          PY
+          cat "$report/report.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload durable post-schedule report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: nightly-artifact-recovery-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/nightly-artifact-recovery-report
+          retention-days: 90
+          if-no-files-found: error
+      - name: Preserve execution failure after report upload
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$VALIDATION_RESULT" == success ]]
+          [[ "$EXECUTION_RESULT" == success ]]
