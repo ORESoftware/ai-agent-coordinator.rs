@@ -14,6 +14,32 @@ if str(TOOLS) not in sys.path:
 import run_recent_chat_reconciliation as recent  # noqa: E402
 
 
+def completion_job(
+    *,
+    complete: int = 0,
+    already_landed: int = 0,
+    in_review: int = 0,
+    blocked: int = 0,
+    deferred: int = 0,
+) -> dict:
+    actionable = complete + already_landed + in_review + blocked + deferred
+    return {
+        "result": {
+            "summary": {
+                "prompts_scanned": actionable + 2,
+                "actionable_items": actionable,
+                "dispositions": {
+                    "complete": complete,
+                    "already_landed": already_landed,
+                    "in_review": in_review,
+                    "blocked_with_owner": blocked,
+                    "deferred_with_owner": deferred,
+                },
+            }
+        }
+    }
+
+
 class RecentChatReconciliationTests(unittest.TestCase):
     def test_defaults_match_canonical_lima_task(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
@@ -67,7 +93,7 @@ class RecentChatReconciliationTests(unittest.TestCase):
             "recent-chat-reconciliation:scheduled:2026-08-10",
         )
 
-    def test_payload_requires_96_hour_chat_scope(self) -> None:
+    def test_payload_requires_96_hour_chat_scope_and_all_work_complete(self) -> None:
         decision = recent.generic.robust_schedule_decision(
             datetime(2026, 8, 10, 5, 30, tzinfo=timezone.utc),
             timezone_name="America/Lima",
@@ -91,6 +117,23 @@ class RecentChatReconciliationTests(unittest.TestCase):
         self.assertEqual(contract["source_contract"]["rolling_window_hours"], 96)
         self.assertEqual(contract["source_contract"]["primary_source"], "chatgpt_threads")
         self.assertTrue(contract["job_contract"]["require_duplicate_free_mutations"])
+        self.assertTrue(contract["job_contract"]["require_all_work_complete"])
+
+    def test_only_finished_dispositions_allow_success(self) -> None:
+        summary = recent._completion_summary(
+            completion_job(complete=2, already_landed=1)
+        )
+        self.assertTrue(summary["all_work_complete"])
+        self.assertEqual(summary["unfinished_items"], 0)
+        self.assertEqual(recent._completion_exit_code(summary), 0)
+
+    def test_in_review_blocked_or_deferred_work_fails_visibly(self) -> None:
+        summary = recent._completion_summary(
+            completion_job(complete=1, in_review=1, blocked=1, deferred=1)
+        )
+        self.assertFalse(summary["all_work_complete"])
+        self.assertEqual(summary["unfinished_items"], 3)
+        self.assertEqual(recent._completion_exit_code(summary), 3)
 
     def test_dry_run_is_credential_free(self) -> None:
         with patch.dict("os.environ", {}, clear=True):
