@@ -61,23 +61,20 @@ jobs:
         with:
           args: .github/workflows/nightly-org-maintenance.yml
 
-      - name: Replace carriers with the hardened workflow
+      - name: Publish validated bytes as a non-workflow staging blob
         shell: bash
         run: |
           set -euo pipefail
-          rm -f \
-            .github/nightly-org-preflight.patch \
-            .github/workflows/nightly-org-preflight-materializer.yml
+          mkdir -p .nightly-staging
+          cp .github/workflows/nightly-org-maintenance.yml .nightly-staging/nightly-org-maintenance.yml
+          test "$(git hash-object .nightly-staging/nightly-org-maintenance.yml)" = f2bd3af7e5b727883abe4aef3e81548686d920cb
+          git checkout -- .github/workflows/nightly-org-maintenance.yml
           git status --porcelain=v1 | cut -c4- | LC_ALL=C sort > "$RUNNER_TEMP/actual-changed"
-          cat > "$RUNNER_TEMP/expected-changed" <<'EOF'
-          .github/nightly-org-preflight.patch
-          .github/workflows/nightly-org-maintenance.yml
-          .github/workflows/nightly-org-preflight-materializer.yml
-          EOF
+          printf '%s\n' '.nightly-staging/nightly-org-maintenance.yml' > "$RUNNER_TEMP/expected-changed"
           diff -u "$RUNNER_TEMP/expected-changed" "$RUNNER_TEMP/actual-changed"
-          git add -A
+          git add .nightly-staging/nightly-org-maintenance.yml
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix: fail fast before nightly organization fan-out'
+          git commit -m 'chore: stage validated nightly organization workflow bytes'
           git push origin "HEAD:${GITHUB_REF_NAME}"
