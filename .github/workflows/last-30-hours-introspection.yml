@@ -172,7 +172,7 @@ jobs:
           name: recent-chat-reconciliation-terminal-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/recent-chat-reconciliation-terminal.json
           retention-days: 90
-          if-no-files-found: warn
+          if-no-files-found: error
       - name: Write durable run ledger and report
         if: always()
         env:
