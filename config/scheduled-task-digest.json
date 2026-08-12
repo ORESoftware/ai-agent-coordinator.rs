@@ -1,0 +1,118 @@
+{
+  "schema_version": "scheduled_task_digest_config.v1",
+  "timezone": "America/Chicago",
+  "delivery_local_time": "07:00",
+  "lookback_hours": 24,
+  "recipient": "alexanded.d.mills@gmail.com",
+  "max_repositories": 1000,
+  "max_workflow_files": 3000,
+  "repository_concurrency": 8,
+  "explicit_repositories": [
+    "ORESoftware/ai-agent-coordinator.rs",
+    "zed-pkg-test/.github"
+  ],
+  "external_tasks": [
+    {
+      "id": "google-apps-script-cron-ignition",
+      "name": "Google Apps Script cron ignition",
+      "schedule": [
+        "0 * * * *"
+      ],
+      "timezone": "America/Lima",
+      "source_url": "https://script.google.com/",
+      "probe": {
+        "type": "manual",
+        "state": "unobserved",
+        "reason": "GitHub Actions cannot read Gmail failure summaries or Apps Script execution receipts; connect an Apps Script/Gmail evidence adapter."
+      },
+      "notes": "The prior audit observed repeated CRON_SECRET failures, but this entry deliberately refuses to carry that observation forward without fresh evidence."
+    },
+    {
+      "id": "github-permission-check",
+      "name": "GitHub permission check",
+      "schedule": [
+        "0 22 * * *"
+      ],
+      "timezone": "America/Chicago",
+      "probe": {
+        "type": "manual",
+        "state": "unobserved",
+        "reason": "No durable execution ledger or connected runtime endpoint is configured for this lane."
+      }
+    },
+    {
+      "id": "recent-chat-reconciliation",
+      "name": "Recent 96-hour ChatGPT reconciliation",
+      "schedule": [
+        "30 0 * * *"
+      ],
+      "timezone": "America/Lima",
+      "source_url": "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/151",
+      "probe": {
+        "type": "github_pull_request",
+        "repository": "ORESoftware/ai-agent-coordinator.rs",
+        "number": 151
+      },
+      "notes": "The workflow is not production-deployed until its source PR reaches the deployment branch."
+    },
+    {
+      "id": "global-pr-governance",
+      "name": "Global PR governance and Linear reconciliation",
+      "schedule": [
+        "0 1 * * *"
+      ],
+      "timezone": "America/Chicago",
+      "source_url": "https://github.com/ORESoftware/k8s-cluster/pull/1113",
+      "probe": {
+        "type": "github_pull_request",
+        "repository": "ORESoftware/k8s-cluster",
+        "number": 1113,
+        "suspended_body_regex": "spec\\.suspend:\\s*true|suspended-pending-trusted-finalizer"
+      }
+    },
+    {
+      "id": "fleet-interdependency",
+      "name": "Fleet interdependency rebuild and dependency bump",
+      "schedule": [
+        "0 2 * * *"
+      ],
+      "timezone": "America/Chicago",
+      "probe": {
+        "type": "manual",
+        "state": "unobserved",
+        "reason": "No production runner evidence source is connected for this cross-organization lane."
+      }
+    },
+    {
+      "id": "messaging-intel-contact-discovery",
+      "name": "Messaging Intel contact discovery",
+      "schedule": [
+        "0 3 * * *"
+      ],
+      "timezone": "America/Lima",
+      "source_url": "https://github.com/messaging-intel",
+      "probe": {
+        "type": "manual",
+        "state": "missing",
+        "reason": "No durable production schedule or run ledger has been certified for this task."
+      }
+    },
+    {
+      "id": "benefactor-outreach",
+      "name": "Benefactor outreach pipeline",
+      "schedule": [
+        "0 6 * * *"
+      ],
+      "timezone": "America/Chicago",
+      "source_url": "https://github.com/ORESoftware/k8s-cluster/blob/main/remote/argocd/benefactor-contact-pipeline/cronjob.yaml",
+      "probe": {
+        "type": "github_file_regex",
+        "repository": "ORESoftware/k8s-cluster",
+        "path": "remote/argocd/benefactor-contact-pipeline/cronjob.yaml",
+        "ref": "main",
+        "suspended_regex": "^\\s*suspend:\\s*true\\s*$",
+        "active_regex": "^\\s*suspend:\\s*false\\s*$"
+      }
+    }
+  ]
+}
