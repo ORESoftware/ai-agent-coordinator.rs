@@ -1,0 +1,21 @@
+{
+  "schema_version": "overnight_jobs.v2",
+  "jobs": [
+    {
+      "id": "recent-chat-reconciliation",
+      "workflow": "last-30-hours-introspection.yml",
+      "branch": "main",
+      "timezone": "America/Lima",
+      "local_time": "00:30",
+      "max_dispatch_delay_minutes": 240,
+      "settlement_minutes": 315,
+      "execution_job": "enqueue-and-verify",
+      "run_key_prefix": "recent-chat-reconciliation",
+      "terminal_artifact_prefix": "recent-chat-reconciliation-terminal-",
+      "report_artifact_prefix": "recent-chat-reconciliation-report-",
+      "terminal_receipt_file": "recent-chat-reconciliation-terminal.json",
+      "report_ledger_file": "run-ledger.json",
+      "report_markdown_file": "report.md"
+    }
+  ]
+}
