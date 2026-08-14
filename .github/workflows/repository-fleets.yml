@@ -240,7 +240,9 @@ jobs:
           workflow = pathlib.Path(
               ".github/workflows/repository-fleets.yml"
           ).read_text(encoding="utf-8")
-          references = re.findall(r"uses:\s*[^@\s]+@([^\s#]+)", workflow)
+          references = re.findall(
+              r"(?m)^[ \t]*uses:[ \t]*[^@\s]+@([^\s#]+)", workflow
+          )
           assert references
           assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in references), references
           PY
