@@ -6,24 +6,33 @@ import hashlib
 import io
 import json
 import tempfile
+import tomllib
 import unittest
 from pathlib import Path
 
 from bootstrap_test_org_deep_fleets_live import (
+    BootstrapError,
     NoRedirect,
+    Target,
+    classify_zpkg_sha,
     git_blob_sha,
+    load_token,
     read_json_response,
     redact,
+    verify_check_state,
 )
 from deep_test_fleet_templates import (
     BOOTSTRAP_OPERATION,
     EXPECTED_ORGANIZATION_COUNT,
     EXPECTED_REPOSITORY_COUNT,
     EXPECTED_TOTAL,
+    approved_zpkg_predecessors,
     generate_repository_files,
+    legacy_zpkg_manifest,
     load_fleet,
     run_generated_suite,
     validate_generated_files,
+    zpkg_manifest,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -52,7 +61,7 @@ class DeepTestFleetContractTests(unittest.TestCase):
         for organization in self.fleet.organizations:
             for spec in self.fleet.repositories:
                 files = generate_repository_files(organization, spec, self.fleet)
-                validate_generated_files(files, organization, spec)
+                validate_generated_files(files, organization, spec, self.fleet)
                 metadata = json.loads(files["project.json"])
                 self.assertEqual(metadata["organization"], organization)
                 self.assertEqual(metadata["repository"], spec.name)
@@ -75,6 +84,109 @@ class DeepTestFleetContractTests(unittest.TestCase):
                 if "uses:" in line:
                     reference = line.split("uses:", 1)[1].strip()
                     self.assertRegex(reference, r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+@[0-9a-f]{40}$")
+
+    def test_zed_manifests_use_the_current_canonical_contract(self) -> None:
+        for organization in self.fleet.organizations:
+            for spec in self.fleet.repositories:
+                source = generate_repository_files(organization, spec, self.fleet)[".zpkg.toml"]
+                manifest = tomllib.loads(source)
+                self.assertEqual(manifest["package"]["org"], organization)
+                self.assertEqual(manifest["package"]["name"], spec.name)
+                self.assertEqual(
+                    manifest["package"]["repository"]["url"],
+                    f"https://github.com/{organization}/{spec.name}",
+                )
+                self.assertEqual(set(manifest["scripts"]), {"test"})
+                self.assertNotIn("develop", manifest)
+                self.assertNotIn("type", manifest["package"])
+
+    def test_legacy_and_current_zed_templates_are_distinct_and_stable(self) -> None:
+        organization = self.fleet.organizations[0]
+        spec = self.fleet.repositories[0]
+        legacy = tomllib.loads(legacy_zpkg_manifest(organization, spec))
+        current = tomllib.loads(zpkg_manifest(organization, spec, self.fleet))
+        self.assertEqual(legacy["package"]["name"], f"{organization}/{spec.name}")
+        self.assertIn("develop", legacy)
+        self.assertEqual(current["package"]["org"], organization)
+        self.assertEqual(current["package"]["name"], spec.name)
+        self.assertNotEqual(
+            git_blob_sha(legacy_zpkg_manifest(organization, spec)),
+            git_blob_sha(zpkg_manifest(organization, spec, self.fleet)),
+        )
+
+        opto = "opto-sync-test"
+        opto_manifest = tomllib.loads(zpkg_manifest(opto, spec, self.fleet))
+        self.assertEqual(opto_manifest["package"]["version"], "0.2.0")
+        self.assertIn("run_cross_language_matrix.mjs", opto_manifest["scripts"]["test"])
+        self.assertEqual(len(approved_zpkg_predecessors(opto, spec, self.fleet)), 2)
+
+        zed_test = "zed-pkg-test"
+        self.assertEqual(
+            len(approved_zpkg_predecessors(zed_test, spec, self.fleet)),
+            2,
+        )
+
+    def test_live_auth_source_is_explicit(self) -> None:
+        with self.assertRaisesRegex(BootstrapError, "choose exactly one"):
+            load_token(None, False)
+        with tempfile.TemporaryDirectory(prefix="deep-fleet-auth-") as raw:
+            token_file = Path(raw) / "token"
+            token_file.write_text("not-a-real-token", encoding="utf-8")
+            with self.assertRaisesRegex(BootstrapError, "choose exactly one"):
+                load_token(token_file, True)
+
+    def test_zed_manifest_source_classification_fails_closed(self) -> None:
+        organization = self.fleet.organizations[0]
+        spec = self.fleet.repositories[0]
+        target = Target(organization, spec)
+        current = zpkg_manifest(organization, spec, self.fleet)
+        self.assertEqual(
+            classify_zpkg_sha(git_blob_sha(current), target, self.fleet, current),
+            "already_migrated",
+        )
+        self.assertEqual(
+            classify_zpkg_sha(
+                git_blob_sha(legacy_zpkg_manifest(organization, spec)),
+                target,
+                self.fleet,
+                current,
+            ),
+            "approved_predecessor",
+        )
+        with self.assertRaisesRegex(BootstrapError, "semantic reconciliation required"):
+            classify_zpkg_sha("0" * 40, target, self.fleet, current)
+
+    def test_only_successful_github_actions_verify_checks_are_accepted(self) -> None:
+        foreign_success = {
+            "name": "verify",
+            "status": "completed",
+            "conclusion": "success",
+            "app": {"slug": "untrusted-app"},
+        }
+        skipped = {
+            "name": "verify",
+            "status": "completed",
+            "conclusion": "skipped",
+            "app": {"slug": "github-actions"},
+        }
+        success = {
+            "name": "verify",
+            "status": "completed",
+            "conclusion": "success",
+            "app": {"slug": "github-actions"},
+        }
+        self.assertEqual(
+            verify_check_state({"check_runs": [foreign_success]}),
+            ("pending", "trusted GitHub Actions verify check has not appeared"),
+        )
+        self.assertEqual(
+            verify_check_state({"check_runs": [skipped]}),
+            ("failure", "skipped"),
+        )
+        self.assertEqual(
+            verify_check_state({"check_runs": [foreign_success, success]}),
+            ("success", "success"),
+        )
 
     def test_semantic_conflict_policy_is_enforced_in_every_repo(self) -> None:
         for spec in self.fleet.repositories:
@@ -117,7 +229,7 @@ class DeepTestFleetContractTests(unittest.TestCase):
 
     def test_duplicate_json_keys_are_rejected(self) -> None:
         text = MANIFEST.read_text(encoding="utf-8")
-        duplicate = text.replace('"schema_version": 1,', '"schema_version": 1,\n  "schema_version": 1,', 1)
+        duplicate = text.replace('"schema_version": 2,', '"schema_version": 2,\n  "schema_version": 2,', 1)
         with tempfile.TemporaryDirectory(prefix="deep-fleet-duplicate-") as raw:
             path = Path(raw) / "manifest.json"
             path.write_text(duplicate, encoding="utf-8")
@@ -132,14 +244,21 @@ class DeepTestFleetContractTests(unittest.TestCase):
         conflict = dict(files)
         conflict["README.md"] += "<<<<<<< current\n=======\n>>>>>>> incoming\n"
         with self.assertRaises(ValueError):
-            validate_generated_files(conflict, organization, spec)
+            validate_generated_files(conflict, organization, spec, self.fleet)
 
         mutable = dict(files)
         mutable[".github/workflows/deep-tests.yml"] = mutable[
             ".github/workflows/deep-tests.yml"
         ].replace("actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "actions/checkout@main")
         with self.assertRaises(ValueError):
-            validate_generated_files(mutable, organization, spec)
+            validate_generated_files(mutable, organization, spec, self.fleet)
+
+        unsafe_publish = dict(files)
+        unsafe_publish[".zpkg.toml"] = unsafe_publish[".zpkg.toml"].replace(
+            'exclude = [".env", ', "exclude = [", 1
+        )
+        with self.assertRaisesRegex(ValueError, "canonical repository-specific template"):
+            validate_generated_files(unsafe_publish, organization, spec, self.fleet)
 
     def test_git_blob_hash_matches_git_empty_blob_constant(self) -> None:
         self.assertEqual(git_blob_sha(""), "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391")
