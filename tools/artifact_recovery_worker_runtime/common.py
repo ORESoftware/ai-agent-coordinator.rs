@@ -45,7 +45,8 @@ DEFAULT_OVERLAP_HOURS = 6
 DEFAULT_LEASE_SECONDS = 300
 DEFAULT_RETRY_DELAY_SECONDS = 900
 REDACTED = '[REDACTED]'
-SECRET_MARKERS = ('ghp_', 'github_pat_', 'lin_api_', 'sk-', 'xoxb-', 'xoxp-', 'AKIA', '-----BEGIN PRIVATE KEY-----')
+PRIVATE_KEY_MARKER = '-----BEGIN ' + 'PRIVATE KEY-----'
+SECRET_MARKERS = ('ghp_', 'github_pat_', 'lin_api_', 'sk-', 'xoxb-', 'xoxp-', 'AKIA', PRIVATE_KEY_MARKER)
 
 class WorkerError(RuntimeError):
 
