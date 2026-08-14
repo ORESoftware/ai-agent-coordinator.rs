@@ -1,0 +1,31 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-lib"
+version = "0.1.0"
+description = "Deterministic shared validation and transformation primitives for Benefactor"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-lib"
+
+[dependencies]
+"benefactor-cc/benefactor-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", "target/**", "node_modules/**", "tmp/**", "**/*.log"]
+
+# The whole-repository artifact carries the Rust crate and its WASM build input.
+# The TypeScript runtime has its own isolated source root and package manifest.
+[targets.repository]
+dir = "."
+
+[targets.nodejs]
+dir = "typescript"
+name = "benefactor-lib-nodejs"
+adapter = "node"
+
+[scripts]
+test = "node scripts/check-contract.mjs"

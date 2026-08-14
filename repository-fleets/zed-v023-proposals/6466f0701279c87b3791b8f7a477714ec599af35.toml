@@ -1,0 +1,33 @@
+[package]
+org = "fiducia-cloud"
+name = "fiducia-lib"
+version = "0.1.0"
+description = "Shared Fiducia library code: the fiducia-orm SeaORM data-access boundary crate"
+license = "MIT"
+keywords = ["seaorm", "postgres", "data-access", "boundary", "read-only"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/fiducia-cloud/fiducia-lib"
+
+[dependencies]
+"oresoftware/k8s-libs-and-shared-defs" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".vendor/.zed/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**"]
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[targets.repository]
+dir = "."
+
+[targets.rust-orm]
+dir = "rust/crates/fiducia-orm"
+adapter = "rust"
+
+[scripts]
+test = "cd rust && cargo test --all-targets && cd rust && cargo clippy --all-targets -- -D warnings && cd rust && cargo fmt --all -- --check"

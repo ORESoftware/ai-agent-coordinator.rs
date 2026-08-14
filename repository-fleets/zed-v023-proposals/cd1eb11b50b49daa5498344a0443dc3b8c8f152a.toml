@@ -1,0 +1,46 @@
+[package]
+org = "claritas-viz"
+name = "claritas-cli"
+version = "0.1.0"
+description = "Command-line client for Claritas — query the columnar analytics engine in any supported dialect"
+license = "MIT"
+keywords = ["cli", "analytics", "sql", "data-visualization", "rust", "global-tool"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/claritas-viz/claritas-cli"
+
+# No org dependencies yet — deliberately, not by omission.
+#
+# The rest of this CLI fleet declares its org's interfaces/lib/clients repos
+# here. claritas-viz has none of them: the org is data-viz-server.rs,
+# claritas-viz-mcp-server.rs, claritas-monorepo, and the site. Until
+# `claritas-interfaces` and `claritas-clients` exist, `src/wire.rs` and
+# `src/transport.rs` stand in for them, and this table stays empty rather than
+# naming repos that would never resolve.
+#
+# scripts/check-zed-dependencies.py enforces that: it fails if anything is
+# added here without a matching Cargo edge, and its EXPECTED map is where the
+# two new edges go on the day those repos land.
+[dependencies]
+
+[build]
+command = "cargo build --release --locked --bin claritas"
+outputs = ["target/release/claritas"]
+
+[bin]
+claritas = "target/release/claritas"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -x \"$ZED_PKG_TEST_TARGET/target/release/claritas\" && \"$ZED_PKG_TEST_TARGET/target/release/claritas\" --help >/dev/null"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && python3 scripts/check-zed-dependencies.py"

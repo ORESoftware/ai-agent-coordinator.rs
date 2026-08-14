@@ -1,0 +1,20 @@
+[package]
+org = "zed-pkg"
+name = "zed-intellij"
+version = "0.1.0"
+description = "IntelliJ IDEA plugin for Zed package state, diagnostics, and recommended resolutions"
+license = "MIT"
+language = "kotlin"
+keywords = ["intellij", "idea", "plugin", "package-manager", "zed"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg/zed-intellij"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".gradle/**", ".idea/**", "build/**", "out/**"]
+
+[scripts]
+test = "gradle check && gradle buildPlugin"

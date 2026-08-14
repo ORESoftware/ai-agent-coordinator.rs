@@ -1,0 +1,23 @@
+[package]
+org = "anticaptrad"
+name = "act-interfaces"
+version = "0.1.0"
+description = "Versioned language-neutral contracts for Anticapitalist Tradition services"
+license = "MIT"
+keywords = ["interfaces", "json-schema", "contracts", "events", "youtube"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/anticaptrad/act-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -d \"$ZED_PKG_TEST_TARGET/schemas/v1\" && python3 \"$ZED_PKG_TEST_TARGET/tests/validate_schemas.py\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/__pycache__/**"]
+
+[targets.repository]
+dir = "."
+
+[scripts]
+test = "python3 tests/validate_schemas.py"

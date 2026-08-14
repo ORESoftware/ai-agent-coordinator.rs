@@ -1,0 +1,84 @@
+[package]
+org = "messaging-intel"
+name = "msgint-clients"
+version = "0.1.0"
+description = "Official polyglot clients for Messaging Intel"
+license = "MIT"
+keywords = ["clients", "sdk", "polyglot", "messaging-intel"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/messaging-intel/msgint-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"messaging-intel/msgint-interfaces" = "^0.1.0"
+
+[workspace]
+members = ["clients/*"]
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", ".vendor/.zed/**", "tmp/**", "**/*.log", ".DS_Store", "benches/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.nodejs]
+dir = "clients/typescript"
+name = "msgint-clients-nodejs"
+adapter = "node"
+
+[targets.python]
+dir = "clients/python3"
+adapter = "python"
+
+[targets.golang]
+dir = "clients/golang"
+name = "msgint-clients-golang"
+adapter = "go"
+
+[targets.rust]
+dir = "clients/rust"
+adapter = "rust"
+
+[targets.dart]
+dir = "clients/dart"
+adapter = "dart"
+
+[targets.gleam]
+dir = "clients/gleamlang"
+adapter = "none"
+
+[targets.erlang]
+dir = "clients/erlang"
+adapter = "none"
+
+[targets.elixir]
+dir = "clients/elixir"
+adapter = "none"
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.kotlin]
+dir = "clients/kotlin"
+name = "msgint-clients-kotlin"
+adapter = "java"
+
+[targets.ruby]
+dir = "clients/ruby"
+adapter = "none"
+
+[targets.php]
+dir = "clients/php"
+adapter = "none"
+
+[targets.swift]
+dir = "clients/swift"
+name = "msgint-clients-swift"
+adapter = "none"
