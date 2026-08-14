@@ -1,0 +1,48 @@
+name: Temporary HypeSiege StreemPilot manifest repair
+
+on:
+  push:
+    branches:
+      - agent/den-3733-zpkg-v023-reconcile
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact branch state
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Regenerate canonical sealed fleet manifest
+        run: |
+          set -euo pipefail
+          python scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            --output-root "$RUNNER_TEMP/hypesiege-streempilot-fleet" \
+            --manifest-out repository-fleets/hypesiege-streempilot.json
+          python -m unittest -v \
+            scripts/test_publish_hypesiege_streempilot_fleet.py \
+            scripts/test_hypesiege_streempilot_publisher_hardening.py
+
+      - name: Commit deterministic generated output
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- repository-fleets/hypesiege-streempilot.json; then
+            echo 'repository-fleets/hypesiege-streempilot.json is already current'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add repository-fleets/hypesiege-streempilot.json
+          git commit -m 'chore(fleet): regenerate HypeSiege and StreemPilot manifest'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
