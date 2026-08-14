@@ -1,0 +1,29 @@
+[package]
+org = "evento-globolo"
+name = "evgl-monorepo"
+version = "0.1.0"
+description = "High-context development monorepo for Evento Globolo"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/evento-globolo/evgl-monorepo"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"evento-globolo/evgl-clients" = "^0.1.0"
+"evento-globolo/evgl-interfaces" = "^0.1.0"
+"evento-globolo/evgl-libs" = "^0.1.0"
+"evento-globolo/evgl-sync" = "^0.1.0"
+"shared-auth/shared-auth-clients" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "*.log", ".vendor/.zed/**"]
+
+[scripts]
+test = "bash scripts/test.sh && bash scripts/validate-zed-submodules.sh && bash scripts/zed-install-with-submodules.sh"

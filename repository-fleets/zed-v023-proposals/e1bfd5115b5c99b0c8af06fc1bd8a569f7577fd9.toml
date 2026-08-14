@@ -1,0 +1,173 @@
+[package]
+org = "fiducia-cloud"
+name = "fiducia-clients"
+version = "0.1.0"
+description = "Official polyglot clients for fiducia.cloud"
+license = "MIT"
+keywords = ["clients", "sdk", "polyglot", "fiducia"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/fiducia-cloud/fiducia-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"fiducia-cloud/fiducia-interfaces" = "^0.1.0"
+"fiducia-cloud/fiducia-lib" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", ".vendor/.zed/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[scripts]
+test = "python3 scripts/check-required-client-matrix.py"
+
+# The repository target publishes the complete multi-language source snapshot.
+# Every other target is re-rooted and published as one isolated language package.
+[targets.repository]
+dir = "."
+
+# TypeScript is one runtime-neutral Fetch API implementation. The canonical
+# Node.js target owns its Node.js, Deno, Bun, and edge runtime entrypoints.
+[targets.nodejs]
+dir = "clients/ts"
+name = "fiducia-clients-nodejs"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@fiducia/client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.python]
+dir = "clients/python"
+adapter = "python"
+
+[targets.python.native]
+registry = "pypi"
+package = "fiducia-client"
+forge = ["gitlab-packages"]
+
+[targets.golang]
+dir = "clients/go"
+name = "fiducia-clients-golang"
+adapter = "go"
+
+[targets.golang.native]
+registry = "go-modules"
+package = "github.com/fiducia-cloud/fiducia-clients/clients/go"
+tag_format = "clients/go/v{version}"
+forge = ["gitlab-packages"]
+
+[targets.rust]
+dir = "clients/rust"
+adapter = "rust"
+
+[targets.rust-wasm]
+dir = "clients/rust-wasm"
+adapter = "node"
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.csharp]
+dir = "clients/csharp"
+
+[targets.ruby]
+dir = "clients/ruby"
+adapter = "none"
+
+[targets.ruby.native]
+registry = "rubygems"
+package = "fiducia-client"
+forge = ["github-packages", "gitlab-packages"]
+
+[targets.php]
+dir = "clients/php"
+adapter = "none"
+
+[targets.php.native]
+registry = "packagist"
+package = "fiducia/client"
+forge = ["gitlab-packages"]
+
+[targets.shell]
+dir = "clients/shell"
+
+[targets.powershell]
+dir = "clients/powershell"
+
+[targets.dart]
+dir = "clients/dart"
+adapter = "dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "fiducia_client"
+
+[targets.elixir]
+dir = "clients/elixir"
+adapter = "none"
+
+[targets.gleam]
+dir = "clients/gleam"
+
+[targets.fsharp]
+dir = "clients/fsharp"
+
+[targets.ocaml]
+dir = "clients/ocaml"
+
+[targets.clojure]
+dir = "clients/clojure"
+adapter = "java"
+
+[targets.scala]
+dir = "clients/scala"
+adapter = "java"
+
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+
+[targets.erlang]
+dir = "clients/erlang"
+adapter = "none"
+
+[targets.swift]
+dir = "clients/swift"
+adapter = "none"
+
+[targets.cpp]
+dir = "clients/cpp"
+
+[targets.c]
+dir = "clients/c"
+
+[targets.zig]
+dir = "clients/zig"
+
+[targets.haskell]
+dir = "clients/haskell"
+
+[targets.julia]
+dir = "clients/julia"
+
+[targets.r]
+dir = "clients/r"
+
+[targets.matlab]
+dir = "clients/matlab"
+
+[targets.nim]
+dir = "clients/nim"
+
+[targets.crystal]
+dir = "clients/crystal"
+
+[targets.lua]
+dir = "clients/lua"

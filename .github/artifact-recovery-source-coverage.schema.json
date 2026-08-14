@@ -1,0 +1,307 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ORESoftware/ai-agent-coordinator.rs/blob/main/.github/artifact-recovery-source-coverage.schema.json",
+  "title": "Artifact recovery source coverage v1",
+  "description": "Public-safe, deterministic proof that every required artifact-recovery source was explicitly accounted for.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "policy",
+    "receipts",
+    "summary",
+    "report_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "artifact_recovery_source_coverage.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "receipts": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "$ref": "#/$defs/receipt"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "report_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "source": {
+      "enum": [
+        "chatgpt",
+        "claude",
+        "linear",
+        "github",
+        "local_repo",
+        "file_library",
+        "conversation"
+      ]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_sources",
+        "optional_sources",
+        "max_clock_skew_seconds"
+      ],
+      "properties": {
+        "required_sources": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "optional_sources": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "max_clock_skew_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "source_identity_sha256",
+        "capability_sha256",
+        "window",
+        "captured_at",
+        "freshness",
+        "pagination",
+        "reported_state",
+        "state",
+        "error_class",
+        "retryable"
+      ],
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "source_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "capability_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "freshness": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["watermark_at", "max_age_seconds", "age_seconds"],
+          "properties": {
+            "watermark_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "max_age_seconds": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2678400
+            },
+            "age_seconds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "pagination": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "started",
+            "complete",
+            "last_page_complete",
+            "pages_read",
+            "items_read",
+            "terminal_cursor_sha256"
+          ],
+          "properties": {
+            "started": {
+              "type": "boolean"
+            },
+            "complete": {
+              "type": "boolean"
+            },
+            "last_page_complete": {
+              "type": "boolean"
+            },
+            "pages_read": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "items_read": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "terminal_cursor_sha256": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/sha256"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          }
+        },
+        "reported_state": {
+          "$ref": "#/$defs/state"
+        },
+        "state": {
+          "$ref": "#/$defs/state"
+        },
+        "error_class": {
+          "oneOf": [
+            {
+              "enum": [
+                "authorization",
+                "availability",
+                "clock_skew",
+                "pagination",
+                "rate_limited",
+                "stale_watermark",
+                "validation"
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "retryable": {
+          "type": "boolean"
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "complete",
+        "partial",
+        "unavailable",
+        "unauthorized",
+        "stale",
+        "not_configured",
+        "excluded"
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "complete",
+        "required_sources",
+        "optional_sources",
+        "complete_sources",
+        "partial_sources",
+        "blocked_sources",
+        "source_states"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["complete", "partial", "blocked"]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "required_sources": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 32
+        },
+        "optional_sources": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 32
+        },
+        "complete_sources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "partial_sources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "blocked_sources": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "source_states": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/state"
+          },
+          "propertyNames": {
+            "enum": [
+              "chatgpt",
+              "claude",
+              "linear",
+              "github",
+              "local_repo",
+              "file_library",
+              "conversation"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

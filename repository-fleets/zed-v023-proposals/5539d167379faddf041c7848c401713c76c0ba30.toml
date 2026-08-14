@@ -1,0 +1,30 @@
+[package]
+org = "cliptown"
+name = "cliptown-lib-core"
+version = "0.1.0"
+description = "Transport-neutral ClipTown core library"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/cliptown/cliptown-lib-core"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"cliptown/cliptown-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "cargo test --manifest-path \"$ZED_PKG_TEST_TARGET/Cargo.toml\" --locked --all-targets"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "**/target/**", "**/node_modules/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[publish.native]
+registry = "crates-io"
+package = "cliptown-lib-core"
+
+[scripts]
+test = "cargo test --locked --all-targets"

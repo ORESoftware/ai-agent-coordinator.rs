@@ -1,0 +1,26 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-cli"
+version = "0.1.0"
+description = "Fail-closed command planning surface for Benefactor"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-cli"
+
+[dependencies]
+"benefactor-cc/benefactor-interfaces" = "^0.1.0"
+"benefactor-cc/benefactor-lib" = "^0.1.0"
+"benefactor-cc/benefactor-clients" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", "target/**", "tmp/**", "**/*.log"]
+
+[targets.repository]
+dir = "."
+
+[scripts]
+test = "python3 scripts/check-contract.py"

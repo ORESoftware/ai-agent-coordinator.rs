@@ -1,0 +1,14 @@
+[package]
+org = "zed-pkg"
+name = "zed-vscode-extension-host-fixture"
+version = "0.0.0"
+description = "Extension-host integration fixture for zed-vscode"
+license = "MIT"
+language = "javascript"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg/zed-vscode"
+
+[install]
+dir = ".vendor/.zed"

@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 import urllib.error
@@ -20,6 +21,7 @@ from deep_test_fleet_templates import (
     BOOTSTRAP_OPERATION,
     Fleet,
     SuiteSpec,
+    approved_zpkg_predecessors,
     generate_repository_files,
     load_fleet,
     validate_all_templates,
@@ -29,9 +31,10 @@ from deep_test_fleet_templates import (
 API = "https://api.github.com"
 API_VERSION = "2022-11-28"
 USER_AGENT = "test-org-deep-fleet-bootstrap/1"
-FOUNDATION_BRANCH = "agent/deep-test-foundation-20260808"
+FOUNDATION_BRANCH = "agent/den-3717-zpkg-v021-20260814"
 CHECK_NAME = "verify"
 MAX_ERROR_BYTES = 4096
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 TOKEN_PATTERN = re.compile(r"(?i)(?:gh[pousr]_[A-Za-z0-9]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]{16,})")
 
 
@@ -67,6 +70,18 @@ def quote(value: str) -> str:
 def git_blob_sha(content: str) -> str:
     raw = content.encode("utf-8")
     return hashlib.sha1(f"blob {len(raw)}\0".encode("ascii") + raw).hexdigest()  # noqa: S324
+
+
+def read_json_response(response: Any) -> Any:
+    raw = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise BootstrapError(
+            f"GitHub response exceeds the {MAX_RESPONSE_BYTES}-byte safety limit"
+        )
+    try:
+        return json.loads(raw) if raw else None
+    except json.JSONDecodeError as error:
+        raise BootstrapError(f"GitHub returned malformed JSON: {error.msg}") from None
 
 
 class GitHub:
@@ -111,12 +126,11 @@ class GitHub:
             )
             try:
                 with self.opener.open(request, timeout=timeout) as response:
-                    raw = response.read(MAX_ERROR_BYTES * 64)
                     response_headers = dict(response.headers.items())
                     remaining = response.headers.get("X-RateLimit-Remaining")
                     if remaining and remaining.isdigit():
                         self.remaining = int(remaining)
-                    parsed = json.loads(raw) if raw else None
+                    parsed = read_json_response(response)
                     return response.status, parsed, response_headers
             except urllib.error.HTTPError as error:
                 raw = error.read(MAX_ERROR_BYTES)
@@ -300,25 +314,6 @@ def create_repository(github: GitHub, target: Target) -> dict[str, Any]:
     return data
 
 
-def configure_repository(github: GitHub, target: Target) -> dict[str, Any]:
-    _, data, _ = github.patch(
-        repository_path(target),
-        {
-            "description": target.spec.description,
-            "has_issues": True,
-            "has_projects": False,
-            "has_wiki": False,
-            "has_discussions": False,
-            "allow_squash_merge": True,
-            "allow_merge_commit": True,
-            "allow_rebase_merge": False,
-            "delete_branch_on_merge": True,
-        },
-    )
-    exact_repository(data, target)
-    return data
-
-
 def get_ref(github: GitHub, target: Target, branch: str, *, allow_missing: bool = False) -> dict[str, Any] | None:
     status, data, _ = github.get(
         f"{repository_path(target)}/git/ref/heads/{quote(branch)}",
@@ -377,6 +372,21 @@ def expected_shas(files: dict[str, str]) -> dict[str, str]:
     return {path: git_blob_sha(content) for path, content in files.items()}
 
 
+def classify_zpkg_sha(actual: str, target: Target, fleet: Fleet, current: str) -> str:
+    if actual == git_blob_sha(current):
+        return "already_migrated"
+    predecessor_shas = {
+        git_blob_sha(source)
+        for source in approved_zpkg_predecessors(target.organization, target.spec, fleet)
+    }
+    if actual in predecessor_shas:
+        return "approved_predecessor"
+    raise BootstrapError(
+        f"unapproved Zed manifest source on {target.repository}: {actual}; "
+        "semantic reconciliation required"
+    )
+
+
 def verify_tree_exact(paths: dict[str, str], files: dict[str, str]) -> tuple[bool, list[str], list[str]]:
     expected = expected_shas(files)
     missing = sorted(path for path in expected if path not in paths)
@@ -388,6 +398,7 @@ def branch_or_foundation_commit(
     github: GitHub,
     target: Target,
     files: dict[str, str],
+    fleet: Fleet,
     default_branch: str,
     *,
     created: bool,
@@ -401,6 +412,11 @@ def branch_or_foundation_commit(
         return base_sha, default_branch, True
 
     allowed_mismatch = {"README.md"} if created else set()
+    manifest_sha = base_paths.get(".zpkg.toml")
+    if manifest_sha is not None and classify_zpkg_sha(
+        manifest_sha, target, fleet, files[".zpkg.toml"]
+    ) == "approved_predecessor":
+        allowed_mismatch.add(".zpkg.toml")
     unsafe = sorted(set(mismatched) - allowed_mismatch)
     if unsafe:
         raise BootstrapError(
@@ -430,7 +446,10 @@ def branch_or_foundation_commit(
     _, commit, _ = github.post(
         f"{repository_path(target)}/git/commits",
         {
-            "message": f"test: add {target.spec.suite} deep-test foundation\n\nTracking: {tracking_issue}",
+            "message": (
+                "fix(DEN-3717): migrate deep-test Zed manifest to v0.2.1\n\n"
+                f"Tracking: {tracking_issue}"
+            ),
             "tree": tree["sha"],
             "parents": [base_sha],
         },
@@ -478,21 +497,25 @@ def find_or_create_pull_request(
             raise BootstrapError(f"foundation pull request head drift: {target.repository}")
         return pull
     body = (
-        f"## Deep test foundation\n\n"
-        f"Adds the `{target.spec.suite}` deep-testing foundation for `{target.repository}`. "
-        "The source is deterministic, dependency-light, and was validated before publication.\n\n"
-        "### Coverage\n\n"
-        f"- {target.spec.description}\n"
-        "- pinned, read-only GitHub Actions;\n"
-        "- repository contract and credential/conflict-marker scans;\n"
-        "- semantic conflict instructions requiring merge-base and relevant history inspection.\n\n"
-        f"Tracking: {tracking_issue}\n\n"
+        "## Zed v0.2.1 manifest migration\n\n"
+        f"Migrates `{target.repository}` from its exact reviewed predecessor manifest "
+        "to the current canonical Zed package contract.\n\n"
+        "### Contract\n\n"
+        f"- exact package identity `{target.organization}/{target.spec.name}`;\n"
+        "- explicit Git repository provenance, Python language, MIT license, and safe publish exclusions;\n"
+        "- one supported `scripts.test` command preserving every reviewed test and verifier step;\n"
+        "- no legacy `package.type` or `[develop]` fields.\n\n"
+        "The publisher refuses any source manifest that is not byte-for-byte equal to either the "
+        "reviewed legacy template or the new canonical template. Unrelated repository content is preserved.\n\n"
+        "Validated centrally with the official Zed v0.2.1 binary and the complete generated suite.\n\n"
+        "Linear: DEN-3717\n"
+        f"Parent tracking: {tracking_issue}\n\n"
         "This exact head may merge only after its `verify` check succeeds."
     )
     _, pull, _ = github.post(
         f"{repository_path(target)}/pulls",
         {
-            "title": f"test: add {target.spec.suite} deep-test foundation",
+            "title": "fix(DEN-3717): migrate Zed manifest to v0.2.1",
             "head": FOUNDATION_BRANCH,
             "base": default_branch,
             "body": body,
@@ -505,21 +528,30 @@ def find_or_create_pull_request(
     return pull
 
 
-def check_state(github: GitHub, target: Target, head_sha: str) -> tuple[str, str]:
-    _, payload, _ = github.get(
-        f"{repository_path(target)}/commits/{quote(head_sha)}/check-runs?per_page=100"
-    )
-    checks = [item for item in payload.get("check_runs", []) if item.get("name") == CHECK_NAME]
+def verify_check_state(payload: dict[str, Any]) -> tuple[str, str]:
+    checks = [
+        item
+        for item in payload.get("check_runs", [])
+        if item.get("name") == CHECK_NAME
+        and (item.get("app") or {}).get("slug") == "github-actions"
+    ]
     if not checks:
-        return "pending", "verify check has not appeared"
+        return "pending", "trusted GitHub Actions verify check has not appeared"
     checks.sort(key=lambda item: str(item.get("started_at") or item.get("created_at") or ""))
     check = checks[-1]
     if check.get("status") != "completed":
         return "pending", str(check.get("status") or "queued")
     conclusion = str(check.get("conclusion") or "unknown")
-    if conclusion in {"success", "neutral", "skipped"}:
+    if conclusion == "success":
         return "success", conclusion
     return "failure", conclusion
+
+
+def check_state(github: GitHub, target: Target, head_sha: str) -> tuple[str, str]:
+    _, payload, _ = github.get(
+        f"{repository_path(target)}/commits/{quote(head_sha)}/check-runs?per_page=100"
+    )
+    return verify_check_state(payload)
 
 
 def wait_for_all_checks(
@@ -570,8 +602,8 @@ def merge_and_verify(
     status, payload, _ = github.put(
         f"{repository_path(target)}/pulls/{result.pull_request_number}/merge",
         {
-            "commit_title": f"test: add {target.spec.suite} deep-test foundation",
-            "commit_message": f"Tracking: {BOOTSTRAP_OPERATION}",
+            "commit_title": "fix(DEN-3717): migrate Zed manifest to v0.2.1",
+            "commit_message": f"Tracking: {BOOTSTRAP_OPERATION}; DEN-3717",
             "sha": result.head_sha,
             "merge_method": "squash",
         },
@@ -600,6 +632,7 @@ def execute(
     ledger: RunLedger,
     *,
     merge: bool,
+    preflight_only: bool,
     check_timeout_seconds: int,
 ) -> int:
     targets = [Target(organization, spec) for organization in fleet.organizations for spec in fleet.repositories]
@@ -617,12 +650,54 @@ def execute(
         f"missing={sum(1 for item in inventory.values() if not item.exists)}",
         flush=True,
     )
+    missing_repositories = sorted(
+        repository for repository, item in inventory.items() if not item.exists
+    )
+    if missing_repositories:
+        raise BootstrapError(
+            "Zed migration cannot create missing repositories: "
+            + ", ".join(missing_repositories)
+        )
 
     generated_by_repository: dict[str, dict[str, str]] = {}
+    source_states: dict[str, tuple[str, str]] = {}
     for target in targets:
-        generated_by_repository[target.repository] = generate_repository_files(
+        generated = generate_repository_files(
             target.organization, target.spec, fleet
         )
+        # Existing repositories may have independently hardened tests, docs,
+        # or workflows after the original bootstrap. This rollout owns only
+        # the root Zed manifest and must preserve every unrelated byte.
+        generated_by_repository[target.repository] = {".zpkg.toml": generated[".zpkg.toml"]}
+
+        existing = inventory[target.repository]
+        repository = existing.data or {}
+        default_branch = str(repository.get("default_branch") or "")
+        if not default_branch:
+            raise BootstrapError(f"repository default branch missing: {target.repository}")
+        default_ref = wait_for_ref(github, target, default_branch)
+        default_sha = str(default_ref["object"]["sha"])
+        _, paths = commit_tree(github, target, default_sha)
+        actual = paths.get(".zpkg.toml")
+        if actual is None:
+            raise BootstrapError(f"root .zpkg.toml is missing: {target.repository}")
+        state = classify_zpkg_sha(actual, target, fleet, generated[".zpkg.toml"])
+        source_states[target.repository] = (state, default_sha)
+
+    state_counts: dict[str, int] = {}
+    for state, _ in source_states.values():
+        state_counts[state] = state_counts.get(state, 0) + 1
+    print(
+        "manifest source preflight complete: "
+        + " ".join(f"{key}={value}" for key, value in sorted(state_counts.items())),
+        flush=True,
+    )
+    if preflight_only:
+        for result in ledger.repositories:
+            state, default_sha = source_states[result.repository]
+            result.state = f"preflight_{state}"
+            result.default_branch_sha = default_sha or None
+        return 0
 
     for index, target in enumerate(targets, start=1):
         result = results_by_repository[target.repository]
@@ -635,7 +710,6 @@ def execute(
                 repository = create_repository(github, target)
                 result.created = True
             repository = ensure_main_default(github, target, repository, result.created)
-            repository = configure_repository(github, target)
             result.repository_url = f"https://github.com/{target.repository}"
             result.default_branch = str(repository.get("default_branch") or "main")
             files = generated_by_repository[target.repository]
@@ -643,6 +717,7 @@ def execute(
                 github,
                 target,
                 files,
+                fleet,
                 result.default_branch,
                 created=result.created,
                 tracking_issue=fleet.tracking_issue,
@@ -730,11 +805,38 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Bootstrap deep-test repositories across exact *-test orgs")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--token-file", type=Path)
+    parser.add_argument(
+        "--gh-auth",
+        action="store_true",
+        help="read the active GitHub CLI token into process memory without persisting it",
+    )
     parser.add_argument("--result", type=Path)
     parser.add_argument("--merge", action="store_true")
+    parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--check-timeout-seconds", type=int, default=1200)
     return parser.parse_args(argv)
+
+
+def load_token(token_file: Path | None, use_gh_auth: bool) -> str:
+    if bool(token_file) == use_gh_auth:
+        raise BootstrapError("choose exactly one of --token-file or --gh-auth")
+    if token_file is not None:
+        return token_file.read_text(encoding="utf-8").strip()
+    try:
+        completed = subprocess.run(
+            ["gh", "auth", "token", "--hostname", "github.com"],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        raise BootstrapError(f"GitHub CLI authentication is unavailable: {error}") from None
+    token = completed.stdout.strip()
+    if not token:
+        raise BootstrapError("GitHub CLI returned an empty authentication token")
+    return token
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -747,11 +849,11 @@ def main(argv: list[str] | None = None) -> int:
             f"repositories_per_org={len(fleet.repositories)} total={fleet.total}"
         )
         return 0
-    if not args.token_file or not args.result:
-        raise BootstrapError("live execution requires --token-file and --result")
+    if not args.result:
+        raise BootstrapError("live execution requires --result")
     if args.check_timeout_seconds < 60 or args.check_timeout_seconds > 3600:
         raise BootstrapError("check timeout must be between 60 and 3600 seconds")
-    token = args.token_file.read_text(encoding="utf-8").strip()
+    token = load_token(args.token_file, args.gh_auth)
     ledger = RunLedger()
     try:
         github = GitHub(token)
@@ -760,6 +862,7 @@ def main(argv: list[str] | None = None) -> int:
             fleet,
             ledger,
             merge=args.merge,
+            preflight_only=args.preflight_only,
             check_timeout_seconds=args.check_timeout_seconds,
         )
     except Exception as error:

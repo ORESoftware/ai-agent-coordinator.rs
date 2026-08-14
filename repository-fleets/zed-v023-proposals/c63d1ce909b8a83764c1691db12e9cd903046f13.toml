@@ -1,0 +1,39 @@
+[package]
+org = "akrion-sim"
+name = "akrion-sim-sync"
+version = "0.1.0"
+description = "Private local-first synchronization contracts and runtimes for Akrion simulation clients"
+license = "UNLICENSED"
+keywords = ["sync", "offline-first", "supabase", "sqlite", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/akrion-sim/akrion-sim-sync"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/crates/core/Cargo.toml\" && test -d \"$ZED_PKG_TEST_TARGET/packages/typescript\" && test -d \"$ZED_PKG_TEST_TARGET/packages/dart\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "crates/core"
+adapter = "rust"
+
+[targets.nodejs]
+dir = "packages/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "packages/dart"
+adapter = "dart"
+
+[targets.sql]
+dir = "sql"
+adapter = "none"
+
+[scripts]
+test = "npm test && cargo test --manifest-path crates/core/Cargo.toml"

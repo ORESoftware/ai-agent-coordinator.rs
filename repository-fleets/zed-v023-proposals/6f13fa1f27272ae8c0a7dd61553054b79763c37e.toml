@@ -1,0 +1,50 @@
+[package]
+org = "file-tunnel"
+name = "ftnl-ui-components"
+version = "0.1.0"
+description = "Embeddable File Tunnel pickers for Rust, web, Flutter, SwiftUI, and Android Compose"
+license = "MIT"
+keywords = ["ui", "file-transfer", "rust", "flutter", "swiftui", "android"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/file-tunnel/ftnl-ui-components"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/rust/Cargo.toml\" && test -f \"$ZED_PKG_TEST_TARGET/web/package.json\" && test -f \"$ZED_PKG_TEST_TARGET/dart/pubspec.yaml\" && test -f \"$ZED_PKG_TEST_TARGET/ios/Package.swift\" && test -f \"$ZED_PKG_TEST_TARGET/android/settings.gradle.kts\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/node_modules/**", "**/.dart_tool/**", "**/build/**", "**/.gradle/**", "**/.swiftpm/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "rust"
+
+[targets.nodejs]
+dir = "web"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@file-tunnel/ui"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.flutter]
+dir = "dart"
+adapter = "dart"
+
+[targets.flutter.native]
+registry = "pub.dev"
+package = "ftnl_ui"
+
+[targets.swift]
+dir = "ios"
+
+[targets.kotlin]
+dir = "android"
+adapter = "java"
+
+[scripts]
+test = "nix develop --command agent-check"

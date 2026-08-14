@@ -1,0 +1,38 @@
+[package]
+org = "file-tunnel"
+name = "ftnl-interfaces"
+version = "0.1.0"
+description = "Canonical versioned contracts for File Tunnel services, applications, and SDKs"
+license = "MIT"
+keywords = ["interfaces", "openapi", "asyncapi", "json-schema", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/file-tunnel/ftnl-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/openapi/ftnl.openapi.yaml\" && test -f \"$ZED_PKG_TEST_TARGET/asyncapi/ftnl.asyncapi.yaml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[targets.gleam]
+dir = "generated/gleam"
+
+[scripts]
+test = "nix develop --command agent-check"
