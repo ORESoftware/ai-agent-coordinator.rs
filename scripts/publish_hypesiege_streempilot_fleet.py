@@ -591,7 +591,7 @@ def request_json(
     token: str,
     body: dict[str, Any] | None = None,
 ) -> tuple[int, dict[str, Any] | None]:
-    if method not in {"GET", "POST", "PATCH"}:
+    if method not in {"GET", "POST"}:
         raise PublicationError(f"unsupported GitHub API method: {method}")
     validate_api_path(path)
     validate_token(token)
@@ -647,7 +647,7 @@ def request_json(
                 f"GitHub API redirect rejected for {method} {path}"
             ) from error
         raise PublicationError(
-            f"GitHub API unavailable for {method} {path}: "
+            f"GitHub API {error.code} for {method} {path}: "
             f"{sanitize_detail(raw, token=token)}"
         ) from error
 
@@ -727,22 +727,20 @@ def ensure_repository(record: dict[str, Any], token: str) -> tuple[dict[str, Any
         )
         if create_status != 201:
             raise PublicationError(f"unexpected repository creation status: {create_status}")
-    return validate_repository_metadata(record, current, require_settings=False), created
+    return validate_repository_metadata(
+        record, current, require_settings=not created
+    ), created
 
 
 def configure_repository(record: dict[str, Any], token: str) -> dict[str, Any]:
+    """Re-read and certify settings without mutating an existing repository."""
     status, current = request_json(
-        "PATCH",
+        "GET",
         f"/repos/{record['full_name']}",
         token,
-        {
-            "description": record["description"],
-            "default_branch": "main",
-            **REPOSITORY_SETTINGS,
-        },
     )
     if status != 200:
-        raise PublicationError(f"unexpected repository configuration status: {status}")
+        raise PublicationError(f"unexpected repository recertification status: {status}")
     return validate_repository_metadata(record, current, require_settings=True)
 
 
