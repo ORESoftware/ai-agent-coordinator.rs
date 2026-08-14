@@ -1,0 +1,13 @@
+[package]
+org = "oresoftware"
+name = "node-app"
+version = "0.1.0"
+description = "node-app package"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/ORESoftware/zed-pkg-test"
+
+[publish]
+exclude = []

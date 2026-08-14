@@ -1,0 +1,35 @@
+[package]
+org = "hypesiege"
+name = "hypesiege-libs"
+version = "0.1.1"
+description = "Shared runtime-light endpoint and client configuration primitives for HypeSiege"
+license = "MIT"
+keywords = ["hypesiege", "library", "configuration", "rust"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/hypesiege/hypesiege-libs"
+
+[dependencies]
+"hypesiege/hypesiege-interfaces" = "^0.1.0"
+
+[build]
+command = "cargo build --release --locked"
+outputs = ["target/release/libhypesiege_libs.rlib"]
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".vendor/.zed/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[publish.native]
+registry = "crates-io"
+package = "hypesiege-libs"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && cargo fmt --all -- --check"

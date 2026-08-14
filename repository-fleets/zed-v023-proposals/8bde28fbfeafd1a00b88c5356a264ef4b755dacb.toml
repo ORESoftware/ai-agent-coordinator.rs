@@ -1,0 +1,19 @@
+[package]
+org = "fiducia-cloud-test"
+name = "gleam-client-consumer"
+version = "0.1.0"
+description = "Independent consumer acceptance harness"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/fiducia-cloud-test/gleam-client-consumer"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"fiducia-cloud/fiducia-clients-gleam" = "*"
+
+[publish]
+exclude = ["artifacts/**", "vendor/**", ".vendor/**", ".env", ".env.*"]

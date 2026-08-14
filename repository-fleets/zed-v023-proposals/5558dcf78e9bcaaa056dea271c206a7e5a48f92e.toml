@@ -1,0 +1,83 @@
+[package]
+org = "quaestor-ledger"
+name = "quaestor-interfaces"
+version = "0.1.0"
+description = "Typed ledger table and wire contracts with exact minor-unit money semantics"
+keywords = ["interfaces", "ledger", "json-schema", "money", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/quaestor-ledger/quaestor-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/tables.json\" && test -f \"$ZED_PKG_TEST_TARGET/generated/rust/Cargo.toml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**", "**/__pycache__/**", "**/_build/**", "**/obj/**", "**/bin/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.rust-wasm]
+dir = "generated/rust-wasm"
+adapter = "node"
+ecosystem = "npm"
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[targets.go]
+dir = "generated/go"
+adapter = "go"
+
+[targets.java]
+dir = "generated/java"
+adapter = "java"
+
+[targets.python]
+dir = "generated/python"
+adapter = "python"
+
+[targets.csharp]
+dir = "generated/csharp"
+
+[targets.kotlin]
+dir = "generated/kotlin"
+adapter = "java"
+
+[targets.swift]
+dir = "generated/swift"
+
+[targets.php]
+dir = "generated/php"
+
+[targets.ruby]
+dir = "generated/ruby"
+
+[targets.elixir]
+dir = "generated/elixir"
+
+[targets.erlang]
+dir = "generated/erlang"
+
+[targets.gleam]
+dir = "generated/gleam"
+
+[targets.ocaml]
+dir = "generated/ocaml"
+
+[targets.json-schema]
+dir = "generated/json-schema"
+adapter = "none"
+
+[scripts]
+test = "npm test"

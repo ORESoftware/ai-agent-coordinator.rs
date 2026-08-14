@@ -3,12 +3,18 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from bootstrap_test_org_deep_fleets_live import NoRedirect, git_blob_sha, redact
+from bootstrap_test_org_deep_fleets_live import (
+    NoRedirect,
+    git_blob_sha,
+    read_json_response,
+    redact,
+)
 from deep_test_fleet_templates import (
     BOOTSTRAP_OPERATION,
     EXPECTED_ORGANIZATION_COUNT,
@@ -143,6 +149,12 @@ class DeepTestFleetContractTests(unittest.TestCase):
         self.assertNotIn(token, redact(f"upstream echoed {token}", token))
         handler = NoRedirect()
         self.assertIsNone(handler.redirect_request(None, None, 302, "found", {}, "https://example.invalid"))
+
+    def test_success_response_reader_does_not_truncate_large_git_trees(self) -> None:
+        payload = {"tree": [{"path": "x" * 300_000, "type": "blob"}]}
+        encoded = json.dumps(payload).encode("utf-8")
+        self.assertGreater(len(encoded), 4096 * 64)
+        self.assertEqual(read_json_response(io.BytesIO(encoded)), payload)
 
     def test_manifest_digest_is_stable(self) -> None:
         digest = hashlib.sha256(MANIFEST.read_bytes()).hexdigest()

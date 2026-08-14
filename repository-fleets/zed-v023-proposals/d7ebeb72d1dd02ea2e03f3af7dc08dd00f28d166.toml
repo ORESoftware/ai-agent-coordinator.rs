@@ -1,0 +1,26 @@
+[package]
+org = "discrete-event-systems"
+name = "des-mcp-server"
+version = "0.1.0"
+description = "MCP server for Discrete Event Systems"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/discrete-event-systems/des-mcp-server.rs"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"discrete-event-systems/des-clients" = "^0.1.0"
+"discrete-event-systems/des-lib" = "^0.1.0"
+"discrete-event-systems/des-interfaces" = "^0.1.0"
+"discrete-event-systems/des-cli" = "^0.1.0"
+"shared-auth/shared-auth-clients" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "build/**", "*.log", ".vendor/.zed/**", ".zed/**"]
