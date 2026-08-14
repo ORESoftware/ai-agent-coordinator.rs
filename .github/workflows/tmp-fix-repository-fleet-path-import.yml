@@ -27,11 +27,11 @@ jobs:
 
           path = Path('.github/workflows/repository-fleets.yml')
           source = path.read_text()
-          old = "          import pathlib\n"
-          new = "          from pathlib import Path\n"
+          old = "          import pathlib\n          import subprocess\n"
+          new = "          from pathlib import Path\n          import subprocess\n"
           count = source.count(old)
           if count != 1:
-              raise SystemExit(f'expected one stale pathlib import, found {count}')
+              raise SystemExit(f'expected one stale plan-validator import block, found {count}')
           path.write_text(source.replace(old, new, 1))
           PY
 
