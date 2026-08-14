@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Apply the exact fail-closed redaction repair
+      - name: Restore the reviewed fail-closed sanitizer
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -32,12 +32,41 @@ jobs:
 
           path = Path('scripts/publish_hypesiege_streempilot_fleet.py')
           source = path.read_text()
-          old = 'f"{sanitize_detail(reason, token=token)}"'
-          new = 'f"{sanitize_detail(raw, token=token)}"'
-          count = source.count(old)
-          if count != 1:
-              raise SystemExit(f'expected exactly one stale redaction reference; found {count}')
-          path.write_text(source.replace(old, new, 1))
+
+          old_error = 'f"{sanitize_detail(reason, token=token)}"'
+          new_error = 'f"{sanitize_detail(raw, token=token)}"'
+          if source.count(old_error) != 1:
+              raise SystemExit('expected exactly one stale API error redaction reference')
+          source = source.replace(old_error, new_error, 1)
+
+          token_marker = 'TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]{20,255}\\Z")\n'
+          sanitizer_constants = '''TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]{20,255}\\Z")
+          MAX_ERROR_DETAIL_BYTES = MAX_ERROR_BYTES
+          SECRET_PATTERNS = (
+              re.compile(r"(?i)\\bBearer\\s+[^\\s,;]+"),
+              re.compile(r"\\bgh[pousr]_[A-Za-z0-9_]+\\b"),
+              re.compile(r"\\bgithub_pat_[A-Za-z0-9_]+\\b"),
+          )
+          '''
+          if 'SECRET_PATTERNS = (' in source or 'MAX_ERROR_DETAIL_BYTES =' in source:
+              raise SystemExit('sanitizer constants unexpectedly already exist')
+          if source.count(token_marker) != 1:
+              raise SystemExit('expected exactly one token-pattern insertion marker')
+          source = source.replace(token_marker, sanitizer_constants, 1)
+
+          duplicate_handler = '''
+
+          class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+              """Reject redirects so credentials never cross an unexpected origin."""
+
+              def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
+                  return None
+          '''
+          if source.count(duplicate_handler) != 1:
+              raise SystemExit('expected exactly one duplicate redirect handler')
+          source = source.replace(duplicate_handler, '', 1)
+
+          path.write_text(source)
           PY
 
       - name: Regenerate the canonical sealed fleet manifest
