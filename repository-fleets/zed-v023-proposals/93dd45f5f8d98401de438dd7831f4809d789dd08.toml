@@ -1,0 +1,37 @@
+[package]
+org = "sonus-auris"
+name = "sonus-auris-orm-core"
+version = "0.1.0"
+description = "Canonical opaque SeaORM boundary for the sonus-auris organization"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/sonus-auris/sonus-auris-orm-core"
+
+[dependencies]
+"oresoftware/k8s-libs-and-shared-defs" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [
+  ".env",
+  ".env.*",
+  ".vendor/.zed/**",
+  "target/**",
+  "**/*.log",
+]
+
+[install]
+dir = ".vendor/.zed"
+
+[targets.rust]
+dir = "."
+adapter = "rust"
+
+# This private boundary is consumed through an exact reviewed Git/Zed package
+# object. Do not advertise a native registry until Cargo publication and
+# licensing are explicitly enabled and certified.
+
+[scripts]
+test = "cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings && cargo test --all-targets && cargo test --all-targets --all-features && cargo test --doc"

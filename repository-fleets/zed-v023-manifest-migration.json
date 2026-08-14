@@ -1,0 +1,3943 @@
+{
+  "already_reconciled": [
+    {
+      "current_blob": "d6b62cdca75610f87c2528f81f65505fc7768dbb",
+      "merge_commit": "58ecba6d48b3f776d613353f61d83bea111c9949",
+      "path": ".zpkg.toml",
+      "pull_request": "https://github.com/opto-sync-test/contract-conformance-tests/pull/5",
+      "repository": "opto-sync-test/contract-conformance-tests",
+      "snapshot_blob": "4e0489fb54a1af197cc69d3aafc45fa324e81371"
+    }
+  ],
+  "authenticated_actor": {
+    "id": 11139560,
+    "login": "ORESoftware"
+  },
+  "generated_at": "2026-08-14T18:54:00Z",
+  "immutable_snapshots": [
+    {
+      "path": "proof/den-2612/source/.zpkg.toml",
+      "proof_source_blob": "9fb75f27a614b3a15dd6fe23a6f72fbf0a28e5ba",
+      "reason": "DEN-2612 preserves byte-identical source evidence from 3FA-app/3fa-clients PR 37; proof-source.json and verify_snapshot.py require this historical blob",
+      "repository": "3fa-app-test/clients-consumer-matrix",
+      "snapshot_blob": "1a05a2c6850a375eb5720ff6bf23883b0a5fb63d"
+    }
+  ],
+  "mutations": [
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/mb-clients/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/eb18d9f4995e54d8380375e12ffbf3ad86d2cd4b.toml",
+      "proposed_blob": "a55984d57fc01086d6cdd48d1099f7a2699c783b",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "agent-pontifex/ai-agent-coordinator.rs",
+      "source_blob": "eb18d9f4995e54d8380375e12ffbf3ad86d2cd4b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/mb-infra/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/db795dbae04e000882904a2a9da22e61740b690d.toml",
+      "proposed_blob": "bc3246d0b6fbef46926557f4aed159d8056f7a33",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "agent-pontifex/ai-agent-coordinator.rs",
+      "source_blob": "db795dbae04e000882904a2a9da22e61740b690d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/mb-interfaces/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/0ee4a53b232d9829647f51169c929c9207c26af8.toml",
+      "proposed_blob": "1c86ed6085b058de436ab1a6bb88ed97e83f1f18",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "agent-pontifex/ai-agent-coordinator.rs",
+      "source_blob": "0ee4a53b232d9829647f51169c929c9207c26af8"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/memebank-e2e/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/3e2225972ff72f9a073ca6f41beb147f968b0a25.toml",
+      "proposed_blob": "72499421258242bb05cc1aeb18b97a4ea660945c",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "agent-pontifex/ai-agent-coordinator.rs",
+      "source_blob": "3e2225972ff72f9a073ca6f41beb147f968b0a25"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/apme-e2e/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/74cb10621009842045939508dfc34e9e9582a06b.toml",
+      "proposed_blob": "472f065500c5bf6d820a0bf2784f3574f7c05bba",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "apostille-me/.github",
+      "source_blob": "74cb10621009842045939508dfc34e9e9582a06b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/benefactor-api-server.rs/.zpkg.toml",
+      "phase": 1,
+      "private": true,
+      "proposal": "zed-v023-proposals/a3da3bd053f6aea447fb32bea372e96cdef1c6b5.toml",
+      "proposed_blob": "e755f5ca99fb956c3bba995be76e28e688f7825c",
+      "recipes": [
+        "canonical-root-target-name",
+        "canonical-rust-adapter",
+        "slug-rust-package-name"
+      ],
+      "repository": "benefactor-cc/benefactor-monorepo",
+      "source_blob": "a3da3bd053f6aea447fb32bea372e96cdef1c6b5"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/benefactor-infra/.zpkg.toml",
+      "phase": 1,
+      "private": true,
+      "proposal": "zed-v023-proposals/abe409b67bf4eba09c46ae814a7d9c6576e149dc.toml",
+      "proposed_blob": "b8e588b892c8fb273c4757942c99e98ab2ee5167",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-monorepo",
+      "source_blob": "abe409b67bf4eba09c46ae814a7d9c6576e149dc"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/benefactor-web-server.rs/.zpkg.toml",
+      "phase": 1,
+      "private": true,
+      "proposal": "zed-v023-proposals/4672af640e3e958a9b2a6a098fe0f7f3f48a9a07.toml",
+      "proposed_blob": "eed11910b8e5d5f9fc2e85210422d7343ba45f03",
+      "recipes": [
+        "canonical-root-target-name",
+        "canonical-rust-adapter",
+        "slug-rust-package-name"
+      ],
+      "repository": "benefactor-cc/benefactor-monorepo",
+      "source_blob": "4672af640e3e958a9b2a6a098fe0f7f3f48a9a07"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "canonical-interfaces/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/d5780055c85155ed3be11a23eab2c01944932d28.toml",
+      "proposed_blob": "bce904212b2b1940c6d1b46f51b11a377c5040b1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "canonical-cloud/canonical.cloud",
+      "source_blob": "d5780055c85155ed3be11a23eab2c01944932d28"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "canonical-marketing-site.web/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/f8b14e58a97dd3a939b0a46615f1eabdd9580db8.toml",
+      "proposed_blob": "75f766862b54d8efb411e9eb8ab71f9f73b184bc",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "canonical-cloud/canonical.cloud",
+      "source_blob": "f8b14e58a97dd3a939b0a46615f1eabdd9580db8"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "canonical-monorepo/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/096f807b152d29f60d97cfc15de39afaf6a9c60b.toml",
+      "proposed_blob": "f50aeaf9b92f347bc4b061961963cf0677516f7e",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "canonical-cloud/canonical.cloud",
+      "source_blob": "096f807b152d29f60d97cfc15de39afaf6a9c60b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/eal-e2e/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/a5d75ad0e73220132e23c82018439add94b2b040.toml",
+      "proposed_blob": "9b55389ee5ea5e7f649ccf57f62e837b665bf19c",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "embedded-alerts/.github",
+      "source_blob": "a5d75ad0e73220132e23c82018439add94b2b040"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/evgl-e2e/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/68acf6a1a396d320b9cb279a16a7ec68ae3157ae.toml",
+      "proposed_blob": "9e59cbfd989eaa29d01973b790b37df6265bb390",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "evento-globolo/.github",
+      "source_blob": "68acf6a1a396d320b9cb279a16a7ec68ae3157ae"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-seeds/hhm-e2e/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/871664c62077ef28f3a5f275c9d964b61863fa3a.toml",
+      "proposed_blob": "3f64dd2dbfe3e3355875b3ede43ecf33b1938e5c",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "hacker-house-medellin/.github",
+      "source_blob": "871664c62077ef28f3a5f275c9d964b61863fa3a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/mb-clients/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/eb18d9f4995e54d8380375e12ffbf3ad86d2cd4b.toml",
+      "proposed_blob": "a55984d57fc01086d6cdd48d1099f7a2699c783b",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "source_blob": "eb18d9f4995e54d8380375e12ffbf3ad86d2cd4b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/mb-infra/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/db795dbae04e000882904a2a9da22e61740b690d.toml",
+      "proposed_blob": "bc3246d0b6fbef46926557f4aed159d8056f7a33",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "source_blob": "db795dbae04e000882904a2a9da22e61740b690d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/mb-interfaces/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/0ee4a53b232d9829647f51169c929c9207c26af8.toml",
+      "proposed_blob": "1c86ed6085b058de436ab1a6bb88ed97e83f1f18",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "source_blob": "0ee4a53b232d9829647f51169c929c9207c26af8"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "repository-blueprints/memebank/memebank-e2e/.zpkg.toml",
+      "phase": 1,
+      "private": false,
+      "proposal": "zed-v023-proposals/3e2225972ff72f9a073ca6f41beb147f968b0a25.toml",
+      "proposed_blob": "72499421258242bb05cc1aeb18b97a4ea660945c",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "source_blob": "3e2225972ff72f9a073ca6f41beb147f968b0a25"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/2383fe3c0da214c7f9bd97799385de9dbad7be9c.toml",
+      "proposed_blob": "5526b55ca8bf86d08481145a2458a799272f2493",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "3fa-app-test/clients-dart-consumer",
+      "source_blob": "2383fe3c0da214c7f9bd97799385de9dbad7be9c"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/9966df10e0b7d7a53f5764bac355e5d84bffc48c.toml",
+      "proposed_blob": "7d81efcfab22d4e7a11af06bad1adc3301daf304",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "3fa-app-test/clients-rust-consumer",
+      "source_blob": "9966df10e0b7d7a53f5764bac355e5d84bffc48c"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/701123898c6c3f1a0a983907f8db11f8dc9b4fb9.toml",
+      "proposed_blob": "d772cc8ff439d39d18122a025da762126c44fe13",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "3fa-app-test/clients-typescript-consumer",
+      "source_blob": "701123898c6c3f1a0a983907f8db11f8dc9b4fb9"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/b8db3d4ef1cd955f8ab7f4a0291ce1c63100c9e1.toml",
+      "proposed_blob": "4c62ea4e0d301eba01af8b82996561d3834b0a2d",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "3fa-app-test/desktop-app-e2e",
+      "source_blob": "b8db3d4ef1cd955f8ab7f4a0291ce1c63100c9e1"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/76c62615f536491ac112974b076aa380e9ee5177.toml",
+      "proposed_blob": "88f09ad19600409be1836de025af505126210222",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "3fa-app-test/mobile-emulator-e2e",
+      "source_blob": "76c62615f536491ac112974b076aa380e9ee5177"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/3b6009ccd49eb33d5b48ce9ed6b75b8e078d3e23.toml",
+      "proposed_blob": "700461ed886b62c4659962804f4a9c2e5f86cefc",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "canonical-threefa-package-org",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "3FA-app/3FA-app-cli",
+      "source_blob": "3b6009ccd49eb33d5b48ce9ed6b75b8e078d3e23"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/7a338d94b0354449ade60cf92c13d701a9a2cd83.toml",
+      "proposed_blob": "f05792c5b786e4221e770510c5621e305af0585f",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "3FA-app/3fa-clients",
+      "source_blob": "7a338d94b0354449ade60cf92c13d701a9a2cd83"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/5785ef0e61a2536a19164fd3c1370af18dba9d8c.toml",
+      "proposed_blob": "fae59ac6e39b3274ae2349d489402ca228ded5e1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "3FA-app/3fa-interfaces",
+      "source_blob": "5785ef0e61a2536a19164fd3c1370af18dba9d8c"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/127937168b667d9c22d636abd9583f006caa5e8b.toml",
+      "proposed_blob": "4b192a817bbf337f0714066b5c4b80c43139685d",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "3FA-app/threefa-monorepo",
+      "source_blob": "127937168b667d9c22d636abd9583f006caa5e8b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/ec1be4b43852305e06d659e368ac50625349bd47.toml",
+      "proposed_blob": "a4006745ac687d869c20784094a67cbf2afbcc6e",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "akrion-sim/akrion-sim-interfaces",
+      "source_blob": "ec1be4b43852305e06d659e368ac50625349bd47"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/c63d1ce909b8a83764c1691db12e9cd903046f13.toml",
+      "proposed_blob": "3f5941d3f8485d4db9300859b8004ac461468187",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "akrion-sim/akrion-sim-sync",
+      "source_blob": "c63d1ce909b8a83764c1691db12e9cd903046f13"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/334151a4b4cc30eea43566d385e11ec4c0b059bc.toml",
+      "proposed_blob": "27a972c1d8100c5d7109c4114850cafad8707f98",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "anticaptrad/act-clients",
+      "source_blob": "334151a4b4cc30eea43566d385e11ec4c0b059bc"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/980a9c7595802bcf0fbd0716cf432fe6d31e2324.toml",
+      "proposed_blob": "b2a13033c8caba40c5d73c98f9979ddcd49bd767",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "anticaptrad/act-interfaces",
+      "source_blob": "980a9c7595802bcf0fbd0716cf432fe6d31e2324"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/5da6928da5440f316c021bc011013729375487e1.toml",
+      "proposed_blob": "4d93f5143b3768070e2a51b215af7c173208ae19",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "anticaptrad/act-monorepo",
+      "source_blob": "5da6928da5440f316c021bc011013729375487e1"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/daf186d3cf2c37818059908019bbf27fe2cf047f.toml",
+      "proposed_blob": "33f4ea589342e1e2969796f30d8271c37aad442e",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "repository": "apostille-me/apme-clients",
+      "source_blob": "daf186d3cf2c37818059908019bbf27fe2cf047f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/74cb10621009842045939508dfc34e9e9582a06b.toml",
+      "proposed_blob": "472f065500c5bf6d820a0bf2784f3574f7c05bba",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "apostille-me/apme-e2e",
+      "source_blob": "74cb10621009842045939508dfc34e9e9582a06b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/ffdd9940f58207e46ad5d862d9946080a3ed0cff.toml",
+      "proposed_blob": "12fd0f8c4ea95502ba6df5a3df63300167aa9653",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "apostille-me/apme-monorepo",
+      "source_blob": "ffdd9940f58207e46ad5d862d9946080a3ed0cff"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/6151f71b5a1ce25ca684742a5d492f747a4bfe60.toml",
+      "proposed_blob": "1367a8353194d6313a3bb8c5cdc7dee25d45ed19",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "repository": "apostille-me/apostille-me.github.io",
+      "source_blob": "6151f71b5a1ce25ca684742a5d492f747a4bfe60"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/626e22fe3c5d74184dcca25f84c448a1c216357a.toml",
+      "proposed_blob": "7e1acb68ce4b6453b57348e3749a4c9cb1291ed1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "athlet-o/athleto-clients",
+      "source_blob": "626e22fe3c5d74184dcca25f84c448a1c216357a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/0c6ffe9ea43461b9eb39aac42aaa6765509d0178.toml",
+      "proposed_blob": "ee7293a7ce1da0238f8739dcc16e783a9d3dca75",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "athlet-o/athleto-interfaces",
+      "source_blob": "0c6ffe9ea43461b9eb39aac42aaa6765509d0178"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/bcc3433c2924418d5151f1446b88c5f53844acd6.toml",
+      "proposed_blob": "a16234697665bc1c3263eefd0bd3adbe6618fc0c",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-automations",
+      "source_blob": "bcc3433c2924418d5151f1446b88c5f53844acd6"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "packages/benefactor-gas/.zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/6361dff5a7b79afebf4f59765ae8edde26f316e5.toml",
+      "proposed_blob": "b68f662395b9228637c8e070b1da82ddba900f16",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-automations",
+      "source_blob": "6361dff5a7b79afebf4f59765ae8edde26f316e5"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/1e1c62babbe20ecdb49728683f174475571205ef.toml",
+      "proposed_blob": "1e550b2a5c227769a24ae29586c762eb1500766a",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-cli",
+      "source_blob": "1e1c62babbe20ecdb49728683f174475571205ef"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/83e77ca008e3a8b3bc22d7a418106680008d7057.toml",
+      "proposed_blob": "a48ba853a3958b2d50eb763d3bbc3ec3478cce63",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-clients",
+      "source_blob": "83e77ca008e3a8b3bc22d7a418106680008d7057"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/9e8b36acbbf1c619799c6110e39d4350efc94e41.toml",
+      "proposed_blob": "75270f1266664eb8e63082cbddbd0937e24ccf5a",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-interfaces",
+      "source_blob": "9e8b36acbbf1c619799c6110e39d4350efc94e41"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/c887156255ec2667189aa955104b4a69ad01372d.toml",
+      "proposed_blob": "dc24ed1c9f270409618dab45f2af6d98d7b998bf",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "benefactor-cc/benefactor-lib",
+      "source_blob": "c887156255ec2667189aa955104b4a69ad01372d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/10a3b434a1d36102a1b2d2dd989b769cca177d8e.toml",
+      "proposed_blob": "f717465c072f9afa31c092214e1a58b1f8402cfa",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "canonical-cloud/canonical-api-server.rs",
+      "source_blob": "10a3b434a1d36102a1b2d2dd989b769cca177d8e"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/0ed649f5770075f94e06f0fe7036c73afa8e4940.toml",
+      "proposed_blob": "62f095a5e15ebc4f1a30c2320cf17f92b41fcd5e",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "canonical-cloud/canonical-clients",
+      "source_blob": "0ed649f5770075f94e06f0fe7036c73afa8e4940"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/a546b3272972a2fa0344af3787315c8143bdefcb.toml",
+      "proposed_blob": "cdf3b9bf46f9fad250c47b8101c7bc5bae8023ba",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "canonical-cloud/canonical-e2e",
+      "source_blob": "a546b3272972a2fa0344af3787315c8143bdefcb"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/5e0a21255cf457104494a9a8751ccd8951b628b2.toml",
+      "proposed_blob": "789fbfef839cae620590c0c30e2e49cf54b0c2c5",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "canonical-cloud/canonical-infra",
+      "source_blob": "5e0a21255cf457104494a9a8751ccd8951b628b2"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/d5780055c85155ed3be11a23eab2c01944932d28.toml",
+      "proposed_blob": "bce904212b2b1940c6d1b46f51b11a377c5040b1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "canonical-cloud/canonical-interfaces",
+      "source_blob": "d5780055c85155ed3be11a23eab2c01944932d28"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/651f4e26dbfb62d584ce72dff16ddb33f69d39c0.toml",
+      "proposed_blob": "95c1f85beb380412830d0ba1db9bde31862c1edd",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "canonical-cloud/canonical-lib",
+      "source_blob": "651f4e26dbfb62d584ce72dff16ddb33f69d39c0"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/f8b14e58a97dd3a939b0a46615f1eabdd9580db8.toml",
+      "proposed_blob": "75f766862b54d8efb411e9eb8ab71f9f73b184bc",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "canonical-cloud/canonical-marketing-site.web",
+      "source_blob": "f8b14e58a97dd3a939b0a46615f1eabdd9580db8"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/1eef2b6d3aeb32f89458fb2ea6c2b80dd70ca044.toml",
+      "proposed_blob": "99ca888dd20231cd239a6b361c01e5410a54bd60",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "canonical-cloud/canonical-monorepo",
+      "source_blob": "1eef2b6d3aeb32f89458fb2ea6c2b80dd70ca044"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/cd1eb11b50b49daa5498344a0443dc3b8c8f152a.toml",
+      "proposed_blob": "e499f418e57f5743b3bf370a2255c0325a9d45fd",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "claritas-viz/claritas-cli",
+      "source_blob": "cd1eb11b50b49daa5498344a0443dc3b8c8f152a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/b7da46c6c3a512d3c5dda659bdf23512623c46b0.toml",
+      "proposed_blob": "a17475d07a383a7c20657fe5f347e83b090f7d9b",
+      "recipes": [
+        "separate-zed-and-npm-target-identities"
+      ],
+      "repository": "cliptown/cliptown-clients",
+      "source_blob": "b7da46c6c3a512d3c5dda659bdf23512623c46b0"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/30cc0977c0557a9288355132e2e46715ef79cc9a.toml",
+      "proposed_blob": "dab1114c56c139393b9791a946dcc30a1a1d1381",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "cliptown/cliptown-interfaces",
+      "source_blob": "30cc0977c0557a9288355132e2e46715ef79cc9a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/5539d167379faddf041c7848c401713c76c0ba30.toml",
+      "proposed_blob": "9fcccb380328a5b625159de7650a667d12a0025d",
+      "recipes": [
+        "migrate-legacy-cliptown-manifest"
+      ],
+      "repository": "cliptown/cliptown-lib-core",
+      "source_blob": "5539d167379faddf041c7848c401713c76c0ba30"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/f681cc210e66a852c72a3a8f8a176fac2a07fb47.toml",
+      "proposed_blob": "c538a3f3806a7a6e3e288e55bc97dba0b9a08efa",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "cliptown/cliptown-monorepo",
+      "source_blob": "f681cc210e66a852c72a3a8f8a176fac2a07fb47"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/a975f3c93a483fe8a55e5fb5dea719c8e9f9e509.toml",
+      "proposed_blob": "4804c1c0e10199451af90153579c80fe8c760cbd",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "daedalus-fab/daedalus-cli",
+      "source_blob": "a975f3c93a483fe8a55e5fb5dea719c8e9f9e509"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/846c58629e5a1706dfca137e38f6602f05402bac.toml",
+      "proposed_blob": "6fa4f527695262a5a7e07384405ab4aa90fce0d5",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "daedalus-fab/daedalus-clients",
+      "source_blob": "846c58629e5a1706dfca137e38f6602f05402bac"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "cli/.zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/d1eb0aeb8b4c77400c083a780115ad39bf9e7eb3.toml",
+      "proposed_blob": "c0c90a20a34dc27c02fb9b52d9034a37e8db301d",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "daedalus-fab/daedalus-clients",
+      "source_blob": "d1eb0aeb8b4c77400c083a780115ad39bf9e7eb3"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/fed7df91cb001c6764ec8e7dae69f3d617a41004.toml",
+      "proposed_blob": "9d1d0cba4dd854b866da97e5eb0cd1843b302a8d",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "daedalus-fab/daedalus-interfaces",
+      "source_blob": "fed7df91cb001c6764ec8e7dae69f3d617a41004"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/374beeef4f34967a3cd6a9f697ace76bfe243c02.toml",
+      "proposed_blob": "c1102e37ca3efbd0838b64f5c36487a8415d1e98",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "daedalus-fab/daedalus-sync",
+      "source_blob": "374beeef4f34967a3cd6a9f697ace76bfe243c02"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/32501b26e08b543d5c6d116208068ec41103fe4f.toml",
+      "proposed_blob": "0cab664d7ad22e8f81b69ec3e122d6c0922f9a52",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "declarative-migrations-test/cockroach-forward-rollback",
+      "source_blob": "32501b26e08b543d5c6d116208068ec41103fe4f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/32501b26e08b543d5c6d116208068ec41103fe4f.toml",
+      "proposed_blob": "0cab664d7ad22e8f81b69ec3e122d6c0922f9a52",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "declarative-migrations-test/cockroachdb-rollback-e2e",
+      "source_blob": "32501b26e08b543d5c6d116208068ec41103fe4f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/d7ebeb72d1dd02ea2e03f3af7dc08dd00f28d166.toml",
+      "proposed_blob": "260d054ac98dc5b172a90de75847dfa56d98b163",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "repository": "discrete-event-systems/des-mcp-server.rs",
+      "source_blob": "d7ebeb72d1dd02ea2e03f3af7dc08dd00f28d166"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/bdc1297c32ae8febaf0254f3f38112f15018a130.toml",
+      "proposed_blob": "8c7414e637ab8f84a4ea180d41d05325d7852c39",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "repository": "discrete-event-systems/des-web.rs",
+      "source_blob": "bdc1297c32ae8febaf0254f3f38112f15018a130"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/de2ee8033f29c1483c4fe682d86c40cba41801e6.toml",
+      "proposed_blob": "d28af55ef7fa3c3242f11019d1669fa11180dd7f",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "repository": "embedded-alerts/eal-clients",
+      "source_blob": "de2ee8033f29c1483c4fe682d86c40cba41801e6"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/a5d75ad0e73220132e23c82018439add94b2b040.toml",
+      "proposed_blob": "9b55389ee5ea5e7f649ccf57f62e837b665bf19c",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "embedded-alerts/eal-e2e",
+      "source_blob": "a5d75ad0e73220132e23c82018439add94b2b040"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/9537d3d14c3fd83d7a01778c7cef25f2ce3bf44b.toml",
+      "proposed_blob": "77312e50ffa44da33645a173b7f3409d4e930874",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "embedded-alerts/eal-monorepo",
+      "source_blob": "9537d3d14c3fd83d7a01778c7cef25f2ce3bf44b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/2dbb5e4bac8f417fac64f7f5347094efac8e7f60.toml",
+      "proposed_blob": "182e795a4e82f02ad12e8f1851b9822cacf9ecbc",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "repository": "embedded-alerts/embedded-alerts.github.io",
+      "source_blob": "2dbb5e4bac8f417fac64f7f5347094efac8e7f60"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/64928241eb29df95667a881ffb2d9837d8ec2393.toml",
+      "proposed_blob": "8c27248334fd11a7e43b6159db2df4ab60bee429",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "repository": "evento-globolo/evento-globolo.github.io",
+      "source_blob": "64928241eb29df95667a881ffb2d9837d8ec2393"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/bcde728fa48455280ec87dfb224f794a5e24c379.toml",
+      "proposed_blob": "e9bb1de854fb39c0e1e12209bc84dbc07ce398b7",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "repository": "evento-globolo/evgl-clients",
+      "source_blob": "bcde728fa48455280ec87dfb224f794a5e24c379"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/68acf6a1a396d320b9cb279a16a7ec68ae3157ae.toml",
+      "proposed_blob": "9e59cbfd989eaa29d01973b790b37df6265bb390",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "evento-globolo/evgl-e2e",
+      "source_blob": "68acf6a1a396d320b9cb279a16a7ec68ae3157ae"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/ef679dad2acd56d6a3c073ab278ffd24b6dea21d.toml",
+      "proposed_blob": "142a055e6877fed694b3d22536415a2f25f8fccf",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "evento-globolo/evgl-monorepo",
+      "source_blob": "ef679dad2acd56d6a3c073ab278ffd24b6dea21d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/94914c95d79895e18cb005daa579b86c8879b6ff.toml",
+      "proposed_blob": "b5bb9eafbf7262688e96ccedca09ab05b79593c5",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/dart-client-consumer",
+      "source_blob": "94914c95d79895e18cb005daa579b86c8879b6ff"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/f85f528f94c7086bc76c935756663669742c6a62.toml",
+      "proposed_blob": "cccdbe5792c72c1f09304d6de46664e0cb0cf555",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/erlang-client-consumer",
+      "source_blob": "f85f528f94c7086bc76c935756663669742c6a62"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/8bde28fbfeafd1a00b88c5356a264ef4b755dacb.toml",
+      "proposed_blob": "ea45b89cc74a4fc4638a45c7fcb34c825e5e23f5",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/gleam-client-consumer",
+      "source_blob": "8bde28fbfeafd1a00b88c5356a264ef4b755dacb"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/be86192841eef4f93138974c7884cb2e201df71d.toml",
+      "proposed_blob": "ed8f41d0dbed4b5f3395dd2f625501eae1e304c7",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/go-client-consumer",
+      "source_blob": "be86192841eef4f93138974c7884cb2e201df71d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/add361d2e0c9d30a2ff6a2a3f45bee4ad90fcaa5.toml",
+      "proposed_blob": "5a2d4d85b1863e4c17b6e8856266503a8d5858f7",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/java-client-consumer",
+      "source_blob": "add361d2e0c9d30a2ff6a2a3f45bee4ad90fcaa5"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/c6f043370cc6e615d743d04be5311a1ec3905ac7.toml",
+      "proposed_blob": "f1494495624aed1150c4de5d11a94606ef984dcb",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/kotlin-client-consumer",
+      "source_blob": "c6f043370cc6e615d743d04be5311a1ec3905ac7"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/a86d27c8da3e0de0b3408e329431b4d5ec8c16cf.toml",
+      "proposed_blob": "e2590bb21ce8ddc2d9a13063933063d8a291e84e",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/package-ingestion-matrix",
+      "source_blob": "a86d27c8da3e0de0b3408e329431b4d5ec8c16cf"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/b135853adfe3d09de8d54dd43d71fff2b0ced965.toml",
+      "proposed_blob": "7172ff180425f1cc10e0f9b231e7647457b7f16d",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/python-client-consumer",
+      "source_blob": "b135853adfe3d09de8d54dd43d71fff2b0ced965"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/fb6247e85dcb8c30e368a188f19236c1e8bf61b3.toml",
+      "proposed_blob": "733629278e915ac85624247bdf8a2559de6ae6a5",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/rust-client-consumer",
+      "source_blob": "fb6247e85dcb8c30e368a188f19236c1e8bf61b3"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/a21671d0ccf126b812840849d3c8da2dc6ab86bd.toml",
+      "proposed_blob": "8fbf9fe35ae39dfd784a4aaad353a1bf78a16474",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/swift-client-consumer",
+      "source_blob": "a21671d0ccf126b812840849d3c8da2dc6ab86bd"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/ca89fa59be82b5d88bb51d82f2b8811eaabc9c76.toml",
+      "proposed_blob": "8485e7669325a5bf3764ca45443bf5315335a485",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "fiducia-cloud-test/typescript-client-consumer",
+      "source_blob": "ca89fa59be82b5d88bb51d82f2b8811eaabc9c76"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/e1bfd5115b5c99b0c8af06fc1bd8a569f7577fd9.toml",
+      "proposed_blob": "a0f0febdb941f7156b8abb25b701dd87de97a890",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "isolate-fiducia-target-roots"
+      ],
+      "repository": "fiducia-cloud/fiducia-clients",
+      "source_blob": "e1bfd5115b5c99b0c8af06fc1bd8a569f7577fd9"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/4203bba75ec9752ff0a684978fbc6acd452bacdf.toml",
+      "proposed_blob": "9d00236f65e6957f419ef11b7720272c4178ee4c",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "fiducia-cloud/fiducia-interfaces",
+      "source_blob": "4203bba75ec9752ff0a684978fbc6acd452bacdf"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/6466f0701279c87b3791b8f7a477714ec599af35.toml",
+      "proposed_blob": "007bbf694aff1d55964a6c142aa8102fb6bb5f59",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "fiducia-cloud/fiducia-lib",
+      "source_blob": "6466f0701279c87b3791b8f7a477714ec599af35"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/6af02f83fdb469b4c6f3c3a031b4f71727a89d74.toml",
+      "proposed_blob": "3d957933b073609a1dbbe314d837d9ee48db0d0b",
+      "recipes": [
+        "canonical-fiducia-package-org"
+      ],
+      "repository": "fiducia-cloud/fiducia-mcp-server.rs",
+      "source_blob": "6af02f83fdb469b4c6f3c3a031b4f71727a89d74"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/decbb232655feb71dda02d61093a9ccbc75dac7e.toml",
+      "proposed_blob": "f02852d20b4d73bb1a6d5d11d60e0cd4e33bbb2c",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "canonical-root-target-name"
+      ],
+      "repository": "fiducia-cloud/fiducia-monorepo",
+      "source_blob": "decbb232655feb71dda02d61093a9ccbc75dac7e"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/3a2818759780ed57ea4a36847f7ae0bc58facc5a.toml",
+      "proposed_blob": "3bd8633d0f6ffc3d1d264d0f0bd88c2bb0c417c4",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "fiducia-cloud/fiducia-orm-core",
+      "source_blob": "3a2818759780ed57ea4a36847f7ae0bc58facc5a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/bfedc71695b42e6096b561d71e3fb6c3167b8f15.toml",
+      "proposed_blob": "df9278ca7b72a4401d3c15d6823dd8493f25e60d",
+      "recipes": [
+        "canonical-fiducia-package-org",
+        "canonical-root-target-name"
+      ],
+      "repository": "fiducia-cloud/fiducia-sync",
+      "source_blob": "bfedc71695b42e6096b561d71e3fb6c3167b8f15"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/37de881f0fe6012cbaf77f05c59879f24d4a1969.toml",
+      "proposed_blob": "bd95da8d401c2ae9b225cf6fe93e545048ef2a2f",
+      "recipes": [
+        "canonical-root-target-name",
+        "slug-rust-package-name"
+      ],
+      "repository": "file-tunnel/ftnl-backend-api.rs",
+      "source_blob": "37de881f0fe6012cbaf77f05c59879f24d4a1969"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/4e50b46f2c7f147bc73e59754446fe9b5a1e9c05.toml",
+      "proposed_blob": "d7d1cca2288210fc87aa72cd4d34fdcbc9bd4857",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "file-tunnel/ftnl-cli",
+      "source_blob": "4e50b46f2c7f147bc73e59754446fe9b5a1e9c05"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/bb6d5f70c382c648d7ef5917c4764e0b8f893e12.toml",
+      "proposed_blob": "b382bf90d9708865a0728626ec3ea23db28899f0",
+      "recipes": [
+        "canonical-root-target-name",
+        "slug-rust-package-name"
+      ],
+      "repository": "file-tunnel/ftnl-desktop-app.rs",
+      "source_blob": "bb6d5f70c382c648d7ef5917c4764e0b8f893e12"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/c24573dcdb78b0672d1f21a0a1af45538faa0716.toml",
+      "proposed_blob": "2f48faee4cc8c051a8d1a3512facead5f695b273",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "file-tunnel/ftnl-interfaces",
+      "source_blob": "c24573dcdb78b0672d1f21a0a1af45538faa0716"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/1fe9bf27180b3fee17d6725977e6c87b6e7a6c90.toml",
+      "proposed_blob": "8c2d7b3094d54dd6860b2400b05908140ccbd4ff",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "file-tunnel/ftnl-lib-core",
+      "source_blob": "1fe9bf27180b3fee17d6725977e6c87b6e7a6c90"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/6f13fa1f27272ae8c0a7dd61553054b79763c37e.toml",
+      "proposed_blob": "6cbb2b6d17430c5982cc83cfcbe536186e03416f",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "file-tunnel/ftnl-ui-components",
+      "source_blob": "6f13fa1f27272ae8c0a7dd61553054b79763c37e"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/2e9ec7b79ed35e8146b9ac303379e1b5f4b28f20.toml",
+      "proposed_blob": "f3746c500e79693612f9a18f8557367073bbc9d6",
+      "recipes": [
+        "canonical-root-target-name",
+        "slug-rust-package-name"
+      ],
+      "repository": "file-tunnel/ftnl-web-server.rs",
+      "source_blob": "2e9ec7b79ed35e8146b9ac303379e1b5f4b28f20"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/906472e02563b03773b694b069383f28294ec5f8.toml",
+      "proposed_blob": "95d1d9911e2efca087e6797a2e6fed8ad71d3838",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/bun-app",
+      "source_blob": "906472e02563b03773b694b069383f28294ec5f8"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/5ad727a5481f9b1d098a6a630c534c909ec31dce.toml",
+      "proposed_blob": "1ba0872898b7388ec8dddddd357c32d2e3f79612",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/cpp-app",
+      "source_blob": "5ad727a5481f9b1d098a6a630c534c909ec31dce"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/06528ea740d8ea1244e65ca288b1fad3117317ae.toml",
+      "proposed_blob": "7ebbf32f0058b6b6cbed52daab5db6bea88e5908",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/dart-app",
+      "source_blob": "06528ea740d8ea1244e65ca288b1fad3117317ae"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/96825e34c741f805ffa4af9605e2b94a16a3f1dd.toml",
+      "proposed_blob": "ad51bd331dbfc3ec4fba5f5b3b842f409645fdcb",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/deno-app",
+      "source_blob": "96825e34c741f805ffa4af9605e2b94a16a3f1dd"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/248e726b9cc48fd35d0929c436a1bda5b691c41b.toml",
+      "proposed_blob": "70d7e549609fd43d6cdfbec0a0cb9566e47fec0c",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/feature-matrix",
+      "source_blob": "248e726b9cc48fd35d0929c436a1bda5b691c41b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/8866f7c9ed973bf9864c0d4737dd2708715e87ee.toml",
+      "proposed_blob": "746c44b440ce36cf9be8abb4e421f10ac2e18a7e",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/gleam-app",
+      "source_blob": "8866f7c9ed973bf9864c0d4737dd2708715e87ee"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/ed18e41eabcac4998fd648ba2027639746c44bbf.toml",
+      "proposed_blob": "ca001814bd393c6148b3853d61be3175d813aeb6",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/golang-app",
+      "source_blob": "ed18e41eabcac4998fd648ba2027639746c44bbf"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/218ba71df50e1235a50e1831d5dd66ecd49931ed.toml",
+      "proposed_blob": "057ff300258141247f1b62aaf0e0c443b326e433",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/java-app",
+      "source_blob": "218ba71df50e1235a50e1831d5dd66ecd49931ed"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/79df16a183af70bd76b89f4714c84f4be52b363f.toml",
+      "proposed_blob": "a848a28bf831c04e41ffb7ddb4147c69dbafb932",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/nodejs-app",
+      "source_blob": "79df16a183af70bd76b89f4714c84f4be52b363f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/fdf2470e8fd1c503e81d7cb97697d414ce83a390.toml",
+      "proposed_blob": "806338c089a651a6392ffbf2f251c8b65d6dba24",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/php-app",
+      "source_blob": "fdf2470e8fd1c503e81d7cb97697d414ce83a390"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/816b13ca4af3d62a91d2ca2659fd41e93d3619b4.toml",
+      "proposed_blob": "2a6a55b2ad7564fae7b5226d34df2755ee80cda9",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/python-app",
+      "source_blob": "816b13ca4af3d62a91d2ca2659fd41e93d3619b4"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/731c3a0d31d9982cb8257894d7e480885b29ea58.toml",
+      "proposed_blob": "532c7c0160897df8217e941da76a51f52efad6bd",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/ruby-app",
+      "source_blob": "731c3a0d31d9982cb8257894d7e480885b29ea58"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/02b197eff8c14696446426ca14513fd987d808ff.toml",
+      "proposed_blob": "3847e02290bfe3b46282058a9340f62cd0a2313d",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "flags-2-env-test/rust-app",
+      "source_blob": "02b197eff8c14696446426ca14513fd987d808ff"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/871664c62077ef28f3a5f275c9d964b61863fa3a.toml",
+      "proposed_blob": "3f64dd2dbfe3e3355875b3ede43ecf33b1938e5c",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "repository": "hacker-house-medellin-test/hhm-e2e",
+      "source_blob": "871664c62077ef28f3a5f275c9d964b61863fa3a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/fa69309e7d5caa046dd7100e4701b0a8d53e7f61.toml",
+      "proposed_blob": "935c72519a2d005949b908bae01679f18a258297",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "repository": "hacker-house-medellin/hacker-house-medellin.github.io",
+      "source_blob": "fa69309e7d5caa046dd7100e4701b0a8d53e7f61"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/8ac0c775fe69a0731311fb222d749e054996160c.toml",
+      "proposed_blob": "7bbd189299252380924cb82c8b51bfcc570251b1",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "repository": "hacker-house-medellin/hhm-clients",
+      "source_blob": "8ac0c775fe69a0731311fb222d749e054996160c"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/6b824c958b3e3b5ff691bf13cf3074d25edf719f.toml",
+      "proposed_blob": "ad0146cddcaee1e99633214ae4902c962eabb716",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "hacker-house-medellin/hhm-monorepo",
+      "source_blob": "6b824c958b3e3b5ff691bf13cf3074d25edf719f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/03436b5f56c421f48c048829770feeac867a8950.toml",
+      "proposed_blob": "8f9e051ec7d072547302a1816725ea75a257060b",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "hypesiege/hsg-interfaces",
+      "source_blob": "03436b5f56c421f48c048829770feeac867a8950"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/efe42a351ca349757ffeffefd962178cb4d1b6bd.toml",
+      "proposed_blob": "f5a00d5c2df6051298110c17fbf3b2591e5a36b8",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "hypesiege/hypesiege-libs",
+      "source_blob": "efe42a351ca349757ffeffefd962178cb4d1b6bd"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/43ccf81744525c442a16ea0f8137fdc49eb941bf.toml",
+      "proposed_blob": "6e924cb84ebe8c7e1959c4580a46515d02f0948f",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "repository": "led-dynamo/leddy-api-server.rs",
+      "source_blob": "43ccf81744525c442a16ea0f8137fdc49eb941bf"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/4b4b34965dedc74f08d0b49d7ab5fc6b7f6f7b4d.toml",
+      "proposed_blob": "074e29e3b7b3a1a8d7eb78c53aec6c7d1a7c2a90",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "led-dynamo/leddy-cli",
+      "source_blob": "4b4b34965dedc74f08d0b49d7ab5fc6b7f6f7b4d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/a6be69db8ae1f102d7695eb233e5f1271ec926ef.toml",
+      "proposed_blob": "1d988554a1272006504672c4bb35aa1274422424",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "repository": "led-dynamo/leddy-web-server.rs",
+      "source_blob": "a6be69db8ae1f102d7695eb233e5f1271ec926ef"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/94a2edce3eb195ce017fed94d03cce3e6f06cc69.toml",
+      "proposed_blob": "4643a7ffb0b6689c6a7663978dbb6ffd77d21670",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "memebank/mbk-cli",
+      "source_blob": "94a2edce3eb195ce017fed94d03cce3e6f06cc69"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/678d267e871fd8ab1026024080ff879e3b0bf6e1.toml",
+      "proposed_blob": "c43de624197c3fdf2ab5430c416c23242ac66dd9",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "messaging-intel/msgint-clients",
+      "source_blob": "678d267e871fd8ab1026024080ff879e3b0bf6e1"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/bb35bb01f0d682070624f991d29ccf7a06508e1d.toml",
+      "proposed_blob": "a08b360c4d066f7faee445abab810e1823f8317f",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "messaging-intel/msgint-interfaces",
+      "source_blob": "bb35bb01f0d682070624f991d29ccf7a06508e1d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/a94be71e878af5c77e5c3012add4c9529e5a675a.toml",
+      "proposed_blob": "d2a84b8c5acd31beacdfce5bb0990eab921f4176",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "opto-sync-test/c-engine-e2e",
+      "source_blob": "a94be71e878af5c77e5c3012add4c9529e5a675a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/072161cdcda694b185c83afb14a91018637e344e.toml",
+      "proposed_blob": "ce66dee1c6c70eb28800d0373739dee91c2632b3",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "opto-sync-test/rust-engine-e2e",
+      "source_blob": "072161cdcda694b185c83afb14a91018637e344e"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/c4f6b1f789b9e3aaaced649528081ade821dce10.toml",
+      "proposed_blob": "b9a0f02bd15c1f7483e648d7471959176017c302",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "opto-sync/opto-sync-e2e",
+      "source_blob": "c4f6b1f789b9e3aaaced649528081ade821dce10"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/2b5369a20c40e0d414f12328cc68ae532b5362d7.toml",
+      "proposed_blob": "be79e54a3e87bd4668d45eb3885128c91b0d9dd5",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "opto-sync/syncer.c",
+      "source_blob": "2b5369a20c40e0d414f12328cc68ae532b5362d7"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/1335b2062a41b0616121433a7f339b0f4459ae7d.toml",
+      "proposed_blob": "615ff43f9818d5acd75498679848b30999617fe0",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "ORESoftware/k8s-libs-and-shared-defs",
+      "source_blob": "1335b2062a41b0616121433a7f339b0f4459ae7d"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/f73f5c58657287120b29d4c297856cbe38fb46e6.toml",
+      "proposed_blob": "3a0438029f0e7717af5c3f58412ae89d87a5cd5a",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "repository": "ORESoftware/zed-pkg-test",
+      "source_blob": "f73f5c58657287120b29d4c297856cbe38fb46e6"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "node-app/.zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/c8bbbf8ad7e24d09439f2636d284d1ddcc51450b.toml",
+      "proposed_blob": "b055763c2e166259d2ef9646c83c52bdb9e5cb81",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "repository": "ORESoftware/zed-pkg-test",
+      "source_blob": "c8bbbf8ad7e24d09439f2636d284d1ddcc51450b"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "node-lib/.zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/f4ada1a91dad1e6ac7b6b5c410d9164772915807.toml",
+      "proposed_blob": "644b8c3e6cd3b373b01e437da9d6f7ee736736da",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "repository": "ORESoftware/zed-pkg-test",
+      "source_blob": "f4ada1a91dad1e6ac7b6b5c410d9164772915807"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "rust-app/.zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/d35826f3eb182ce47de4191528e41d705a487202.toml",
+      "proposed_blob": "f04feb1dc73a79eb868bca0281c066756689457a",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "repository": "ORESoftware/zed-pkg-test",
+      "source_blob": "d35826f3eb182ce47de4191528e41d705a487202"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "rust-lib/.zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/49b57110de3105e94a5742c0c1e11e1864b1c186.toml",
+      "proposed_blob": "69c2d2c65a8f64495acc76e2fc5e637781a67327",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "repository": "ORESoftware/zed-pkg-test",
+      "source_blob": "49b57110de3105e94a5742c0c1e11e1864b1c186"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/0cbea06ec1aeea93c2cbb5fdd66e4c60908397b6.toml",
+      "proposed_blob": "fd91bb9f1feff2ec5b8bbcc864cd3d49e8ac3308",
+      "recipes": [
+        "canonical-quaestor-package-org",
+        "canonical-root-target-name"
+      ],
+      "repository": "quaestor-ledger/quaestor-clients",
+      "source_blob": "0cbea06ec1aeea93c2cbb5fdd66e4c60908397b6"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/5558dcf78e9bcaaa056dea271c206a7e5a48f92e.toml",
+      "proposed_blob": "1f329eb0d028580b20a703b1a5ea0441c540c821",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "quaestor-ledger/quaestor-interfaces",
+      "source_blob": "5558dcf78e9bcaaa056dea271c206a7e5a48f92e"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/807c6957007c305a0a6f7586f5c4caa162a5b4ed.toml",
+      "proposed_blob": "78d5283a4aa4314a3d670741598ab68bb6bd4799",
+      "recipes": [
+        "canonical-quaestor-package-org"
+      ],
+      "repository": "quaestor-ledger/quaestor-ledger-mcp-server.rs",
+      "source_blob": "807c6957007c305a0a6f7586f5c4caa162a5b4ed"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/83371e0af0fbe60e5acde08ee210c8ea4bab77e3.toml",
+      "proposed_blob": "b72c73e63afb316fcb6129aba75ab7e532178b62",
+      "recipes": [
+        "canonical-quaestor-package-org",
+        "canonical-root-target-name"
+      ],
+      "repository": "quaestor-ledger/quaestor-ledger-sync",
+      "source_blob": "83371e0af0fbe60e5acde08ee210c8ea4bab77e3"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/522df9932f7531a6fa1130f1913756fb7fca9f60.toml",
+      "proposed_blob": "9584c58ba6ed9dba1d95960db8610c778eb6d8c2",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "canonical-root-target-name"
+      ],
+      "repository": "quaestor-ledger/quaestor-monorepo",
+      "source_blob": "522df9932f7531a6fa1130f1913756fb7fca9f60"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/4b85944811f00fa08ea876006f19c1d25e7d48ce.toml",
+      "proposed_blob": "3e5e4676e29487b59322a1c8a6033c8e482ccdc5",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "scintilla-run/scintilla-cli",
+      "source_blob": "4b85944811f00fa08ea876006f19c1d25e7d48ce"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/bc34b0de145a5bfb393ab3b8cdb715b443503522.toml",
+      "proposed_blob": "a014709cbde57341fed1af3d469770186662689c",
+      "recipes": [
+        "canonical-root-target-name",
+        "isolate-scintilla-target-roots"
+      ],
+      "repository": "scintilla-run/scintilla-clients",
+      "source_blob": "bc34b0de145a5bfb393ab3b8cdb715b443503522"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/9e5e23fccb70e125b050e4b5ff2745500a67d834.toml",
+      "proposed_blob": "147a3e200364378aa217e22079b99b768ed8d8f5",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "scintilla-run/scintilla-interfaces",
+      "source_blob": "9e5e23fccb70e125b050e4b5ff2745500a67d834"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "vendor/canonical-infra/.zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/8eccb03912105af7d696b197cc98fe4776a5537f.toml",
+      "proposed_blob": "c1910b9120f174589c3a244382ff1a70c707e6c6",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "shared-auth-test/server-api-contract-e2e",
+      "source_blob": "8eccb03912105af7d696b197cc98fe4776a5537f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/ff5150cc4998ceff097678e62aa67691bc212eb6.toml",
+      "proposed_blob": "e3542a1a4e9685af9509034b4c0d86391b3000cc",
+      "recipes": [
+        "isolate-shared-auth-target-roots"
+      ],
+      "repository": "shared-auth/shared-auth-clients",
+      "source_blob": "ff5150cc4998ceff097678e62aa67691bc212eb6"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/2a89a1012a0a9dbf1ed762137f48691288fba4b9.toml",
+      "proposed_blob": "a68299cf498162eff3953ffdb8ec97b7494eebff",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "shared-auth/shared-auth-web-server.js",
+      "source_blob": "2a89a1012a0a9dbf1ed762137f48691288fba4b9"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/01729181aaca658e4fd809ba23ea332d4de19daa.toml",
+      "proposed_blob": "40ae03565db139d31b44ce7f21239d08e3abf195",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "sonus-auris/sonus-auris-cli",
+      "source_blob": "01729181aaca658e4fd809ba23ea332d4de19daa"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/8575c87fb8d12e83c1254aea89475eeb955db373.toml",
+      "proposed_blob": "396706f9e210806f0edd5f02ceb180b3b17c1634",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "sonus-auris/sonus-auris-clients",
+      "source_blob": "8575c87fb8d12e83c1254aea89475eeb955db373"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/7ee74cafc754d19de3dbf10c5154a1e39acd1c71.toml",
+      "proposed_blob": "5a5fcaacceca81788f258b6c125b005eb996058c",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "sonus-auris/sonus-auris-interfaces",
+      "source_blob": "7ee74cafc754d19de3dbf10c5154a1e39acd1c71"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/0bbfe4ce6cbf21657631379db98107b0b2469604.toml",
+      "proposed_blob": "5f6b2567a4db2d0d1c40ac28d3dd5476a589d808",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "sonus-auris/sonus-auris-lib",
+      "source_blob": "0bbfe4ce6cbf21657631379db98107b0b2469604"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/93dd45f5f8d98401de438dd7831f4809d789dd08.toml",
+      "proposed_blob": "bf5cad21a8313cdfee1eb1526232cfe758085c26",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "sonus-auris/sonus-auris-orm-core",
+      "source_blob": "93dd45f5f8d98401de438dd7831f4809d789dd08"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/d7b798fce5d14e116134a6a46c48f3a482e2c7fc.toml",
+      "proposed_blob": "98d6542752df81f2fc8f9623003db200a0745d89",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "streempilot-test/clients-dart-consumer",
+      "source_blob": "d7b798fce5d14e116134a6a46c48f3a482e2c7fc"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/fbc14703f5866cd160134b1b2bf3eef4791f66ed.toml",
+      "proposed_blob": "293f219137b315a4d3335c6f13a2a2328cc6087d",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "streempilot-test/clients-rust-consumer",
+      "source_blob": "fbc14703f5866cd160134b1b2bf3eef4791f66ed"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/a5631918978aee1ada9ebcd89a993e907c0fdb6f.toml",
+      "proposed_blob": "33b32a844edb6d1c9ae1177240ed99873eb09bc1",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "streempilot-test/clients-typescript-consumer",
+      "source_blob": "a5631918978aee1ada9ebcd89a993e907c0fdb6f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/cd707eadfc342aa0cab18e57b08243d3a688dcf3.toml",
+      "proposed_blob": "77b96c5b5e437fac9873e684a8cfc3ba16e8a884",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "StreemPilot/sp-api",
+      "source_blob": "cd707eadfc342aa0cab18e57b08243d3a688dcf3"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/78734b96ef8a9f2e2a682e6623d4bbae9eecd59a.toml",
+      "proposed_blob": "e0a481d5b3f5fc350ee66998f163587bde5115b8",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "StreemPilot/sp-web-dioxus",
+      "source_blob": "78734b96ef8a9f2e2a682e6623d4bbae9eecd59a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/f69555601fa92c0acb7529a6e7c705054b304e2c.toml",
+      "proposed_blob": "f1ce4add6676fce22b88311a87330f4f85668b6a",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "StreemPilot/sp-web-leptos",
+      "source_blob": "f69555601fa92c0acb7529a6e7c705054b304e2c"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/bdbea44fcab1c854d836a82170ae674fe7259fdc.toml",
+      "proposed_blob": "d8a927a4ce3aa26807ed096ec18a7b19536584ac",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "repository": "StreemPilot/sp-web-mash",
+      "source_blob": "bdbea44fcab1c854d836a82170ae674fe7259fdc"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": true,
+      "proposal": "zed-v023-proposals/2fb45faf637351904f7a6b86de8d6897c9d94103.toml",
+      "proposed_blob": "4a648b9fb2217ca38dac9900f2c89dc6d1eb1466",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "voxletra/vxl-interfaces",
+      "source_blob": "2fb45faf637351904f7a6b86de8d6897c9d94103"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/ce2ba307eefef33c275a19176a2834fb3c30f63f.toml",
+      "proposed_blob": "ec17b27ccbe90e0b457e4eeeae7dc829e37371cf",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "repository": "zed-pkg-test/awkward-lib",
+      "source_blob": "ce2ba307eefef33c275a19176a2834fb3c30f63f"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/9e0154ffe40fd3dded22589b4cb0e368e5ff9396.toml",
+      "proposed_blob": "a79a98ef3baf962ac26f9bfe37fce6e0f94d698e",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg-test/rust-app",
+      "source_blob": "9e0154ffe40fd3dded22589b4cb0e368e5ff9396"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/e53bf5f4988750d213343dd6d1ca856b41b642d3.toml",
+      "proposed_blob": "2f9858e0f19edd81c279bef9ecb7fb87598bb843",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg-test/zed-interfaces",
+      "source_blob": "e53bf5f4988750d213343dd6d1ca856b41b642d3"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/d0a62c7486afcc721d7c80b1073359ed62e916bc.toml",
+      "proposed_blob": "257f94d7196406227a78424165e6914bc69f8857",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg-test/zed-lib",
+      "source_blob": "d0a62c7486afcc721d7c80b1073359ed62e916bc"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/8d95f22b386ba41bc02ea0f3d9723305d2fc1506.toml",
+      "proposed_blob": "0b1193dbf9a361ae0933be7b9317ecb4de97adad",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg/zed-intellij",
+      "source_blob": "8d95f22b386ba41bc02ea0f3d9723305d2fc1506"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/7e1f39cbee8806d18e9768cdcf115601e85e3f45.toml",
+      "proposed_blob": "fde047b06e0ef637457ad57c21c997ec0914c54a",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg/zed-lib",
+      "source_blob": "7e1f39cbee8806d18e9768cdcf115601e85e3f45"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/40efdc4825d8567ffc71c30dae8fac84db6b8718.toml",
+      "proposed_blob": "65f12d7544bf0eeec835fb171a130e6632238f3b",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg/zed-lib-core",
+      "source_blob": "40efdc4825d8567ffc71c30dae8fac84db6b8718"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/e20598e5184c39d60e77bde10d8710016ef5db28.toml",
+      "proposed_blob": "f5aa1884a361a334f8704028230ee1feb20e0945",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg/zed-lock",
+      "source_blob": "e20598e5184c39d60e77bde10d8710016ef5db28"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/9d95a5d7c322d888d98f8740880c37d99a20e480.toml",
+      "proposed_blob": "7e239f613c7ab6d0959fe73fdd08860aab03dda5",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg/zed-monorepo",
+      "source_blob": "9d95a5d7c322d888d98f8740880c37d99a20e480"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/75f59ef6cc4b2c5b4e3f35612438ac9077cab613.toml",
+      "proposed_blob": "e2e01e36fc250e64c0d37d03986d1d9ff3c5182e",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "repository": "zed-pkg/zed-orm-core",
+      "source_blob": "75f59ef6cc4b2c5b4e3f35612438ac9077cab613"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/df0ce0d8a8ba8acd9e5560fcf1cdc350988a181a.toml",
+      "proposed_blob": "6cbbf370e053434ddc87908bb8fe08fc3956757a",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "repository": "zed-pkg/zed-pkg.github.io",
+      "source_blob": "df0ce0d8a8ba8acd9e5560fcf1cdc350988a181a"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": "test/fixtures/workspace/.zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/b55e2ad82e0f6659b90706663b7b9310fbda8775.toml",
+      "proposed_blob": "06565196dbe19c3db6004ddbdc9a94da85fd80c2",
+      "recipes": [
+        "update-zed-vscode-fixture"
+      ],
+      "repository": "zed-pkg/zed-vscode",
+      "source_blob": "b55e2ad82e0f6659b90706663b7b9310fbda8775"
+    },
+    {
+      "default_branch": "main",
+      "fork": false,
+      "path": ".zpkg.toml",
+      "phase": 2,
+      "private": false,
+      "proposal": "zed-v023-proposals/4c1d31585ae2f188f0ccb0f35075876ebbce52e4.toml",
+      "proposed_blob": "bf10c2d3af914814e79feff4c5176fb864059f65",
+      "recipes": [
+        "collapse-scripts-to-test",
+        "slug-rust-package-name"
+      ],
+      "repository": "zed-pkg/zed-web-server.rs",
+      "source_blob": "4c1d31585ae2f188f0ccb0f35075876ebbce52e4"
+    }
+  ],
+  "operation": "zed-manifest-v023-fleet-migration-2026-08-14",
+  "proposals": [
+    {
+      "file": "zed-v023-proposals/01729181aaca658e4fd809ba23ea332d4de19daa.toml",
+      "proposed_blob": "40ae03565db139d31b44ce7f21239d08e3abf195",
+      "proposed_sha256": "44c88a9157d91e448930bf705bc0eda5f29472e543923103b5843c68f0e5097a",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "01729181aaca658e4fd809ba23ea332d4de19daa"
+    },
+    {
+      "file": "zed-v023-proposals/02b197eff8c14696446426ca14513fd987d808ff.toml",
+      "proposed_blob": "3847e02290bfe3b46282058a9340f62cd0a2313d",
+      "proposed_sha256": "ca28cf6403e727b6abe00ac68ab030fcb19493c14e9d8f21da12f073d962b345",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "02b197eff8c14696446426ca14513fd987d808ff"
+    },
+    {
+      "file": "zed-v023-proposals/03436b5f56c421f48c048829770feeac867a8950.toml",
+      "proposed_blob": "8f9e051ec7d072547302a1816725ea75a257060b",
+      "proposed_sha256": "417f0f275175d3e8b361c86c8ee19e7a20cd5a2b2ebe105b0c80542e9cb718e1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "03436b5f56c421f48c048829770feeac867a8950"
+    },
+    {
+      "file": "zed-v023-proposals/06528ea740d8ea1244e65ca288b1fad3117317ae.toml",
+      "proposed_blob": "7ebbf32f0058b6b6cbed52daab5db6bea88e5908",
+      "proposed_sha256": "0f2bdc4032c6d3ef1daee081771c384aafb770ca9be781c67c78f119f82a11fc",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "06528ea740d8ea1244e65ca288b1fad3117317ae"
+    },
+    {
+      "file": "zed-v023-proposals/072161cdcda694b185c83afb14a91018637e344e.toml",
+      "proposed_blob": "ce66dee1c6c70eb28800d0373739dee91c2632b3",
+      "proposed_sha256": "752c07f6893b0ea7effc62f6a9fd573d99f9ee2208ebfc03fba2e8e54ef11694",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "072161cdcda694b185c83afb14a91018637e344e"
+    },
+    {
+      "file": "zed-v023-proposals/096f807b152d29f60d97cfc15de39afaf6a9c60b.toml",
+      "proposed_blob": "f50aeaf9b92f347bc4b061961963cf0677516f7e",
+      "proposed_sha256": "d35090fc13ebdc4f36af02ca1cabbc3e80362ba5b99455ac376c8db432d0737a",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "096f807b152d29f60d97cfc15de39afaf6a9c60b"
+    },
+    {
+      "file": "zed-v023-proposals/0bbfe4ce6cbf21657631379db98107b0b2469604.toml",
+      "proposed_blob": "5f6b2567a4db2d0d1c40ac28d3dd5476a589d808",
+      "proposed_sha256": "3708b395f66d62d1138f93fe5da74df9fa412e59a9860a70b2a27d5a851a38b3",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "0bbfe4ce6cbf21657631379db98107b0b2469604"
+    },
+    {
+      "file": "zed-v023-proposals/0c6ffe9ea43461b9eb39aac42aaa6765509d0178.toml",
+      "proposed_blob": "ee7293a7ce1da0238f8739dcc16e783a9d3dca75",
+      "proposed_sha256": "9e6c1fd40a55adc71612a47a6a542a48c2134ed8fd0edf4ac8f0318cbae89cda",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "0c6ffe9ea43461b9eb39aac42aaa6765509d0178"
+    },
+    {
+      "file": "zed-v023-proposals/0cbea06ec1aeea93c2cbb5fdd66e4c60908397b6.toml",
+      "proposed_blob": "fd91bb9f1feff2ec5b8bbcc864cd3d49e8ac3308",
+      "proposed_sha256": "466f071d0ade10ccb68dc3894d94afa0330cf0eb422c3b83b09645d03ab34144",
+      "recipes": [
+        "canonical-quaestor-package-org",
+        "canonical-root-target-name"
+      ],
+      "source_blob": "0cbea06ec1aeea93c2cbb5fdd66e4c60908397b6"
+    },
+    {
+      "file": "zed-v023-proposals/0ed649f5770075f94e06f0fe7036c73afa8e4940.toml",
+      "proposed_blob": "62f095a5e15ebc4f1a30c2320cf17f92b41fcd5e",
+      "proposed_sha256": "245139fbdd77ee95801044a676f174e1e1e29bf615796ded0f2cfbeb5c967e40",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "0ed649f5770075f94e06f0fe7036c73afa8e4940"
+    },
+    {
+      "file": "zed-v023-proposals/0ee4a53b232d9829647f51169c929c9207c26af8.toml",
+      "proposed_blob": "1c86ed6085b058de436ab1a6bb88ed97e83f1f18",
+      "proposed_sha256": "815a1db24e1956d1d0f96793fa73a2e25d99e05404fba3059675fefa722cb14a",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "0ee4a53b232d9829647f51169c929c9207c26af8"
+    },
+    {
+      "file": "zed-v023-proposals/10a3b434a1d36102a1b2d2dd989b769cca177d8e.toml",
+      "proposed_blob": "f717465c072f9afa31c092214e1a58b1f8402cfa",
+      "proposed_sha256": "7e02d6d9f93b14951b61be1ceafaf0c514c77494f42bcd34bb42134bde343b3c",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "10a3b434a1d36102a1b2d2dd989b769cca177d8e"
+    },
+    {
+      "file": "zed-v023-proposals/127937168b667d9c22d636abd9583f006caa5e8b.toml",
+      "proposed_blob": "4b192a817bbf337f0714066b5c4b80c43139685d",
+      "proposed_sha256": "63e6c42535f6dd1e89ff5735ba0e3c0c1acd59d422f1224b2e49d42c934c65f4",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "127937168b667d9c22d636abd9583f006caa5e8b"
+    },
+    {
+      "file": "zed-v023-proposals/1335b2062a41b0616121433a7f339b0f4459ae7d.toml",
+      "proposed_blob": "615ff43f9818d5acd75498679848b30999617fe0",
+      "proposed_sha256": "48be0deec1365dcd730b2ba6122a4ffb05979812dad79674497d2af59a197d3f",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "1335b2062a41b0616121433a7f339b0f4459ae7d"
+    },
+    {
+      "file": "zed-v023-proposals/1e1c62babbe20ecdb49728683f174475571205ef.toml",
+      "proposed_blob": "1e550b2a5c227769a24ae29586c762eb1500766a",
+      "proposed_sha256": "e05a08e68158ee9c37f8c4430b267484d838d4bf85bd6e5adcaca23e8328ea33",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "1e1c62babbe20ecdb49728683f174475571205ef"
+    },
+    {
+      "file": "zed-v023-proposals/1eef2b6d3aeb32f89458fb2ea6c2b80dd70ca044.toml",
+      "proposed_blob": "99ca888dd20231cd239a6b361c01e5410a54bd60",
+      "proposed_sha256": "a08c8f5063d4f395bd6b52f64a2388cac0e4ba5c008bb992669af4e1342a32ee",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "1eef2b6d3aeb32f89458fb2ea6c2b80dd70ca044"
+    },
+    {
+      "file": "zed-v023-proposals/1fe9bf27180b3fee17d6725977e6c87b6e7a6c90.toml",
+      "proposed_blob": "8c2d7b3094d54dd6860b2400b05908140ccbd4ff",
+      "proposed_sha256": "9880108aa61d69c7af1315c4a73cf6104e2de41013535451897e85083a6c6abe",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "1fe9bf27180b3fee17d6725977e6c87b6e7a6c90"
+    },
+    {
+      "file": "zed-v023-proposals/218ba71df50e1235a50e1831d5dd66ecd49931ed.toml",
+      "proposed_blob": "057ff300258141247f1b62aaf0e0c443b326e433",
+      "proposed_sha256": "ddb936d66e033afd7748c8514271482a5e9d38760e6e75046679182a8beb3bc5",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "218ba71df50e1235a50e1831d5dd66ecd49931ed"
+    },
+    {
+      "file": "zed-v023-proposals/2383fe3c0da214c7f9bd97799385de9dbad7be9c.toml",
+      "proposed_blob": "5526b55ca8bf86d08481145a2458a799272f2493",
+      "proposed_sha256": "847a194b7e63651c8531adbf657cd0b1ff5431f04710907e928479d7840560b4",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "2383fe3c0da214c7f9bd97799385de9dbad7be9c"
+    },
+    {
+      "file": "zed-v023-proposals/248e726b9cc48fd35d0929c436a1bda5b691c41b.toml",
+      "proposed_blob": "70d7e549609fd43d6cdfbec0a0cb9566e47fec0c",
+      "proposed_sha256": "6a3815ed83adc4cad7ebf96cf120ab21a96fe574462b1606a28a4483300f6573",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "248e726b9cc48fd35d0929c436a1bda5b691c41b"
+    },
+    {
+      "file": "zed-v023-proposals/2a89a1012a0a9dbf1ed762137f48691288fba4b9.toml",
+      "proposed_blob": "a68299cf498162eff3953ffdb8ec97b7494eebff",
+      "proposed_sha256": "cdb933b14aff39130f55326a62688a3e444ee6d8cf39a3e73d419446f56e6eb0",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "2a89a1012a0a9dbf1ed762137f48691288fba4b9"
+    },
+    {
+      "file": "zed-v023-proposals/2b5369a20c40e0d414f12328cc68ae532b5362d7.toml",
+      "proposed_blob": "be79e54a3e87bd4668d45eb3885128c91b0d9dd5",
+      "proposed_sha256": "02563ca3add4cf19cb6a16dcc6ad81e18823be9b50a10c66e57f599b4e478f23",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "2b5369a20c40e0d414f12328cc68ae532b5362d7"
+    },
+    {
+      "file": "zed-v023-proposals/2dbb5e4bac8f417fac64f7f5347094efac8e7f60.toml",
+      "proposed_blob": "182e795a4e82f02ad12e8f1851b9822cacf9ecbc",
+      "proposed_sha256": "5beb6cf2e024d58c229a9dbc8aef57a959d47b3a5288cd7a1ce2e303d3d66a5c",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "source_blob": "2dbb5e4bac8f417fac64f7f5347094efac8e7f60"
+    },
+    {
+      "file": "zed-v023-proposals/2e9ec7b79ed35e8146b9ac303379e1b5f4b28f20.toml",
+      "proposed_blob": "f3746c500e79693612f9a18f8557367073bbc9d6",
+      "proposed_sha256": "9cef34e46b728fda1d0872b9e31c6f251c2e7c214d7f78dbc0e4f4c9c61215d3",
+      "recipes": [
+        "canonical-root-target-name",
+        "slug-rust-package-name"
+      ],
+      "source_blob": "2e9ec7b79ed35e8146b9ac303379e1b5f4b28f20"
+    },
+    {
+      "file": "zed-v023-proposals/2fb45faf637351904f7a6b86de8d6897c9d94103.toml",
+      "proposed_blob": "4a648b9fb2217ca38dac9900f2c89dc6d1eb1466",
+      "proposed_sha256": "5ca9f4fd8f4d2eb04c150404678cda5548311afcdc16b8fd5ef2bdbb8a3e12f6",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "2fb45faf637351904f7a6b86de8d6897c9d94103"
+    },
+    {
+      "file": "zed-v023-proposals/30cc0977c0557a9288355132e2e46715ef79cc9a.toml",
+      "proposed_blob": "dab1114c56c139393b9791a946dcc30a1a1d1381",
+      "proposed_sha256": "879414f43b47767bdc453680d67defa6ba99f333103893ff1fc169d8ccc8cdb8",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "30cc0977c0557a9288355132e2e46715ef79cc9a"
+    },
+    {
+      "file": "zed-v023-proposals/32501b26e08b543d5c6d116208068ec41103fe4f.toml",
+      "proposed_blob": "0cab664d7ad22e8f81b69ec3e122d6c0922f9a52",
+      "proposed_sha256": "80c2cd6b9bf3f9db0423d40664db2b2a5c22dc32b5d814afded198fddc1dbfce",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "32501b26e08b543d5c6d116208068ec41103fe4f"
+    },
+    {
+      "file": "zed-v023-proposals/334151a4b4cc30eea43566d385e11ec4c0b059bc.toml",
+      "proposed_blob": "27a972c1d8100c5d7109c4114850cafad8707f98",
+      "proposed_sha256": "56c7fb1b88db89bc24991e4127a806ba994e1c62298f9e442fd67e131ac267ee",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "334151a4b4cc30eea43566d385e11ec4c0b059bc"
+    },
+    {
+      "file": "zed-v023-proposals/374beeef4f34967a3cd6a9f697ace76bfe243c02.toml",
+      "proposed_blob": "c1102e37ca3efbd0838b64f5c36487a8415d1e98",
+      "proposed_sha256": "d8db3446e7c2c180653cbcb2adb864cdf46d0a48fb1aa95c496b5a5ae9bd15d1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "374beeef4f34967a3cd6a9f697ace76bfe243c02"
+    },
+    {
+      "file": "zed-v023-proposals/37de881f0fe6012cbaf77f05c59879f24d4a1969.toml",
+      "proposed_blob": "bd95da8d401c2ae9b225cf6fe93e545048ef2a2f",
+      "proposed_sha256": "d2614db84c5982970663c5130398b6e5fbdcffd52ceb6588bd9da09d52ddfc07",
+      "recipes": [
+        "canonical-root-target-name",
+        "slug-rust-package-name"
+      ],
+      "source_blob": "37de881f0fe6012cbaf77f05c59879f24d4a1969"
+    },
+    {
+      "file": "zed-v023-proposals/3a2818759780ed57ea4a36847f7ae0bc58facc5a.toml",
+      "proposed_blob": "3bd8633d0f6ffc3d1d264d0f0bd88c2bb0c417c4",
+      "proposed_sha256": "a569b599228c8577d0db85839a98f22cb8d40ad8edbcf0d0abb650f1da94b5b3",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "3a2818759780ed57ea4a36847f7ae0bc58facc5a"
+    },
+    {
+      "file": "zed-v023-proposals/3b6009ccd49eb33d5b48ce9ed6b75b8e078d3e23.toml",
+      "proposed_blob": "700461ed886b62c4659962804f4a9c2e5f86cefc",
+      "proposed_sha256": "19e6e723f12e8bceaea2f5dc15e00dd4b5619622209e127ed46eef084be488aa",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "canonical-threefa-package-org",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "3b6009ccd49eb33d5b48ce9ed6b75b8e078d3e23"
+    },
+    {
+      "file": "zed-v023-proposals/3e2225972ff72f9a073ca6f41beb147f968b0a25.toml",
+      "proposed_blob": "72499421258242bb05cc1aeb18b97a4ea660945c",
+      "proposed_sha256": "e6d8f0690d89a445efb41a2468aba29d0480442781b7ec6d59814a0a16d6e14a",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "3e2225972ff72f9a073ca6f41beb147f968b0a25"
+    },
+    {
+      "file": "zed-v023-proposals/40efdc4825d8567ffc71c30dae8fac84db6b8718.toml",
+      "proposed_blob": "65f12d7544bf0eeec835fb171a130e6632238f3b",
+      "proposed_sha256": "8fe369905c4608db6df3ac6fffa9db5c5b34c3a41522e2b1c2f5d68b7df5550c",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "40efdc4825d8567ffc71c30dae8fac84db6b8718"
+    },
+    {
+      "file": "zed-v023-proposals/4203bba75ec9752ff0a684978fbc6acd452bacdf.toml",
+      "proposed_blob": "9d00236f65e6957f419ef11b7720272c4178ee4c",
+      "proposed_sha256": "9d4c65a1dd6c85d8321c9b9b425c53d28b73c1921aa5c60e1cee40060976291b",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "4203bba75ec9752ff0a684978fbc6acd452bacdf"
+    },
+    {
+      "file": "zed-v023-proposals/43ccf81744525c442a16ea0f8137fdc49eb941bf.toml",
+      "proposed_blob": "6e924cb84ebe8c7e1959c4580a46515d02f0948f",
+      "proposed_sha256": "3f0ac7e78282db4d6efd5feecbd0cdcc0441f5003157b2de9e429888afed181e",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "source_blob": "43ccf81744525c442a16ea0f8137fdc49eb941bf"
+    },
+    {
+      "file": "zed-v023-proposals/4672af640e3e958a9b2a6a098fe0f7f3f48a9a07.toml",
+      "proposed_blob": "eed11910b8e5d5f9fc2e85210422d7343ba45f03",
+      "proposed_sha256": "d5f06b637cc940e1c1126760b456f28d6e5845cbc2bf4ba42c910b16002367b9",
+      "recipes": [
+        "canonical-root-target-name",
+        "canonical-rust-adapter",
+        "slug-rust-package-name"
+      ],
+      "source_blob": "4672af640e3e958a9b2a6a098fe0f7f3f48a9a07"
+    },
+    {
+      "file": "zed-v023-proposals/49b57110de3105e94a5742c0c1e11e1864b1c186.toml",
+      "proposed_blob": "69c2d2c65a8f64495acc76e2fc5e637781a67327",
+      "proposed_sha256": "36af612fde923d58758046b123c25f30ed44fc258a65330ed4a9ffead108da3e",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "source_blob": "49b57110de3105e94a5742c0c1e11e1864b1c186"
+    },
+    {
+      "file": "zed-v023-proposals/4b4b34965dedc74f08d0b49d7ab5fc6b7f6f7b4d.toml",
+      "proposed_blob": "074e29e3b7b3a1a8d7eb78c53aec6c7d1a7c2a90",
+      "proposed_sha256": "01b0acd978609140922420e7b2048294d00545f379bbc67c303a9074ba05e05b",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "4b4b34965dedc74f08d0b49d7ab5fc6b7f6f7b4d"
+    },
+    {
+      "file": "zed-v023-proposals/4b85944811f00fa08ea876006f19c1d25e7d48ce.toml",
+      "proposed_blob": "3e5e4676e29487b59322a1c8a6033c8e482ccdc5",
+      "proposed_sha256": "acd97e5b7e813cbf88dd8a67896693ac03d617fca0eaeebd66e053ba603d46e9",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "4b85944811f00fa08ea876006f19c1d25e7d48ce"
+    },
+    {
+      "file": "zed-v023-proposals/4c1d31585ae2f188f0ccb0f35075876ebbce52e4.toml",
+      "proposed_blob": "bf10c2d3af914814e79feff4c5176fb864059f65",
+      "proposed_sha256": "eff11c4c209a1b36dac5df7dfba296d8e0958ab596cfb0f3a176ec1df2cd51db",
+      "recipes": [
+        "collapse-scripts-to-test",
+        "slug-rust-package-name"
+      ],
+      "source_blob": "4c1d31585ae2f188f0ccb0f35075876ebbce52e4"
+    },
+    {
+      "file": "zed-v023-proposals/4e50b46f2c7f147bc73e59754446fe9b5a1e9c05.toml",
+      "proposed_blob": "d7d1cca2288210fc87aa72cd4d34fdcbc9bd4857",
+      "proposed_sha256": "7cde33802fa55addc6dbb44aa1530e409f10b80be5e2a91464ea4f2837fd550a",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "4e50b46f2c7f147bc73e59754446fe9b5a1e9c05"
+    },
+    {
+      "file": "zed-v023-proposals/522df9932f7531a6fa1130f1913756fb7fca9f60.toml",
+      "proposed_blob": "9584c58ba6ed9dba1d95960db8610c778eb6d8c2",
+      "proposed_sha256": "ff653ed4066bc486beecece38cad9b76f8ac4a7a423e7f16facdaf63f15d95ea",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "canonical-root-target-name"
+      ],
+      "source_blob": "522df9932f7531a6fa1130f1913756fb7fca9f60"
+    },
+    {
+      "file": "zed-v023-proposals/5539d167379faddf041c7848c401713c76c0ba30.toml",
+      "proposed_blob": "9fcccb380328a5b625159de7650a667d12a0025d",
+      "proposed_sha256": "920a3f4537680a202230093787c3e23d0604b7d662fcc19381d921b320838700",
+      "recipes": [
+        "migrate-legacy-cliptown-manifest"
+      ],
+      "source_blob": "5539d167379faddf041c7848c401713c76c0ba30"
+    },
+    {
+      "file": "zed-v023-proposals/5558dcf78e9bcaaa056dea271c206a7e5a48f92e.toml",
+      "proposed_blob": "1f329eb0d028580b20a703b1a5ea0441c540c821",
+      "proposed_sha256": "42617725fea94fe7d453f26490b2c059407fe9078ef84d9f7893cd8bdc469482",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "5558dcf78e9bcaaa056dea271c206a7e5a48f92e"
+    },
+    {
+      "file": "zed-v023-proposals/5785ef0e61a2536a19164fd3c1370af18dba9d8c.toml",
+      "proposed_blob": "fae59ac6e39b3274ae2349d489402ca228ded5e1",
+      "proposed_sha256": "de98cdf0373ae751a0a5551c911300c829f8b69ea0de5abdd1797f41184673b1",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "5785ef0e61a2536a19164fd3c1370af18dba9d8c"
+    },
+    {
+      "file": "zed-v023-proposals/5ad727a5481f9b1d098a6a630c534c909ec31dce.toml",
+      "proposed_blob": "1ba0872898b7388ec8dddddd357c32d2e3f79612",
+      "proposed_sha256": "e3e656745b16da60f2431d526d036cefd0d1dd04174e05bf232248f0de10b755",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "5ad727a5481f9b1d098a6a630c534c909ec31dce"
+    },
+    {
+      "file": "zed-v023-proposals/5da6928da5440f316c021bc011013729375487e1.toml",
+      "proposed_blob": "4d93f5143b3768070e2a51b215af7c173208ae19",
+      "proposed_sha256": "299a13f12f320212d4e23ba14b42183c18a958ee87936efd5d72062c8f6394ff",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "5da6928da5440f316c021bc011013729375487e1"
+    },
+    {
+      "file": "zed-v023-proposals/5e0a21255cf457104494a9a8751ccd8951b628b2.toml",
+      "proposed_blob": "789fbfef839cae620590c0c30e2e49cf54b0c2c5",
+      "proposed_sha256": "fb64f48dab40d951bec910a859ca148e9eb3ff08acde090e03718d52db1357d7",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "5e0a21255cf457104494a9a8751ccd8951b628b2"
+    },
+    {
+      "file": "zed-v023-proposals/6151f71b5a1ce25ca684742a5d492f747a4bfe60.toml",
+      "proposed_blob": "1367a8353194d6313a3bb8c5cdc7dee25d45ed19",
+      "proposed_sha256": "2b70a3093e2f139e6e5061893a4060b844c66dc3486a93e632915a406eee1351",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "source_blob": "6151f71b5a1ce25ca684742a5d492f747a4bfe60"
+    },
+    {
+      "file": "zed-v023-proposals/626e22fe3c5d74184dcca25f84c448a1c216357a.toml",
+      "proposed_blob": "7e1acb68ce4b6453b57348e3749a4c9cb1291ed1",
+      "proposed_sha256": "46d5a7d921ad36b8d266650db619788231cdb07dfeabba9f3ba61d92e4f20883",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "626e22fe3c5d74184dcca25f84c448a1c216357a"
+    },
+    {
+      "file": "zed-v023-proposals/6361dff5a7b79afebf4f59765ae8edde26f316e5.toml",
+      "proposed_blob": "b68f662395b9228637c8e070b1da82ddba900f16",
+      "proposed_sha256": "0a3d1d9254eb31c29d280df72c44153583dd89347b01dc9f7dd1e4ff057c83ab",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "6361dff5a7b79afebf4f59765ae8edde26f316e5"
+    },
+    {
+      "file": "zed-v023-proposals/6466f0701279c87b3791b8f7a477714ec599af35.toml",
+      "proposed_blob": "007bbf694aff1d55964a6c142aa8102fb6bb5f59",
+      "proposed_sha256": "8ec25f4bc64ea41f3e51f71bf3e16eac590bac67259c30fec8a61af6be86555b",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "6466f0701279c87b3791b8f7a477714ec599af35"
+    },
+    {
+      "file": "zed-v023-proposals/64928241eb29df95667a881ffb2d9837d8ec2393.toml",
+      "proposed_blob": "8c27248334fd11a7e43b6159db2df4ab60bee429",
+      "proposed_sha256": "6a53080a69a97d5d39c89ec861b15ac1832225977d691694b0bdf0466336f794",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "source_blob": "64928241eb29df95667a881ffb2d9837d8ec2393"
+    },
+    {
+      "file": "zed-v023-proposals/651f4e26dbfb62d584ce72dff16ddb33f69d39c0.toml",
+      "proposed_blob": "95c1f85beb380412830d0ba1db9bde31862c1edd",
+      "proposed_sha256": "be4d4a9a472990d75dde2db4cab5cce8133979567473f4076b2ae1513451e9e2",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "651f4e26dbfb62d584ce72dff16ddb33f69d39c0"
+    },
+    {
+      "file": "zed-v023-proposals/678d267e871fd8ab1026024080ff879e3b0bf6e1.toml",
+      "proposed_blob": "c43de624197c3fdf2ab5430c416c23242ac66dd9",
+      "proposed_sha256": "b13bb2b310ea9a4e514cf501afd0d67aa1553d7e743d2a6ed4cf3dce7410240e",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "678d267e871fd8ab1026024080ff879e3b0bf6e1"
+    },
+    {
+      "file": "zed-v023-proposals/68acf6a1a396d320b9cb279a16a7ec68ae3157ae.toml",
+      "proposed_blob": "9e59cbfd989eaa29d01973b790b37df6265bb390",
+      "proposed_sha256": "eb37b77525fa72bcc4339b61497427e249319cf7a2428394f14874e78a2c6379",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "source_blob": "68acf6a1a396d320b9cb279a16a7ec68ae3157ae"
+    },
+    {
+      "file": "zed-v023-proposals/6af02f83fdb469b4c6f3c3a031b4f71727a89d74.toml",
+      "proposed_blob": "3d957933b073609a1dbbe314d837d9ee48db0d0b",
+      "proposed_sha256": "b86c48992dc54279b7d347051bf0a5ed69dcbba9f8877d5ef9e1f5b3b774cba4",
+      "recipes": [
+        "canonical-fiducia-package-org"
+      ],
+      "source_blob": "6af02f83fdb469b4c6f3c3a031b4f71727a89d74"
+    },
+    {
+      "file": "zed-v023-proposals/6b824c958b3e3b5ff691bf13cf3074d25edf719f.toml",
+      "proposed_blob": "ad0146cddcaee1e99633214ae4902c962eabb716",
+      "proposed_sha256": "5e4c3965ebd2870d3d67bdf7a2b71adcef99ce0935a0cbe11897a8540f33850f",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "6b824c958b3e3b5ff691bf13cf3074d25edf719f"
+    },
+    {
+      "file": "zed-v023-proposals/6f13fa1f27272ae8c0a7dd61553054b79763c37e.toml",
+      "proposed_blob": "6cbb2b6d17430c5982cc83cfcbe536186e03416f",
+      "proposed_sha256": "ef7f539760670aa6fa28e715b2b27a6535d276113352be64740c64ee56e4c2ed",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "6f13fa1f27272ae8c0a7dd61553054b79763c37e"
+    },
+    {
+      "file": "zed-v023-proposals/701123898c6c3f1a0a983907f8db11f8dc9b4fb9.toml",
+      "proposed_blob": "d772cc8ff439d39d18122a025da762126c44fe13",
+      "proposed_sha256": "eb3bc77a889b4bd3bf5d01f241ac7dc93abf8a8c3b12d233f43c88e7b317ed28",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "701123898c6c3f1a0a983907f8db11f8dc9b4fb9"
+    },
+    {
+      "file": "zed-v023-proposals/731c3a0d31d9982cb8257894d7e480885b29ea58.toml",
+      "proposed_blob": "532c7c0160897df8217e941da76a51f52efad6bd",
+      "proposed_sha256": "b6dc768ae40b4559d0ce140f2f91aefb1df56863651e6e00a605f2b8c39e4306",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "731c3a0d31d9982cb8257894d7e480885b29ea58"
+    },
+    {
+      "file": "zed-v023-proposals/74cb10621009842045939508dfc34e9e9582a06b.toml",
+      "proposed_blob": "472f065500c5bf6d820a0bf2784f3574f7c05bba",
+      "proposed_sha256": "064bb536823484b44248bb4788840fa2535b65fd304d9289dcba2fb72e9f4b55",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "source_blob": "74cb10621009842045939508dfc34e9e9582a06b"
+    },
+    {
+      "file": "zed-v023-proposals/75f59ef6cc4b2c5b4e3f35612438ac9077cab613.toml",
+      "proposed_blob": "e2e01e36fc250e64c0d37d03986d1d9ff3c5182e",
+      "proposed_sha256": "20eeb762da821c63b56ee355a8da581e57fc7cd4d07123692668daf6990e4247",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "75f59ef6cc4b2c5b4e3f35612438ac9077cab613"
+    },
+    {
+      "file": "zed-v023-proposals/76c62615f536491ac112974b076aa380e9ee5177.toml",
+      "proposed_blob": "88f09ad19600409be1836de025af505126210222",
+      "proposed_sha256": "acdbf49551ae48ffa586dd4bdf43dc7543642e104310dfaea0b57c0c90d985fa",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "76c62615f536491ac112974b076aa380e9ee5177"
+    },
+    {
+      "file": "zed-v023-proposals/78734b96ef8a9f2e2a682e6623d4bbae9eecd59a.toml",
+      "proposed_blob": "e0a481d5b3f5fc350ee66998f163587bde5115b8",
+      "proposed_sha256": "dc5d15d5d241075e5972b39b319d1eb928e1aa263c047220b23111e44f07d106",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "78734b96ef8a9f2e2a682e6623d4bbae9eecd59a"
+    },
+    {
+      "file": "zed-v023-proposals/79df16a183af70bd76b89f4714c84f4be52b363f.toml",
+      "proposed_blob": "a848a28bf831c04e41ffb7ddb4147c69dbafb932",
+      "proposed_sha256": "e0cf4be5eddca9241be2c9f4f5d124787583e14ea48a4a3fe273bf5cfa174574",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "79df16a183af70bd76b89f4714c84f4be52b363f"
+    },
+    {
+      "file": "zed-v023-proposals/7a338d94b0354449ade60cf92c13d701a9a2cd83.toml",
+      "proposed_blob": "f05792c5b786e4221e770510c5621e305af0585f",
+      "proposed_sha256": "4303d29345e6349ea75d6f44672258d6757e17c74e326a6979bfb85e4a3c7e2d",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "7a338d94b0354449ade60cf92c13d701a9a2cd83"
+    },
+    {
+      "file": "zed-v023-proposals/7e1f39cbee8806d18e9768cdcf115601e85e3f45.toml",
+      "proposed_blob": "fde047b06e0ef637457ad57c21c997ec0914c54a",
+      "proposed_sha256": "077a4363f9dfd0d114c3c2e5e3ef9c48ed0b9382a3c2b7f4268956eaf557ce2c",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "7e1f39cbee8806d18e9768cdcf115601e85e3f45"
+    },
+    {
+      "file": "zed-v023-proposals/7ee74cafc754d19de3dbf10c5154a1e39acd1c71.toml",
+      "proposed_blob": "5a5fcaacceca81788f258b6c125b005eb996058c",
+      "proposed_sha256": "664c02726bbbef2106fcbe6a566ec4a5c2a094da4406b755d9ab533c4a7a1995",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "7ee74cafc754d19de3dbf10c5154a1e39acd1c71"
+    },
+    {
+      "file": "zed-v023-proposals/807c6957007c305a0a6f7586f5c4caa162a5b4ed.toml",
+      "proposed_blob": "78d5283a4aa4314a3d670741598ab68bb6bd4799",
+      "proposed_sha256": "4ff1b4e020e3be3c8229b755ccd141de7cbb338623c8d0847a658912bade6014",
+      "recipes": [
+        "canonical-quaestor-package-org"
+      ],
+      "source_blob": "807c6957007c305a0a6f7586f5c4caa162a5b4ed"
+    },
+    {
+      "file": "zed-v023-proposals/816b13ca4af3d62a91d2ca2659fd41e93d3619b4.toml",
+      "proposed_blob": "2a6a55b2ad7564fae7b5226d34df2755ee80cda9",
+      "proposed_sha256": "8c0acce6de2ddbf52b83814362e703cc98648175094ce28ffce640b9eb8f37e8",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "816b13ca4af3d62a91d2ca2659fd41e93d3619b4"
+    },
+    {
+      "file": "zed-v023-proposals/83371e0af0fbe60e5acde08ee210c8ea4bab77e3.toml",
+      "proposed_blob": "b72c73e63afb316fcb6129aba75ab7e532178b62",
+      "proposed_sha256": "7d137e048262ddd300492f17abed5df2b147f9f6bf25e4b423b48b24a23d2c34",
+      "recipes": [
+        "canonical-quaestor-package-org",
+        "canonical-root-target-name"
+      ],
+      "source_blob": "83371e0af0fbe60e5acde08ee210c8ea4bab77e3"
+    },
+    {
+      "file": "zed-v023-proposals/83e77ca008e3a8b3bc22d7a418106680008d7057.toml",
+      "proposed_blob": "a48ba853a3958b2d50eb763d3bbc3ec3478cce63",
+      "proposed_sha256": "e4eafdd01b5e3e4386e87df4ab3edbb7d79c604f576a5185510aeca1773004a5",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "83e77ca008e3a8b3bc22d7a418106680008d7057"
+    },
+    {
+      "file": "zed-v023-proposals/846c58629e5a1706dfca137e38f6602f05402bac.toml",
+      "proposed_blob": "6fa4f527695262a5a7e07384405ab4aa90fce0d5",
+      "proposed_sha256": "8d021168001403e19fa3a2b00f9b8d3ed3e1f790298e6e4b7ad3321bb50d34c5",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "846c58629e5a1706dfca137e38f6602f05402bac"
+    },
+    {
+      "file": "zed-v023-proposals/8575c87fb8d12e83c1254aea89475eeb955db373.toml",
+      "proposed_blob": "396706f9e210806f0edd5f02ceb180b3b17c1634",
+      "proposed_sha256": "d1583b37c9f37dec320452074e940415f994fb1d9f7396e11f518d5a97609435",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "8575c87fb8d12e83c1254aea89475eeb955db373"
+    },
+    {
+      "file": "zed-v023-proposals/871664c62077ef28f3a5f275c9d964b61863fa3a.toml",
+      "proposed_blob": "3f64dd2dbfe3e3355875b3ede43ecf33b1938e5c",
+      "proposed_sha256": "d8749c238ea262230df2b1779518584a546e444b924d856486e913c333ae0336",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "source_blob": "871664c62077ef28f3a5f275c9d964b61863fa3a"
+    },
+    {
+      "file": "zed-v023-proposals/8866f7c9ed973bf9864c0d4737dd2708715e87ee.toml",
+      "proposed_blob": "746c44b440ce36cf9be8abb4e421f10ac2e18a7e",
+      "proposed_sha256": "6b11661f533914f35d5334abbb8f19e249ea326cce0cb5834a6476d00364c733",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "8866f7c9ed973bf9864c0d4737dd2708715e87ee"
+    },
+    {
+      "file": "zed-v023-proposals/8ac0c775fe69a0731311fb222d749e054996160c.toml",
+      "proposed_blob": "7bbd189299252380924cb82c8b51bfcc570251b1",
+      "proposed_sha256": "4213c089927a21f1bfcd6452527a9cb3b31a63d3aa771f4bb7773af3ef0db699",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "source_blob": "8ac0c775fe69a0731311fb222d749e054996160c"
+    },
+    {
+      "file": "zed-v023-proposals/8bde28fbfeafd1a00b88c5356a264ef4b755dacb.toml",
+      "proposed_blob": "ea45b89cc74a4fc4638a45c7fcb34c825e5e23f5",
+      "proposed_sha256": "36d08e75d24c029066cd2ffe0ba113077ec33d25a0119c25b2c6ae600de49d6b",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "8bde28fbfeafd1a00b88c5356a264ef4b755dacb"
+    },
+    {
+      "file": "zed-v023-proposals/8d95f22b386ba41bc02ea0f3d9723305d2fc1506.toml",
+      "proposed_blob": "0b1193dbf9a361ae0933be7b9317ecb4de97adad",
+      "proposed_sha256": "51c1e87e718c92d5485dfd18aef3962932907086834e891c926cee0f3e587839",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "8d95f22b386ba41bc02ea0f3d9723305d2fc1506"
+    },
+    {
+      "file": "zed-v023-proposals/8eccb03912105af7d696b197cc98fe4776a5537f.toml",
+      "proposed_blob": "c1910b9120f174589c3a244382ff1a70c707e6c6",
+      "proposed_sha256": "f3af38c0ba5963caf3524fce465a2adb836454ce08165a7f62a9c02d29aae59d",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "8eccb03912105af7d696b197cc98fe4776a5537f"
+    },
+    {
+      "file": "zed-v023-proposals/906472e02563b03773b694b069383f28294ec5f8.toml",
+      "proposed_blob": "95d1d9911e2efca087e6797a2e6fed8ad71d3838",
+      "proposed_sha256": "1eece6f3bef591511bda4537595ba393d2698e691b13a01371da2ee379994340",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "906472e02563b03773b694b069383f28294ec5f8"
+    },
+    {
+      "file": "zed-v023-proposals/93dd45f5f8d98401de438dd7831f4809d789dd08.toml",
+      "proposed_blob": "bf5cad21a8313cdfee1eb1526232cfe758085c26",
+      "proposed_sha256": "230a30a98367dd0e7dda049de07ff39c791fb24916a96ddffb033925e20949ee",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "93dd45f5f8d98401de438dd7831f4809d789dd08"
+    },
+    {
+      "file": "zed-v023-proposals/94914c95d79895e18cb005daa579b86c8879b6ff.toml",
+      "proposed_blob": "b5bb9eafbf7262688e96ccedca09ab05b79593c5",
+      "proposed_sha256": "a27aeb493a92eab5b12fe57af07b3c225599727e29f1a6eb9c4d76d229882c90",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "94914c95d79895e18cb005daa579b86c8879b6ff"
+    },
+    {
+      "file": "zed-v023-proposals/94a2edce3eb195ce017fed94d03cce3e6f06cc69.toml",
+      "proposed_blob": "4643a7ffb0b6689c6a7663978dbb6ffd77d21670",
+      "proposed_sha256": "ad2c843e15adc0638b77e136a0f877b17995cc2d49fadcc91be54c5ca0dcbd62",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "94a2edce3eb195ce017fed94d03cce3e6f06cc69"
+    },
+    {
+      "file": "zed-v023-proposals/9537d3d14c3fd83d7a01778c7cef25f2ce3bf44b.toml",
+      "proposed_blob": "77312e50ffa44da33645a173b7f3409d4e930874",
+      "proposed_sha256": "1cec79c94bc768c74752c786c2abfb7643f49dc6143f0c043c2bc517a3fbba9a",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "9537d3d14c3fd83d7a01778c7cef25f2ce3bf44b"
+    },
+    {
+      "file": "zed-v023-proposals/96825e34c741f805ffa4af9605e2b94a16a3f1dd.toml",
+      "proposed_blob": "ad51bd331dbfc3ec4fba5f5b3b842f409645fdcb",
+      "proposed_sha256": "e36fe31595063a1056d9cf1efe6a92b381a5add41f9ab089e5c0edc90402a0ae",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "96825e34c741f805ffa4af9605e2b94a16a3f1dd"
+    },
+    {
+      "file": "zed-v023-proposals/980a9c7595802bcf0fbd0716cf432fe6d31e2324.toml",
+      "proposed_blob": "b2a13033c8caba40c5d73c98f9979ddcd49bd767",
+      "proposed_sha256": "9128f9c8bc6621ab261104a8a3ef21d720c846eb1cf477add274032cc9b14093",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "980a9c7595802bcf0fbd0716cf432fe6d31e2324"
+    },
+    {
+      "file": "zed-v023-proposals/9966df10e0b7d7a53f5764bac355e5d84bffc48c.toml",
+      "proposed_blob": "7d81efcfab22d4e7a11af06bad1adc3301daf304",
+      "proposed_sha256": "d6867b918e6a6e583f0c5b10777c4fb58db013be77102f5720e30423e4336154",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "9966df10e0b7d7a53f5764bac355e5d84bffc48c"
+    },
+    {
+      "file": "zed-v023-proposals/9d95a5d7c322d888d98f8740880c37d99a20e480.toml",
+      "proposed_blob": "7e239f613c7ab6d0959fe73fdd08860aab03dda5",
+      "proposed_sha256": "8a449ceb61ea4b76e7a94ee838a83fb2339800bbec3bcb9cb8b935aea8697ee4",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "9d95a5d7c322d888d98f8740880c37d99a20e480"
+    },
+    {
+      "file": "zed-v023-proposals/9e0154ffe40fd3dded22589b4cb0e368e5ff9396.toml",
+      "proposed_blob": "a79a98ef3baf962ac26f9bfe37fce6e0f94d698e",
+      "proposed_sha256": "9a88119fd60202907d3ca75697889a04f5fe62523dc61a53863aef5a455d75a4",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "9e0154ffe40fd3dded22589b4cb0e368e5ff9396"
+    },
+    {
+      "file": "zed-v023-proposals/9e5e23fccb70e125b050e4b5ff2745500a67d834.toml",
+      "proposed_blob": "147a3e200364378aa217e22079b99b768ed8d8f5",
+      "proposed_sha256": "a0d3b57ba5ea6cec53a8a51a31e5b800083ed52b05da9298d7acefab22cca9b7",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "9e5e23fccb70e125b050e4b5ff2745500a67d834"
+    },
+    {
+      "file": "zed-v023-proposals/9e8b36acbbf1c619799c6110e39d4350efc94e41.toml",
+      "proposed_blob": "75270f1266664eb8e63082cbddbd0937e24ccf5a",
+      "proposed_sha256": "7ae634adb625f6fa5c3711e8cfb82e670af9dce62f0a1b12a94839e224be303a",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "9e8b36acbbf1c619799c6110e39d4350efc94e41"
+    },
+    {
+      "file": "zed-v023-proposals/a21671d0ccf126b812840849d3c8da2dc6ab86bd.toml",
+      "proposed_blob": "8fbf9fe35ae39dfd784a4aaad353a1bf78a16474",
+      "proposed_sha256": "01aa1369eb2e7e9da60317472e46d7e52d21e1a5ace8a3450a436f737e93f5bf",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "a21671d0ccf126b812840849d3c8da2dc6ab86bd"
+    },
+    {
+      "file": "zed-v023-proposals/a3da3bd053f6aea447fb32bea372e96cdef1c6b5.toml",
+      "proposed_blob": "e755f5ca99fb956c3bba995be76e28e688f7825c",
+      "proposed_sha256": "561fe2b895615fcd2c2585c041aded63d144f3e490c2c9742f5ec56e33292cd1",
+      "recipes": [
+        "canonical-root-target-name",
+        "canonical-rust-adapter",
+        "slug-rust-package-name"
+      ],
+      "source_blob": "a3da3bd053f6aea447fb32bea372e96cdef1c6b5"
+    },
+    {
+      "file": "zed-v023-proposals/a546b3272972a2fa0344af3787315c8143bdefcb.toml",
+      "proposed_blob": "cdf3b9bf46f9fad250c47b8101c7bc5bae8023ba",
+      "proposed_sha256": "2ee5a546b1f70ac56ba1f03221738ec37c71679ccb0812fa12b26eb3248ef6fe",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "a546b3272972a2fa0344af3787315c8143bdefcb"
+    },
+    {
+      "file": "zed-v023-proposals/a5631918978aee1ada9ebcd89a993e907c0fdb6f.toml",
+      "proposed_blob": "33b32a844edb6d1c9ae1177240ed99873eb09bc1",
+      "proposed_sha256": "b3c3a746141723c2f3def5c555dd8c41d4aadf7aaf8abdaef6e7e45663997013",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "a5631918978aee1ada9ebcd89a993e907c0fdb6f"
+    },
+    {
+      "file": "zed-v023-proposals/a5d75ad0e73220132e23c82018439add94b2b040.toml",
+      "proposed_blob": "9b55389ee5ea5e7f649ccf57f62e837b665bf19c",
+      "proposed_sha256": "0b27b65461ce73f030da69b57f11cf31eb60d7e5434074cf1ef3ff98de111ab7",
+      "recipes": [
+        "split-legacy-e2e-identity"
+      ],
+      "source_blob": "a5d75ad0e73220132e23c82018439add94b2b040"
+    },
+    {
+      "file": "zed-v023-proposals/a6be69db8ae1f102d7695eb233e5f1271ec926ef.toml",
+      "proposed_blob": "1d988554a1272006504672c4bb35aa1274422424",
+      "proposed_sha256": "7daec75c8c6e562ae80870a15055f10a5b8c8800c07fa89374e7e91fa63a8936",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "source_blob": "a6be69db8ae1f102d7695eb233e5f1271ec926ef"
+    },
+    {
+      "file": "zed-v023-proposals/a86d27c8da3e0de0b3408e329431b4d5ec8c16cf.toml",
+      "proposed_blob": "e2590bb21ce8ddc2d9a13063933063d8a291e84e",
+      "proposed_sha256": "255694563b9e2262446c898e31c42732f05b9cad6673fda3e7a2bf013178e10b",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "a86d27c8da3e0de0b3408e329431b4d5ec8c16cf"
+    },
+    {
+      "file": "zed-v023-proposals/a94be71e878af5c77e5c3012add4c9529e5a675a.toml",
+      "proposed_blob": "d2a84b8c5acd31beacdfce5bb0990eab921f4176",
+      "proposed_sha256": "612d53b8c3bc83fb9fb31cb518b037de220f4e75022d89042a0c0b418ccacc1a",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "a94be71e878af5c77e5c3012add4c9529e5a675a"
+    },
+    {
+      "file": "zed-v023-proposals/a975f3c93a483fe8a55e5fb5dea719c8e9f9e509.toml",
+      "proposed_blob": "4804c1c0e10199451af90153579c80fe8c760cbd",
+      "proposed_sha256": "4166f1af4d11deee7a30aa9dacfa90d784246d044c79ccd5824bc91afb9746d9",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "a975f3c93a483fe8a55e5fb5dea719c8e9f9e509"
+    },
+    {
+      "file": "zed-v023-proposals/abe409b67bf4eba09c46ae814a7d9c6576e149dc.toml",
+      "proposed_blob": "b8e588b892c8fb273c4757942c99e98ab2ee5167",
+      "proposed_sha256": "17856c58301b3cb1225455675e34b24cc411bcfb9156b17f6fcbfcb37a2aa2af",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "abe409b67bf4eba09c46ae814a7d9c6576e149dc"
+    },
+    {
+      "file": "zed-v023-proposals/add361d2e0c9d30a2ff6a2a3f45bee4ad90fcaa5.toml",
+      "proposed_blob": "5a2d4d85b1863e4c17b6e8856266503a8d5858f7",
+      "proposed_sha256": "9dd4bd63ab2bb4bf0dc6ae069cb8570f7d8ef14304497e6917bb2c8d92d544bb",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "add361d2e0c9d30a2ff6a2a3f45bee4ad90fcaa5"
+    },
+    {
+      "file": "zed-v023-proposals/b135853adfe3d09de8d54dd43d71fff2b0ced965.toml",
+      "proposed_blob": "7172ff180425f1cc10e0f9b231e7647457b7f16d",
+      "proposed_sha256": "00d9a71b4fbe5d0859eb194ec24e85783bd765cdc07f609bd2cafb9f8e89b2d5",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "b135853adfe3d09de8d54dd43d71fff2b0ced965"
+    },
+    {
+      "file": "zed-v023-proposals/b55e2ad82e0f6659b90706663b7b9310fbda8775.toml",
+      "proposed_blob": "06565196dbe19c3db6004ddbdc9a94da85fd80c2",
+      "proposed_sha256": "062313319e11ac8990bb7eb9d5d8fb26d18cb9cea8de2820cad7de38b784e886",
+      "recipes": [
+        "update-zed-vscode-fixture"
+      ],
+      "source_blob": "b55e2ad82e0f6659b90706663b7b9310fbda8775"
+    },
+    {
+      "file": "zed-v023-proposals/b7da46c6c3a512d3c5dda659bdf23512623c46b0.toml",
+      "proposed_blob": "a17475d07a383a7c20657fe5f347e83b090f7d9b",
+      "proposed_sha256": "6b3c8872fab0217559d5ceabb04aedb4c1ffe0ce2eaae312520761f4d266a5d6",
+      "recipes": [
+        "separate-zed-and-npm-target-identities"
+      ],
+      "source_blob": "b7da46c6c3a512d3c5dda659bdf23512623c46b0"
+    },
+    {
+      "file": "zed-v023-proposals/b8db3d4ef1cd955f8ab7f4a0291ce1c63100c9e1.toml",
+      "proposed_blob": "4c62ea4e0d301eba01af8b82996561d3834b0a2d",
+      "proposed_sha256": "ed8f1dc160625f827e2369aa5db4101908437ce53320a85836ed6461a807d1fa",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "b8db3d4ef1cd955f8ab7f4a0291ce1c63100c9e1"
+    },
+    {
+      "file": "zed-v023-proposals/bb35bb01f0d682070624f991d29ccf7a06508e1d.toml",
+      "proposed_blob": "a08b360c4d066f7faee445abab810e1823f8317f",
+      "proposed_sha256": "fa66753b43fc3fdf2e444585c52b93b53c4bc6e2d9879c1436aff79d1492ed83",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "bb35bb01f0d682070624f991d29ccf7a06508e1d"
+    },
+    {
+      "file": "zed-v023-proposals/bb6d5f70c382c648d7ef5917c4764e0b8f893e12.toml",
+      "proposed_blob": "b382bf90d9708865a0728626ec3ea23db28899f0",
+      "proposed_sha256": "843f7c19fe0f655a3ec32a03aca3046d53d8a1969a21341c2f0fcfca242f0d8d",
+      "recipes": [
+        "canonical-root-target-name",
+        "slug-rust-package-name"
+      ],
+      "source_blob": "bb6d5f70c382c648d7ef5917c4764e0b8f893e12"
+    },
+    {
+      "file": "zed-v023-proposals/bc34b0de145a5bfb393ab3b8cdb715b443503522.toml",
+      "proposed_blob": "a014709cbde57341fed1af3d469770186662689c",
+      "proposed_sha256": "fdefbdf26351da3f3655276788915ed68cc3f83ef6e55052e31046d97c85faa6",
+      "recipes": [
+        "canonical-root-target-name",
+        "isolate-scintilla-target-roots"
+      ],
+      "source_blob": "bc34b0de145a5bfb393ab3b8cdb715b443503522"
+    },
+    {
+      "file": "zed-v023-proposals/bcc3433c2924418d5151f1446b88c5f53844acd6.toml",
+      "proposed_blob": "a16234697665bc1c3263eefd0bd3adbe6618fc0c",
+      "proposed_sha256": "3d06d8e83e2dcbc44e58ef688a27cd50147a42ce9d23ffbb703754ca8c39d4f6",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "bcc3433c2924418d5151f1446b88c5f53844acd6"
+    },
+    {
+      "file": "zed-v023-proposals/bcde728fa48455280ec87dfb224f794a5e24c379.toml",
+      "proposed_blob": "e9bb1de854fb39c0e1e12209bc84dbc07ce398b7",
+      "proposed_sha256": "8495893e36137d35e709ad783a3f9ed899508023cf7df5818f217fce40cf6925",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "source_blob": "bcde728fa48455280ec87dfb224f794a5e24c379"
+    },
+    {
+      "file": "zed-v023-proposals/bdbea44fcab1c854d836a82170ae674fe7259fdc.toml",
+      "proposed_blob": "d8a927a4ce3aa26807ed096ec18a7b19536584ac",
+      "proposed_sha256": "8495d23eec2effb28a6376a8a2bbc5fd8d3d173c59abedeb6e014438dfff3534",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "bdbea44fcab1c854d836a82170ae674fe7259fdc"
+    },
+    {
+      "file": "zed-v023-proposals/bdc1297c32ae8febaf0254f3f38112f15018a130.toml",
+      "proposed_blob": "8c7414e637ab8f84a4ea180d41d05325d7852c39",
+      "proposed_sha256": "b531cc7ad4e1eafd12a1e80d623bcf7624901df3289b96db75634475b9214166",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "source_blob": "bdc1297c32ae8febaf0254f3f38112f15018a130"
+    },
+    {
+      "file": "zed-v023-proposals/be86192841eef4f93138974c7884cb2e201df71d.toml",
+      "proposed_blob": "ed8f41d0dbed4b5f3395dd2f625501eae1e304c7",
+      "proposed_sha256": "425a1f31ea0f7743327736328177698042d9be5ec15cf6c4d7829302594d8eb9",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "be86192841eef4f93138974c7884cb2e201df71d"
+    },
+    {
+      "file": "zed-v023-proposals/bfedc71695b42e6096b561d71e3fb6c3167b8f15.toml",
+      "proposed_blob": "df9278ca7b72a4401d3c15d6823dd8493f25e60d",
+      "proposed_sha256": "aeb415e61d64864dd88400c7417f26d68dacb534ba4e79a4cfe95afe77dc8733",
+      "recipes": [
+        "canonical-fiducia-package-org",
+        "canonical-root-target-name"
+      ],
+      "source_blob": "bfedc71695b42e6096b561d71e3fb6c3167b8f15"
+    },
+    {
+      "file": "zed-v023-proposals/c24573dcdb78b0672d1f21a0a1af45538faa0716.toml",
+      "proposed_blob": "2f48faee4cc8c051a8d1a3512facead5f695b273",
+      "proposed_sha256": "eefe9fc0d2383001998e4455fee949536b599921678910e470f265d266ec9f63",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "c24573dcdb78b0672d1f21a0a1af45538faa0716"
+    },
+    {
+      "file": "zed-v023-proposals/c4f6b1f789b9e3aaaced649528081ade821dce10.toml",
+      "proposed_blob": "b9a0f02bd15c1f7483e648d7471959176017c302",
+      "proposed_sha256": "12221873eb6fc723b7ce158306da2f4dc1e966b1066a40b10649b490654126f9",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "c4f6b1f789b9e3aaaced649528081ade821dce10"
+    },
+    {
+      "file": "zed-v023-proposals/c63d1ce909b8a83764c1691db12e9cd903046f13.toml",
+      "proposed_blob": "3f5941d3f8485d4db9300859b8004ac461468187",
+      "proposed_sha256": "def775ce05480e3e73d38b17a0c2cee51118e8e6c4150ed2b606c9d66a7076b8",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "c63d1ce909b8a83764c1691db12e9cd903046f13"
+    },
+    {
+      "file": "zed-v023-proposals/c6f043370cc6e615d743d04be5311a1ec3905ac7.toml",
+      "proposed_blob": "f1494495624aed1150c4de5d11a94606ef984dcb",
+      "proposed_sha256": "17067a86425ceacea42a12f9e67037768c5b4f17965878b9072dd6217713cd69",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "c6f043370cc6e615d743d04be5311a1ec3905ac7"
+    },
+    {
+      "file": "zed-v023-proposals/c887156255ec2667189aa955104b4a69ad01372d.toml",
+      "proposed_blob": "dc24ed1c9f270409618dab45f2af6d98d7b998bf",
+      "proposed_sha256": "441e12ae91da79303c602bed56c881ded2c934d1ed93b7dc56afd8898d0d6404",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "c887156255ec2667189aa955104b4a69ad01372d"
+    },
+    {
+      "file": "zed-v023-proposals/c8bbbf8ad7e24d09439f2636d284d1ddcc51450b.toml",
+      "proposed_blob": "b055763c2e166259d2ef9646c83c52bdb9e5cb81",
+      "proposed_sha256": "8c8706b2a9811adb6d039f8edb35475f233eefe44c85b0967abc3440f6ea0c5b",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "source_blob": "c8bbbf8ad7e24d09439f2636d284d1ddcc51450b"
+    },
+    {
+      "file": "zed-v023-proposals/ca89fa59be82b5d88bb51d82f2b8811eaabc9c76.toml",
+      "proposed_blob": "8485e7669325a5bf3764ca45443bf5315335a485",
+      "proposed_sha256": "4fe6dba14f97d6f8ee2e8ae754eafbaacd247a460a995e5d84cad86a9e1c55ac",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "ca89fa59be82b5d88bb51d82f2b8811eaabc9c76"
+    },
+    {
+      "file": "zed-v023-proposals/cd1eb11b50b49daa5498344a0443dc3b8c8f152a.toml",
+      "proposed_blob": "e499f418e57f5743b3bf370a2255c0325a9d45fd",
+      "proposed_sha256": "39eb9330a08cafb99c9fc4f99c9960733331aab5eafed17375061fbb59953a95",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "cd1eb11b50b49daa5498344a0443dc3b8c8f152a"
+    },
+    {
+      "file": "zed-v023-proposals/cd707eadfc342aa0cab18e57b08243d3a688dcf3.toml",
+      "proposed_blob": "77b96c5b5e437fac9873e684a8cfc3ba16e8a884",
+      "proposed_sha256": "7ceda847e91435adade65a538d2e5d897ec204102640de9430b28b8fe7b65e76",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "cd707eadfc342aa0cab18e57b08243d3a688dcf3"
+    },
+    {
+      "file": "zed-v023-proposals/ce2ba307eefef33c275a19176a2834fb3c30f63f.toml",
+      "proposed_blob": "ec17b27ccbe90e0b457e4eeeae7dc829e37371cf",
+      "proposed_sha256": "34012c51b967c7e9218665372857acd2e2b61d47d3599b2ad4ef6e36bd672a45",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "ce2ba307eefef33c275a19176a2834fb3c30f63f"
+    },
+    {
+      "file": "zed-v023-proposals/d0a62c7486afcc721d7c80b1073359ed62e916bc.toml",
+      "proposed_blob": "257f94d7196406227a78424165e6914bc69f8857",
+      "proposed_sha256": "965fd78f6bf11ae44ed885c4a11be89d70b0b5b2ba75c3cf01dfee378624efe0",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "d0a62c7486afcc721d7c80b1073359ed62e916bc"
+    },
+    {
+      "file": "zed-v023-proposals/d1eb0aeb8b4c77400c083a780115ad39bf9e7eb3.toml",
+      "proposed_blob": "c0c90a20a34dc27c02fb9b52d9034a37e8db301d",
+      "proposed_sha256": "aaa4173c992bb343f50b795f1e257fda48033e13900e3f9eac634f1ab2c72135",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "d1eb0aeb8b4c77400c083a780115ad39bf9e7eb3"
+    },
+    {
+      "file": "zed-v023-proposals/d35826f3eb182ce47de4191528e41d705a487202.toml",
+      "proposed_blob": "f04feb1dc73a79eb868bca0281c066756689457a",
+      "proposed_sha256": "fd7a93f8d15a963d869fe018702af025b8facfbb19d84767eb135e19fe1dcb6a",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "source_blob": "d35826f3eb182ce47de4191528e41d705a487202"
+    },
+    {
+      "file": "zed-v023-proposals/d5780055c85155ed3be11a23eab2c01944932d28.toml",
+      "proposed_blob": "bce904212b2b1940c6d1b46f51b11a377c5040b1",
+      "proposed_sha256": "8acb27842ac9da593568dc95ccd9e912e76978c411763aaab1d492299dbc86d8",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "d5780055c85155ed3be11a23eab2c01944932d28"
+    },
+    {
+      "file": "zed-v023-proposals/d7b798fce5d14e116134a6a46c48f3a482e2c7fc.toml",
+      "proposed_blob": "98d6542752df81f2fc8f9623003db200a0745d89",
+      "proposed_sha256": "34c8e3b2bc846abaf6cbc2bbf6f7dab88ceb570169f9448699def6e62956dd45",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "d7b798fce5d14e116134a6a46c48f3a482e2c7fc"
+    },
+    {
+      "file": "zed-v023-proposals/d7ebeb72d1dd02ea2e03f3af7dc08dd00f28d166.toml",
+      "proposed_blob": "260d054ac98dc5b172a90de75847dfa56d98b163",
+      "proposed_sha256": "aaa44923b46fa3a2f22700dfb5357343ba65f5cb0cdd8d67d303a5f24a88fe44",
+      "recipes": [
+        "slug-rust-package-name"
+      ],
+      "source_blob": "d7ebeb72d1dd02ea2e03f3af7dc08dd00f28d166"
+    },
+    {
+      "file": "zed-v023-proposals/daf186d3cf2c37818059908019bbf27fe2cf047f.toml",
+      "proposed_blob": "33f4ea589342e1e2969796f30d8271c37aad442e",
+      "proposed_sha256": "59e287048e60dd89bc5a3fce6c34acc0d3c6a881d946f808ec30ffb2287512ea",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "source_blob": "daf186d3cf2c37818059908019bbf27fe2cf047f"
+    },
+    {
+      "file": "zed-v023-proposals/db795dbae04e000882904a2a9da22e61740b690d.toml",
+      "proposed_blob": "bc3246d0b6fbef46926557f4aed159d8056f7a33",
+      "proposed_sha256": "e7216bbdf75ae3dfe530c9025a689955a8fac1a395409b77da33a4290938626c",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "db795dbae04e000882904a2a9da22e61740b690d"
+    },
+    {
+      "file": "zed-v023-proposals/de2ee8033f29c1483c4fe682d86c40cba41801e6.toml",
+      "proposed_blob": "d28af55ef7fa3c3242f11019d1669fa11180dd7f",
+      "proposed_sha256": "54c1f0fc95f6bf692bed2c7f92500accf1431cbda58e42730d1aaf2613b1e89c",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "remove-duplicate-nonexistent-lib-coordinate"
+      ],
+      "source_blob": "de2ee8033f29c1483c4fe682d86c40cba41801e6"
+    },
+    {
+      "file": "zed-v023-proposals/decbb232655feb71dda02d61093a9ccbc75dac7e.toml",
+      "proposed_blob": "f02852d20b4d73bb1a6d5d11d60e0cd4e33bbb2c",
+      "proposed_sha256": "2529d40c8aac32a3bcc190119bbfd8145c8ba11d2837bf0bb55486e8dcc1986b",
+      "recipes": [
+        "canonical-dependency-coordinate",
+        "canonical-root-target-name"
+      ],
+      "source_blob": "decbb232655feb71dda02d61093a9ccbc75dac7e"
+    },
+    {
+      "file": "zed-v023-proposals/df0ce0d8a8ba8acd9e5560fcf1cdc350988a181a.toml",
+      "proposed_blob": "6cbbf370e053434ddc87908bb8fe08fc3956757a",
+      "proposed_sha256": "0b3be150a3df7893f8514f4b0f598768ef6992a5f43f94fc56cdc320e900d817",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "source_blob": "df0ce0d8a8ba8acd9e5560fcf1cdc350988a181a"
+    },
+    {
+      "file": "zed-v023-proposals/e1bfd5115b5c99b0c8af06fc1bd8a569f7577fd9.toml",
+      "proposed_blob": "a0f0febdb941f7156b8abb25b701dd87de97a890",
+      "proposed_sha256": "bf048383306919407405c983650847cbdb69bf98e23eb2c4a801e24b5e1d101a",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test",
+        "isolate-fiducia-target-roots"
+      ],
+      "source_blob": "e1bfd5115b5c99b0c8af06fc1bd8a569f7577fd9"
+    },
+    {
+      "file": "zed-v023-proposals/e20598e5184c39d60e77bde10d8710016ef5db28.toml",
+      "proposed_blob": "f5aa1884a361a334f8704028230ee1feb20e0945",
+      "proposed_sha256": "4c90535413034f0bf88f29318e1748c899690a498ece6d42827eab40138bc7dd",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "e20598e5184c39d60e77bde10d8710016ef5db28"
+    },
+    {
+      "file": "zed-v023-proposals/e53bf5f4988750d213343dd6d1ca856b41b642d3.toml",
+      "proposed_blob": "2f9858e0f19edd81c279bef9ecb7fb87598bb843",
+      "proposed_sha256": "2f06f2ffe665014f1137c0435fbb519ae2f16001416d559ed7ff3b0d12ebf9d2",
+      "recipes": [
+        "canonical-root-target-name",
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "e53bf5f4988750d213343dd6d1ca856b41b642d3"
+    },
+    {
+      "file": "zed-v023-proposals/eb18d9f4995e54d8380375e12ffbf3ad86d2cd4b.toml",
+      "proposed_blob": "a55984d57fc01086d6cdd48d1099f7a2699c783b",
+      "proposed_sha256": "05ce3f06993ffca5488d026f642f0e9b931229c3576fd025b994a0717c8cb333",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "eb18d9f4995e54d8380375e12ffbf3ad86d2cd4b"
+    },
+    {
+      "file": "zed-v023-proposals/ec1be4b43852305e06d659e368ac50625349bd47.toml",
+      "proposed_blob": "a4006745ac687d869c20784094a67cbf2afbcc6e",
+      "proposed_sha256": "1f6e6cb0bf457f7a64dfd319f389a71062b92ca2b8eb81ef7b039f1cc4099522",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "ec1be4b43852305e06d659e368ac50625349bd47"
+    },
+    {
+      "file": "zed-v023-proposals/ed18e41eabcac4998fd648ba2027639746c44bbf.toml",
+      "proposed_blob": "ca001814bd393c6148b3853d61be3175d813aeb6",
+      "proposed_sha256": "6fcae82bb204f3e0951d9e7dc4f7a7ae9a943ce02d7d2cac49a7984863c2776a",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "ed18e41eabcac4998fd648ba2027639746c44bbf"
+    },
+    {
+      "file": "zed-v023-proposals/ef679dad2acd56d6a3c073ab278ffd24b6dea21d.toml",
+      "proposed_blob": "142a055e6877fed694b3d22536415a2f25f8fccf",
+      "proposed_sha256": "b8dca25287ca6dc2594ec3c332d2c28b7ac3b09251d8687726cc5cdca275495d",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "ef679dad2acd56d6a3c073ab278ffd24b6dea21d"
+    },
+    {
+      "file": "zed-v023-proposals/efe42a351ca349757ffeffefd962178cb4d1b6bd.toml",
+      "proposed_blob": "f5a00d5c2df6051298110c17fbf3b2591e5a36b8",
+      "proposed_sha256": "d0fd87ebc0b8aac9b464525f33979fed137c61a1dfba07781cd252c7cfbbb42b",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "efe42a351ca349757ffeffefd962178cb4d1b6bd"
+    },
+    {
+      "file": "zed-v023-proposals/f4ada1a91dad1e6ac7b6b5c410d9164772915807.toml",
+      "proposed_blob": "644b8c3e6cd3b373b01e437da9d6f7ee736736da",
+      "proposed_sha256": "026d9235bf87bd6f008d84814374e00306cc67200a92b3079351e922297d9af7",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "source_blob": "f4ada1a91dad1e6ac7b6b5c410d9164772915807"
+    },
+    {
+      "file": "zed-v023-proposals/f681cc210e66a852c72a3a8f8a176fac2a07fb47.toml",
+      "proposed_blob": "c538a3f3806a7a6e3e288e55bc97dba0b9a08efa",
+      "proposed_sha256": "636f90db8f8e9535131fae15418da332a8a6befb35743deca603605fabc8fe06",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "f681cc210e66a852c72a3a8f8a176fac2a07fb47"
+    },
+    {
+      "file": "zed-v023-proposals/f69555601fa92c0acb7529a6e7c705054b304e2c.toml",
+      "proposed_blob": "f1ce4add6676fce22b88311a87330f4f85668b6a",
+      "proposed_sha256": "3b31be4765da0ce703f85c81b7bc3792f9994b5cdde8624674a9f28a92bba0bc",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "f69555601fa92c0acb7529a6e7c705054b304e2c"
+    },
+    {
+      "file": "zed-v023-proposals/f73f5c58657287120b29d4c297856cbe38fb46e6.toml",
+      "proposed_blob": "3a0438029f0e7717af5c3f58412ae89d87a5cd5a",
+      "proposed_sha256": "634544a17ef5aad0bb91ee94609435d8becc17382c12abd66494d28d8293aaa9",
+      "recipes": [
+        "lowercase-package-org"
+      ],
+      "source_blob": "f73f5c58657287120b29d4c297856cbe38fb46e6"
+    },
+    {
+      "file": "zed-v023-proposals/f85f528f94c7086bc76c935756663669742c6a62.toml",
+      "proposed_blob": "cccdbe5792c72c1f09304d6de46664e0cb0cf555",
+      "proposed_sha256": "a3b2931d4640792f5361d09db08035c0abe11aa0cb6a60079866578f93d1fb09",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "f85f528f94c7086bc76c935756663669742c6a62"
+    },
+    {
+      "file": "zed-v023-proposals/f8b14e58a97dd3a939b0a46615f1eabdd9580db8.toml",
+      "proposed_blob": "75f766862b54d8efb411e9eb8ab71f9f73b184bc",
+      "proposed_sha256": "a0c75a2339d57270c934cedc480f37950af506e724ea1a4fef31a9e31e1f96bd",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "f8b14e58a97dd3a939b0a46615f1eabdd9580db8"
+    },
+    {
+      "file": "zed-v023-proposals/fa69309e7d5caa046dd7100e4701b0a8d53e7f61.toml",
+      "proposed_blob": "935c72519a2d005949b908bae01679f18a258297",
+      "proposed_sha256": "f5c0a41c9fd21dc341ca5572b09fb8e97023e750883f58b047167eddd7404100",
+      "recipes": [
+        "slug-pages-package-name"
+      ],
+      "source_blob": "fa69309e7d5caa046dd7100e4701b0a8d53e7f61"
+    },
+    {
+      "file": "zed-v023-proposals/fb6247e85dcb8c30e368a188f19236c1e8bf61b3.toml",
+      "proposed_blob": "733629278e915ac85624247bdf8a2559de6ae6a5",
+      "proposed_sha256": "4d0c612692feac9d91352bdc6c9e7d5fb04e52274a5e052660c1cf52116e7b60",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "fb6247e85dcb8c30e368a188f19236c1e8bf61b3"
+    },
+    {
+      "file": "zed-v023-proposals/fbc14703f5866cd160134b1b2bf3eef4791f66ed.toml",
+      "proposed_blob": "293f219137b315a4d3335c6f13a2a2328cc6087d",
+      "proposed_sha256": "3ae8ebe0af0058da945549f5c76adf563ff31d14c7d3e9e8656b0dd8fd6284c0",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "fbc14703f5866cd160134b1b2bf3eef4791f66ed"
+    },
+    {
+      "file": "zed-v023-proposals/fdf2470e8fd1c503e81d7cb97697d414ce83a390.toml",
+      "proposed_blob": "806338c089a651a6392ffbf2f251c8b65d6dba24",
+      "proposed_sha256": "8f8f9f19e60152ea5813fdc01e67cafc28ba51b80d33ec91a8d23f985da80e33",
+      "recipes": [
+        "canonical-dependency-coordinate"
+      ],
+      "source_blob": "fdf2470e8fd1c503e81d7cb97697d414ce83a390"
+    },
+    {
+      "file": "zed-v023-proposals/fed7df91cb001c6764ec8e7dae69f3d617a41004.toml",
+      "proposed_blob": "9d1d0cba4dd854b866da97e5eb0cd1843b302a8d",
+      "proposed_sha256": "03faee5d5e49f40b83882b29f397bd25718451183bacd3d1743d1f6250c74b9f",
+      "recipes": [
+        "canonical-root-target-name"
+      ],
+      "source_blob": "fed7df91cb001c6764ec8e7dae69f3d617a41004"
+    },
+    {
+      "file": "zed-v023-proposals/ff5150cc4998ceff097678e62aa67691bc212eb6.toml",
+      "proposed_blob": "e3542a1a4e9685af9509034b4c0d86391b3000cc",
+      "proposed_sha256": "b968fb0d05d95ee8ba24ea176eaae64f13152adfd3d1a6b68ee64720ba3ca1ce",
+      "recipes": [
+        "isolate-shared-auth-target-roots"
+      ],
+      "source_blob": "ff5150cc4998ceff097678e62aa67691bc212eb6"
+    },
+    {
+      "file": "zed-v023-proposals/ffdd9940f58207e46ad5d862d9946080a3ed0cff.toml",
+      "proposed_blob": "12fd0f8c4ea95502ba6df5a3df63300167aa9653",
+      "proposed_sha256": "3ff43a194fb566c8f24f49002baaad1f594196a211bb1827c2786dc3b5ae8418",
+      "recipes": [
+        "collapse-scripts-to-test"
+      ],
+      "source_blob": "ffdd9940f58207e46ad5d862d9946080a3ed0cff"
+    }
+  ],
+  "schema_version": 1,
+  "snapshot": {
+    "changed_unique_blobs": 160,
+    "manifest_instances": 656,
+    "mutation_instances": 171,
+    "mutation_repositories": 155,
+    "repositories": 620
+  },
+  "tracking_issue": "DEN-3733",
+  "zed": {
+    "cli_commit": "9dae597bcf22970e97b90c5ea336db19a9f02255",
+    "cli_tag": "v0.2.3",
+    "interface_revision": "8428bc574111fa148e590c8350c7855035ce2046"
+  }
+}

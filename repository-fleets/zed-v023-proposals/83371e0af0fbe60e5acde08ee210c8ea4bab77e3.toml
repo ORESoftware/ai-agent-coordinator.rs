@@ -1,0 +1,56 @@
+[package]
+org = "quaestor-ledger"
+name = "quaestor-ledger-sync"
+version = "0.1.0"
+description = "Local-first Rust, TypeScript, Dart, PostgreSQL, and Supabase synchronization for Quaestor Ledger"
+license = "MIT OR Apache-2.0"
+keywords = ["sync", "ledger", "offline-first", "postgres", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/quaestor-ledger/quaestor-ledger-sync"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/crates/quaestor-sync-core/Cargo.toml\" && test -f \"$ZED_PKG_TEST_TARGET/packages/typescript/package.json\" && test -f \"$ZED_PKG_TEST_TARGET/packages/dart/pubspec.yaml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**", "**/build/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "crates/quaestor-sync-core"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "quaestor-ledger-sync"
+
+[targets.nodejs]
+dir = "packages/typescript"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@quaestor-ledger/sync"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.dart]
+dir = "packages/dart"
+adapter = "dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "quaestor_ledger_sync"
+
+[targets.postgres]
+dir = "postgres"
+adapter = "none"
+
+[targets.protocol]
+dir = "protocol"
+adapter = "none"
+
+[scripts]
+test = "./verify-all.sh"

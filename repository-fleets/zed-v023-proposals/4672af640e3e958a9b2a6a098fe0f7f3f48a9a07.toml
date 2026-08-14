@@ -1,0 +1,31 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-web-server"
+version = "0.1.0"
+description = "Rust Axum and Maud web server for app.benefactor.cc"
+license = "UNLICENSED"
+keywords = ["rust", "axum", "maud", "seaorm", "web"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-web-server.rs"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "cargo check --locked"
+exclude = [".env", ".env.*", "target/**", ".zed/**", ".zed-pack/**", "zed_modules/**"]
+
+[dependencies]
+"benefactor-cc/benefactor-interfaces" = "^0.1.0"
+"benefactor-cc/benefactor-lib" = "^0.1.0"
+
+[install]
+dir = "zed_modules"
+
+[targets.rust]
+dir = "."
+adapter = "rust"
+
+[scripts]
+test = "cargo test --locked"

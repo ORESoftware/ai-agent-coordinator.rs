@@ -8,6 +8,7 @@ on:
       - scripts/bootstrap_test_org_deep_fleets_live.py
       - scripts/test_test_org_deep_fleets.py
       - docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+      - docs/test-org-deep-fleet-zpkg-v021-migration-2026-08-14.md
       - .github/workflows/test-org-deep-fleet-contract.yml
   push:
     paths:
@@ -16,6 +17,7 @@ on:
       - scripts/bootstrap_test_org_deep_fleets_live.py
       - scripts/test_test_org_deep_fleets.py
       - docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+      - docs/test-org-deep-fleet-zpkg-v021-migration-2026-08-14.md
       - .github/workflows/test-org-deep-fleet-contract.yml
   workflow_dispatch:
 
@@ -66,6 +68,7 @@ jobs:
             scripts/bootstrap_test_org_deep_fleets_live.py
             scripts/test_test_org_deep_fleets.py
             docs/test-org-deep-fleet-bootstrap-2026-08-08.md
+            docs/test-org-deep-fleet-zpkg-v021-migration-2026-08-14.md
             .github/workflows/test-org-deep-fleet-contract.yml
           )
           if grep -nE "$credential_pattern" "${files[@]}"; then

@@ -1,0 +1,35 @@
+[package]
+org = "athleto"
+name = "athleto-interfaces"
+version = "0.1.0"
+description = "Canonical AthletO domain, API, sync, and telemetry interfaces"
+license = "MIT"
+keywords = ["interfaces", "json-schema", "sync", "telemetry", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/athlet-o/athleto-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/athleto.schema.json\" && test -f \"$ZED_PKG_TEST_TARGET/generated/typescript/package.json\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[scripts]
+test = "npm run generate && npm run typecheck && npm run check:sync-drift && npm run check:conformance && (cd generated/typescript && npm run typecheck) && cargo test --manifest-path generated/rust/Cargo.toml && dart analyze generated/dart/lib && dart run generated/dart/example/roundtrip.dart"

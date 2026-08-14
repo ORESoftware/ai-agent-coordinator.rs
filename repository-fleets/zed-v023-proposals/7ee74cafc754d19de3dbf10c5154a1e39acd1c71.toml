@@ -1,0 +1,43 @@
+[package]
+org = "sonus-auris"
+name = "sonus-auris-interfaces"
+version = "0.1.0"
+description = "Canonical Sonus Auris database schemas and typed cross-language interfaces"
+keywords = ["interfaces", "audio", "postgres", "json-schema", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/sonus-auris/sonus-auris-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/tables.json\" && test -f \"$ZED_PKG_TEST_TARGET/generated/rust/Cargo.toml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.json-schema]
+dir = "generated/json-schema"
+adapter = "none"
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.rust-wasm]
+dir = "generated/rust-wasm"
+adapter = "node"
+ecosystem = "npm"
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[scripts]
+test = "node src/generate.mjs --check && node --test src/*.test.mjs"

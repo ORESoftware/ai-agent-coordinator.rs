@@ -1,0 +1,113 @@
+[package]
+org = "scintilla-run"
+name = "scintilla-clients"
+version = "0.1.0"
+description = "Top level client repository package"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/scintilla-run/scintilla-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"scintilla-run/scintilla-interfaces" = "^0.1.0"
+
+[workspace]
+members = ["clients/*"]
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", ".vendor/.zed/**", "tmp/**", "**/*.log", ".DS_Store", "**/.build/**", "benches/**"]
+
+[targets.repository]
+dir = "."
+
+# The TypeScript implementation is standards-based and self-contained. One
+# canonical Node.js target owns the shared Node.js, Deno, Bun, and edge exports.
+[targets.nodejs]
+dir = "clients/typescript"
+name = "scintilla-clients-nodejs"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@scintilla-run/client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.golang]
+dir = "clients/go"
+name = "scintilla-clients-golang"
+adapter = "go"
+
+# The module proxy resolves a subdirectory module by `<subdir>/vX.Y.Z`,
+# which the repo-global [publish].tag_format cannot express.
+[targets.golang.native]
+registry = "go-modules"
+package = "github.com/scintilla-run/scintilla-clients/clients/go"
+tag_format = "clients/go/v{version}"
+forge = ["gitlab-packages"]
+
+[targets.python]
+dir = "clients/python"
+adapter = "python"
+
+[targets.ruby]
+dir = "clients/ruby"
+adapter = "none"
+
+[targets.php]
+dir = "clients/php"
+adapter = "none"
+
+[targets.rust]
+dir = "clients/rust"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "scintilla-client"
+
+[targets.rust-wasm]
+dir = "clients/wasm"
+name = "scintilla-clients-wasm"
+adapter = "node"
+
+[targets.dart]
+dir = "clients/dart"
+adapter = "dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "scintilla_client"
+
+[targets.flutter]
+dir = "clients/flutter"
+adapter = "dart"
+
+[targets.gleam]
+dir = "clients/gleam"
+adapter = "none"
+
+[targets.erlang]
+dir = "clients/erlang"
+adapter = "none"
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.java.native]
+registry = "maven-central"
+package = "run.scintilla:scintilla-client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+
+[targets.swift]
+dir = "clients/swift"
