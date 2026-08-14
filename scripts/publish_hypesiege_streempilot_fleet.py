@@ -46,6 +46,12 @@ REPOSITORY_NAME_PATTERN = re.compile(
 KIND_PATTERN = re.compile(r"[a-z][a-z0-9-]{1,31}\Z")
 SHA_PATTERN = re.compile(r"[0-9a-f]{40}\Z")
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]{20,255}\Z")
+MAX_ERROR_DETAIL_BYTES = MAX_ERROR_BYTES
+SECRET_PATTERNS = (
+    re.compile(r"(?i)\bBearer\s+[^\s,;]+"),
+    re.compile(r"\bgh[pousr]_[A-Za-z0-9_]+\b"),
+    re.compile(r"\bgithub_pat_[A-Za-z0-9_]+\b"),
+)
 RECORD_FIELDS = frozenset(
     {
         "org",
@@ -108,13 +114,6 @@ def sanitize_detail(value: object, *, token: str | None = None) -> str:
         for character in detail
     )
     return detail.strip()[:MAX_ERROR_DETAIL_BYTES]
-
-
-class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Reject redirects so credentials never cross an unexpected origin."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001
-        return None
 
 
 def git_binary() -> str:
@@ -649,7 +648,7 @@ def request_json(
             ) from error
         raise PublicationError(
             f"GitHub API unavailable for {method} {path}: "
-            f"{sanitize_detail(reason, token=token)}"
+            f"{sanitize_detail(raw, token=token)}"
         ) from error
 
 
