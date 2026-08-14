@@ -56,5 +56,27 @@ The authenticated 2026-08-14 live preflight found all 100 repositories and
 classified all 100 default-branch manifests as exact approved predecessors, with
 zero missing repositories, unknown source blobs, or writes.
 
-Live PR, check, merge, and default-branch evidence will be recorded here after the
-bounded rollout completes.
+## Live rollout evidence
+
+The authenticated rollout opened repository-local pull requests from the exact
+reviewed predecessor blobs and merged 99 manifests after their exact-head
+`verify` checks succeeded. `opto-sync-test/contract-conformance-tests` had
+independently strengthened its repository verifier after the original bootstrap,
+so its first pull request correctly stopped instead of weakening or bypassing the
+new check.
+
+That repository was reconciled semantically: commit
+`a5524ea5b289d9abe5ffa96ed3e9df0c18573a6f` moved the temporary Rust-workspace
+lifecycle assertion from the removed `[develop]` table to the supported
+`scripts.test` contract while retaining the Python, Node, and cross-language
+matrix commands. Its verifier, 18 Python tests, two Node lifecycle tests, official
+Zed validation, and both exact-head GitHub Actions checks passed before pull
+request `opto-sync-test/contract-conformance-tests#5` squash-merged as
+`58ecba6d48b3f776d613353f61d83bea111c9949`.
+
+The final authenticated idempotency run then re-read all 100 default branches and
+classified every repository as `already_initialized`: 100/100 verified, zero
+open migration pull requests, zero missing repositories, and zero failures. The
+result ledger is `deep-test-zpkg-v021-final-reconciled.json`; it contains no
+credential material and records the exact default-branch commit for every
+repository.
