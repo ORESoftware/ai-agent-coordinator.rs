@@ -2,7 +2,7 @@
 
 This workflow sends **one consolidated email** at 07:00 Central each day. The
 recipient is bound in `config/scheduled-task-digest.json` to
-`alexanded.d.mills@gmail.com`.
+`alexander.d.mills@gmail.com`.
 
 ## What it reports
 

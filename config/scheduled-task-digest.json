@@ -3,7 +3,7 @@
   "timezone": "America/Chicago",
   "delivery_local_time": "07:00",
   "lookback_hours": 24,
-  "recipient": "alexanded.d.mills@gmail.com",
+  "recipient": "alexander.d.mills@gmail.com",
   "max_repositories": 1000,
   "max_workflow_files": 3000,
   "repository_concurrency": 8,

@@ -123,7 +123,7 @@ on:
                 "end": "2026-08-12T12:00:00Z",
                 "hours": 24,
             },
-            "recipient": "alexanded.d.mills@gmail.com",
+            "recipient": "alexander.d.mills@gmail.com",
             "summary": {
                 "critical": 1,
                 "attention": 0,
@@ -217,7 +217,7 @@ on:
     def test_config_binds_exact_requested_recipient(self) -> None:
         config_path = Path(__file__).resolve().parents[1] / "config" / "scheduled-task-digest.json"
         config = digest.load_config(config_path)
-        self.assertEqual(config["recipient"], "alexanded.d.mills@gmail.com")
+        self.assertEqual(config["recipient"], "alexander.d.mills@gmail.com")
         self.assertIn("zed-pkg-test/.github", config["explicit_repositories"])
 
     def test_decision_command_writes_github_outputs(self) -> None:
