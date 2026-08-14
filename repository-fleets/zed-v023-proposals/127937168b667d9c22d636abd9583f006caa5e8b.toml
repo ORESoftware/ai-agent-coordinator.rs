@@ -1,0 +1,30 @@
+[package]
+org = "threefa"
+name = "threefa-monorepo"
+version = "0.1.0"
+description = "Pinned integration workspace for the 3FA application family"
+license = "UNLICENSED"
+keywords = ["monorepo", "git-submodules", "threefa", "integration"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/3FA-app/threefa-monorepo"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[dependencies]
+"threefa/threefa-clients" = "^0.1.0"
+"threefa/threefa-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".vendor/.zed/**"]
+
+[targets.repository]
+dir = "."
+
+[scripts]
+test = "npm test && bash scripts/validate-zed-package-graph.sh && bash scripts/zed-install-with-submodules.sh && git submodule sync --recursive && git submodule update --init --recursive && git submodule status --recursive"

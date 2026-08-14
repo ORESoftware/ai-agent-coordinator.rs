@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import textwrap
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -32,6 +33,13 @@ class SuiteSpec:
 
 
 @dataclass(frozen=True)
+class ZedManifestOverride:
+    version: str
+    description: str
+    test_commands: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class Fleet:
     schema_version: int
     bootstrap_date: str
@@ -42,10 +50,16 @@ class Fleet:
     owner_id: int
     organizations: tuple[str, ...]
     repositories: tuple[SuiteSpec, ...]
+    zed_manifest_overrides: dict[str, ZedManifestOverride]
 
     @property
     def total(self) -> int:
         return len(self.organizations) * len(self.repositories)
+
+    def zed_manifest_override(
+        self, organization: str, repository: str
+    ) -> ZedManifestOverride | None:
+        return self.zed_manifest_overrides.get(f"{organization}/{repository}")
 
 
 def _strict_object_pairs(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -68,11 +82,12 @@ def load_fleet(path: Path) -> Fleet:
         "expected_owner",
         "organizations",
         "repositories",
+        "zed_manifest_overrides",
     }
     if set(data) != required:
         raise ValueError(f"manifest keys differ: expected={sorted(required)} observed={sorted(data)}")
-    if data["schema_version"] != 1:
-        raise ValueError("schema_version must be 1")
+    if data["schema_version"] != 2:
+        raise ValueError("schema_version must be 2")
     if data["live_creation_enabled"] is not False:
         raise ValueError("checked-in manifest must remain live_creation_enabled=false")
     if data["visibility"] != "public":
@@ -122,8 +137,41 @@ def load_fleet(path: Path) -> Fleet:
     if len({item.suite for item in repositories}) != len(repositories):
         raise ValueError("duplicate suite")
 
+    known_repositories = {
+        f"{organization}/{spec.name}"
+        for organization in organizations
+        for spec in repositories
+    }
+    raw_overrides = data["zed_manifest_overrides"]
+    if not isinstance(raw_overrides, dict):
+        raise ValueError("zed_manifest_overrides must be an object")
+    overrides: dict[str, ZedManifestOverride] = {}
+    for repository, row in raw_overrides.items():
+        if repository not in known_repositories:
+            raise ValueError(f"Zed manifest override is outside the fleet: {repository}")
+        if not isinstance(row, dict) or set(row) != {"version", "description", "test_commands"}:
+            raise ValueError(f"invalid Zed manifest override keys: {repository}")
+        commands = row["test_commands"]
+        if (
+            not isinstance(commands, list)
+            or not commands
+            or any(not isinstance(command, str) or not command.strip() for command in commands)
+        ):
+            raise ValueError(f"invalid Zed manifest override commands: {repository}")
+        version = row["version"]
+        description = row["description"]
+        if not isinstance(version, str) or not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
+            raise ValueError(f"invalid Zed manifest override version: {repository}")
+        if not isinstance(description, str) or not 20 <= len(description) <= 180:
+            raise ValueError(f"invalid Zed manifest override description: {repository}")
+        overrides[repository] = ZedManifestOverride(
+            version=version,
+            description=description,
+            test_commands=tuple(commands),
+        )
+
     fleet = Fleet(
-        schema_version=1,
+        schema_version=2,
         bootstrap_date=str(data["bootstrap_date"]),
         tracking_issue=str(data["tracking_issue"]),
         live_creation_enabled=False,
@@ -132,6 +180,7 @@ def load_fleet(path: Path) -> Fleet:
         owner_id=int(owner["id"]),
         organizations=organizations,
         repositories=tuple(repositories),
+        zed_manifest_overrides=overrides,
     )
     if fleet.total != EXPECTED_TOTAL:
         raise ValueError(f"expected total {EXPECTED_TOTAL}, observed {fleet.total}")
@@ -947,6 +996,134 @@ def _security_files() -> dict[str, str]:
     }
 
 
+def legacy_zpkg_manifest(organization: str, spec: SuiteSpec) -> str:
+    """Return the exact manifest published by the original 2026-08-08 rollout."""
+    return _dedent(
+        f'''
+        [package]
+        name = "{organization}/{spec.name}"
+        version = "0.1.0"
+        type = "test-suite"
+
+        [develop]
+        commands = [
+          "PYTHONPATH=src python -m unittest discover -s tests -v",
+          "python scripts/verify_repository.py"
+        ]
+        '''
+    )
+
+
+def normalized_legacy_zpkg_manifest(organization: str, spec: SuiteSpec) -> str:
+    """Return the exact intermediate identity-only migration used by zed-pkg-test."""
+    return _dedent(
+        f'''
+        [package]
+        org = "{organization}"
+        name = "{spec.name}"
+        version = "0.1.0"
+        type = "test-suite"
+        description = "{spec.description}"
+        license = "MIT"
+
+        [package.repository]
+        vcs = "git"
+        url = "https://github.com/{organization}/{spec.name}"
+
+        [install]
+        dir = ".vendor/.zed"
+
+        [publish]
+        exclude = ["artifacts/**", "vendor/**", ".vendor/**", ".env", ".env.*", "__pycache__/**", ".pytest_cache/**"]
+
+        [develop]
+        commands = [
+          "PYTHONPATH=src python -m unittest discover -s tests -v",
+          "python scripts/verify_repository.py"
+        ]
+        '''
+    )
+
+
+def enhanced_legacy_zpkg_manifest(
+    organization: str, spec: SuiteSpec, override: ZedManifestOverride
+) -> str:
+    """Return the exact enhanced predecessor retained by a reviewed repo override."""
+    commands = ",\n".join(f'  "{command}"' for command in override.test_commands)
+    return (
+        f'[package]\n'
+        f'org = "{organization}"\n'
+        f'name = "{spec.name}"\n'
+        f'version = "{override.version}"\n'
+        f'description = "{override.description}"\n'
+        'license = "MIT"\n\n'
+        '[package.repository]\n'
+        'vcs = "git"\n'
+        f'url = "https://github.com/{organization}/{spec.name}"\n\n'
+        '[install]\n'
+        'dir = ".vendor/.zed"\n\n'
+        '[develop]\n'
+        'commands = [\n'
+        f'{commands}\n'
+        ']\n'
+    )
+
+
+def approved_zpkg_predecessors(
+    organization: str, spec: SuiteSpec, fleet: Fleet
+) -> tuple[str, ...]:
+    predecessors = [legacy_zpkg_manifest(organization, spec)]
+    if organization == "zed-pkg-test":
+        predecessors.append(normalized_legacy_zpkg_manifest(organization, spec))
+    override = fleet.zed_manifest_override(organization, spec.name)
+    if override is not None:
+        predecessors.append(enhanced_legacy_zpkg_manifest(organization, spec, override))
+    return tuple(predecessors)
+
+
+def zpkg_manifest(organization: str, spec: SuiteSpec, fleet: Fleet) -> str:
+    """Return the canonical Zed v0.2.1 package manifest for a deep-test repo."""
+    override = fleet.zed_manifest_override(organization, spec.name)
+    version = override.version if override else "0.1.0"
+    description = override.description if override else spec.description
+    commands = (
+        override.test_commands
+        if override
+        else (
+            "PYTHONPATH=src python -m unittest discover -s tests -v",
+            "python scripts/verify_repository.py",
+        )
+    )
+    test_command = " && ".join(commands)
+    return _dedent(
+        f'''
+        [package]
+        org = "{organization}"
+        name = "{spec.name}"
+        version = "{version}"
+        description = "{description}"
+        license = "MIT"
+        language = "python"
+
+        [package.repository]
+        vcs = "git"
+        url = "https://github.com/{organization}/{spec.name}"
+
+        [publish]
+        include_readme = true
+        tag_format = "v{{version}}"
+        exclude = [".env", ".env.*", ".venv/**", ".vendor/**", "vendor/**", "artifacts/**", "**/__pycache__/**", "**/*.pyc", ".pytest_cache/**"]
+
+        [install]
+        dir = ".vendor/.zed"
+        adapter = "none"
+
+        [scripts]
+        test = "{test_command}"
+        '''
+    )
+
+
 def _common_files(organization: str, spec: SuiteSpec, fleet: Fleet) -> dict[str, str]:
     primary = organization[: -len("-test")]
     metadata = {
@@ -1152,20 +1329,7 @@ def _common_files(organization: str, spec: SuiteSpec, fleet: Fleet) -> dict[str,
         network_default = "disabled"
         '''
     )
-    zpkg = _dedent(
-        f'''
-        [package]
-        name = "{organization}/{spec.name}"
-        version = "0.1.0"
-        type = "test-suite"
-
-        [develop]
-        commands = [
-          "PYTHONPATH=src python -m unittest discover -s tests -v",
-          "python scripts/verify_repository.py"
-        ]
-        '''
-    )
+    zpkg = zpkg_manifest(organization, spec, fleet)
     return {
         "README.md": readme,
         "AGENTS.md": agents,
@@ -1201,11 +1365,13 @@ def generate_repository_files(organization: str, spec: SuiteSpec, fleet: Fleet) 
     if overlap:
         raise ValueError(f"template path collision: {sorted(overlap)}")
     files.update(specialized)
-    validate_generated_files(files, organization, spec)
+    validate_generated_files(files, organization, spec, fleet)
     return dict(sorted(files.items()))
 
 
-def validate_generated_files(files: dict[str, str], organization: str, spec: SuiteSpec) -> None:
+def validate_generated_files(
+    files: dict[str, str], organization: str, spec: SuiteSpec, fleet: Fleet
+) -> None:
     if len(files) < 12:
         raise ValueError(f"generated repository is too shallow: {organization}/{spec.name}")
     markers = re.compile(r"^(<{7}|={7}|>{7})", re.MULTILINE)
@@ -1223,6 +1389,65 @@ def validate_generated_files(files: dict[str, str], organization: str, spec: Sui
         raise ValueError(f"unpinned workflow action: {actions}")
     if "permissions:\n  contents: read" not in workflow or "pull_request_target" in workflow:
         raise ValueError("unsafe workflow permission/event boundary")
+
+    expected_manifest = zpkg_manifest(organization, spec, fleet)
+    if files[".zpkg.toml"] != expected_manifest:
+        raise ValueError("Zed manifest differs from the canonical repository-specific template")
+    manifest = tomllib.loads(files[".zpkg.toml"])
+    expected_tables = {"package", "publish", "install", "scripts"}
+    if set(manifest) != expected_tables:
+        raise ValueError(
+            f"Zed manifest keys differ: expected={sorted(expected_tables)} "
+            f"observed={sorted(manifest)}"
+        )
+    package = manifest["package"]
+    if set(package) != {
+        "org",
+        "name",
+        "version",
+        "description",
+        "license",
+        "language",
+        "repository",
+    }:
+        raise ValueError(f"Zed package keys differ: {sorted(package)}")
+    if package["org"] != organization or package["name"] != spec.name:
+        raise ValueError("Zed package identity does not match its repository")
+    if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", package["version"]):
+        raise ValueError("Zed package version is not canonical semver")
+    if package["language"] != "python":
+        raise ValueError("Zed package version/language contract drift")
+    if (
+        not isinstance(package["description"], str)
+        or not 20 <= len(package["description"]) <= 180
+        or package["license"] != "MIT"
+    ):
+        raise ValueError("Zed package metadata contract drift")
+    if package["repository"] != {
+        "vcs": "git",
+        "url": f"https://github.com/{organization}/{spec.name}",
+    }:
+        raise ValueError("Zed repository provenance contract drift")
+    if set(manifest["scripts"]) != {"test"} or not manifest["scripts"]["test"].strip():
+        raise ValueError("Zed manifest must expose exactly one non-empty test script")
+    if manifest["install"] != {"dir": ".vendor/.zed", "adapter": "none"}:
+        raise ValueError("Zed test package must disable ecosystem adapter inference")
+    if manifest["publish"] != {
+        "include_readme": True,
+        "tag_format": "v{version}",
+        "exclude": [
+            ".env",
+            ".env.*",
+            ".venv/**",
+            ".vendor/**",
+            "vendor/**",
+            "artifacts/**",
+            "**/__pycache__/**",
+            "**/*.pyc",
+            ".pytest_cache/**",
+        ],
+    }:
+        raise ValueError("Zed publish boundary differs from the reviewed safe template")
 
 
 def materialize_repository(root: Path, files: dict[str, str]) -> None:

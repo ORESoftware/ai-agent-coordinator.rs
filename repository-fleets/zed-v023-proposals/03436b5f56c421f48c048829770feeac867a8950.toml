@@ -1,0 +1,34 @@
+[package]
+org = "hypesiege"
+name = "hsg-interfaces"
+version = "0.1.0"
+description = "Source-of-truth social publishing contracts, SQL, NATS subjects, and generated bindings"
+keywords = ["interfaces", "json-schema", "postgres", "nats", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/hypesiege/hsg-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/domain.schema.json\" && test -f \"$ZED_PKG_TEST_TARGET/schema/nats-subjects.json\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**", "**/__pycache__/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[scripts]
+test = "npm run check"

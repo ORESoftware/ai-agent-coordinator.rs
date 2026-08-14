@@ -1,0 +1,41 @@
+[package]
+org = "daedalus-fab"
+name = "daedalus-cli"
+version = "0.1.0"
+description = "Command-line client for Daedalus Fab — fabrication plans, live events, and offline telemetry checks"
+license = "MIT"
+keywords = ["cli", "fabrication", "manufacturing", "rust", "global-tool"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/daedalus-fab/daedalus-cli"
+
+# Org dependency graph: interfaces (schema + validators) -> clients (transport)
+# -> this CLI. The org segment is the GitHub org that owns each repo.
+# daedalus-fab has no `daedalus-lib`; when one lands, it belongs between these
+# two. scripts/check-zed-dependencies.py fails CI if this list and Cargo.toml
+# disagree.
+[dependencies]
+"daedalus-fab/daedalus-interfaces" = "^0.1.0"
+"daedalus-fab/daedalus-clients" = "^0.1.0"
+
+[build]
+command = "cargo build --release --locked --bin daedalus"
+outputs = ["target/release/daedalus"]
+
+[bin]
+daedalus = "target/release/daedalus"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -x \"$ZED_PKG_TEST_TARGET/target/release/daedalus\" && \"$ZED_PKG_TEST_TARGET/target/release/daedalus\" --help >/dev/null"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && python3 scripts/check-zed-dependencies.py"

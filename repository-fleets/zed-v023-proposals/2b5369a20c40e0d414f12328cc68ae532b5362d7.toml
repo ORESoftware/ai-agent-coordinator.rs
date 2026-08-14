@@ -1,0 +1,58 @@
+[package]
+org = "opto-sync"
+name = "syncer-packages"
+version = "0.2.1"
+description = "Polyglot JSON reconciliation engine and language bindings for opto-sync"
+license = "MIT"
+keywords = ["sync", "offline-first", "crdt", "json", "wasm", "c"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/opto-sync/syncer.c"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [
+  ".github/**",
+  ".zed/**",
+  ".zed-pack/**",
+  "**/node_modules/**",
+  "**/target/**",
+  "**/build/**",
+  "**/.dart_tool/**",
+  "**/_build/**",
+  "**/*.o",
+  "**/*.so",
+  "**/*.dylib",
+  "**/*.dll",
+  "fuzz-*.log",
+  "test-differential/corpus*.jsonl",
+  "test-differential/results*.jsonl",
+]
+# Every packed target ships a LICENSE; the second clause recognizes each
+# target's own marker (repository manifest, C header, or wasm package.json)
+# so sliced targets pass without carrying the repository manifest.
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/LICENSE\" && { test -f \"$ZED_PKG_TEST_TARGET/.zpkg.toml\" || test -f \"$ZED_PKG_TEST_TARGET/include/syncer.h\" || test -f \"$ZED_PKG_TEST_TARGET/package.json\"; }"
+
+[scripts]
+test = "cd core && make && make sanitize"
+
+# The repository target is the canonical package for native bindings today.
+# Those bindings intentionally compile the shared C core from paths above their
+# own language directory, so slicing them before that layout is redesigned would
+# publish artifacts whose native manifests point outside the installed package.
+[targets.repository]
+dir = "."
+adapter = "none"
+
+# These two targets are self-contained and safe to install independently.
+[targets.c]
+dir = "core"
+name = "syncer-c"
+adapter = "none"
+
+[targets.wasm]
+dir = "bindings/wasm"
+name = "syncer-wasm"
+adapter = "node"

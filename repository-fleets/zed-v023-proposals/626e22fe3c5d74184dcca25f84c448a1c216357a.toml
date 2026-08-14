@@ -1,0 +1,104 @@
+[package]
+org = "athleto"
+name = "athleto-clients"
+version = "0.1.0"
+description = "Official polyglot clients for the AthletO API"
+license = "MIT"
+keywords = ["clients", "sdk", "polyglot", "athleto"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/athlet-o/athleto-clients"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "benches/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.nodejs]
+dir = "clients/typescript"
+name = "athleto-clients-nodejs"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@athleto/client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.python]
+dir = "clients/python"
+adapter = "python"
+
+[targets.python.native]
+registry = "pypi"
+package = "athleto-client"
+forge = ["gitlab-packages"]
+
+[targets.golang]
+dir = "clients/go"
+name = "athleto-clients-golang"
+adapter = "go"
+
+[targets.golang.native]
+registry = "go-modules"
+package = "github.com/athlet-o/athleto-clients/clients/go"
+tag_format = "clients/go/v{version}"
+forge = ["gitlab-packages"]
+
+[targets.rust]
+dir = "clients/rust"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "athleto-client"
+
+[targets.rust-wasm]
+dir = "clients/wasm"
+name = "athleto-clients-wasm"
+adapter = "node"
+
+[targets.dart]
+dir = "clients/dart"
+adapter = "dart"
+
+[targets.ruby]
+dir = "clients/ruby"
+
+[targets.ruby.native]
+registry = "rubygems"
+package = "athleto-client"
+forge = ["github-packages", "gitlab-packages"]
+
+[targets.php]
+dir = "clients/php"
+
+[targets.php.native]
+registry = "packagist"
+package = "athlet-o/client"
+forge = ["gitlab-packages"]
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.java.native]
+registry = "maven-central"
+package = "store.athleto:athleto-client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+
+[targets.swift]
+dir = "clients/swift"
+
+[targets.gleam]
+dir = "clients/gleam"
+
+[targets.erlang]
+dir = "clients/erlang"

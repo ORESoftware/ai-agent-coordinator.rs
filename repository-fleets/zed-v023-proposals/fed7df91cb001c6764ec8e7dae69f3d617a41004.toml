@@ -1,0 +1,43 @@
+[package]
+org = "daedalus-fab"
+name = "daedalus-interfaces"
+version = "0.1.0"
+description = "Canonical Daedalus Fab database schemas and cross-language interfaces"
+keywords = ["interfaces", "postgres", "json-schema", "telemetry", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/daedalus-fab/daedalus-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/tables.json\" && test -f \"$ZED_PKG_TEST_TARGET/generated/rust/Cargo.toml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.json-schema]
+dir = "generated/json-schema"
+adapter = "none"
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.rust-wasm]
+dir = "generated/rust-wasm"
+adapter = "node"
+ecosystem = "npm"
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[scripts]
+test = "npm run check && npm test"

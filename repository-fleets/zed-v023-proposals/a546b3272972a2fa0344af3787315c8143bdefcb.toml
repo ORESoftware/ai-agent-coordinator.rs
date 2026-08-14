@@ -1,0 +1,28 @@
+[package]
+org = "canonical-cloud"
+name = "canonical-e2e"
+version = "0.1.0"
+description = "Fail-closed cross-repository and cross-organization E2E contracts for Canonical Cloud."
+license = "MIT"
+keywords = ["canonical-cloud", "e2e", "integration-testing", "topology", "zed-package"]
+language = "javascript"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/canonical-cloud/canonical-e2e"
+
+[build]
+command = "npm run check"
+outputs = ["src", "topology.json"]
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".vendor/.zed/**", ".zed/**", ".zed-pack/**", "node_modules/**", "coverage/**", "plan*.json", "tmp/**", "**/*.log", ".DS_Store"]
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[scripts]
+test = "npm test && npm run check && npm run topology:validate && npm run topology:plan"
