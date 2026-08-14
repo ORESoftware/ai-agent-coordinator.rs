@@ -1,0 +1,220 @@
+name: Scheduled-task 24-hour digest
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/scheduled-task-digest.yml
+      - config/scheduled-task-digest.json
+      - docs/scheduled-task-digest.md
+      - tools/scheduled_task_digest.py
+      - tools/scheduled_task_digest_core.py
+      - tools/scheduled_task_digest_scan.py
+      - tools/scheduled_task_digest_delivery.py
+      - tests/test_scheduled_task_digest.py
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/scheduled-task-digest.yml
+      - config/scheduled-task-digest.json
+      - docs/scheduled-task-digest.md
+      - tools/scheduled_task_digest.py
+      - tools/scheduled_task_digest_core.py
+      - tools/scheduled_task_digest_scan.py
+      - tools/scheduled_task_digest_delivery.py
+      - tests/test_scheduled_task_digest.py
+  schedule:
+    # 07:07 America/Chicago in daylight and standard time. The timezone gate
+    # accepts only the UTC alternative that converts into the 07:00 hour.
+    - cron: '7 12 * * *'
+    - cron: '7 13 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Render a dry run or deliver one email.
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - send
+      force:
+        description: Ignore the local-time and prior-receipt gates.
+        required: true
+        default: false
+        type: boolean
+      now:
+        description: Optional timezone-aware ISO-8601 instant for deterministic verification.
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: scheduled-task-digest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/scheduled-task-digest.yml
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Compile implementation and tests
+        run: >-
+          python3 -m py_compile
+          tools/scheduled_task_digest.py
+          tools/scheduled_task_digest_core.py
+          tools/scheduled_task_digest_scan.py
+          tools/scheduled_task_digest_delivery.py
+          tests/test_scheduled_task_digest.py
+      - name: Run focused digest tests
+        run: >-
+          python3 -m unittest discover
+          -s tests
+          -p 'test_scheduled_task_digest.py'
+          -v
+      - name: Verify both Central-time UTC alternatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          summer="$(python3 tools/scheduled_task_digest.py decision --now 2026-08-12T12:07:00Z)"
+          winter="$(python3 tools/scheduled_task_digest.py decision --now 2026-01-12T13:07:00Z)"
+          python3 - "$summer" "$winter" <<'PY'
+          import json
+          import sys
+
+          summer = json.loads(sys.argv[1])
+          winter = json.loads(sys.argv[2])
+          assert summer["due"] is True
+          assert winter["due"] is True
+          assert summer["logical_date"] == "2026-08-12"
+          assert winter["logical_date"] == "2026-01-12"
+          PY
+
+  timezone_guard:
+    name: timezone-guard
+    if: >-
+      always() &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      (needs.validate.result == 'success' || needs.validate.result == 'skipped')
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      due: ${{ steps.decision.outputs.due }}
+      logical_date: ${{ steps.decision.outputs.logical_date }}
+      run_key: ${{ steps.decision.outputs.run_key }}
+      artifact_name: ${{ steps.decision.outputs.artifact_name }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Evaluate the DST-safe 07:00 Central gate
+        id: decision
+        shell: bash
+        env:
+          REQUESTED_NOW: ${{ inputs.now }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          args=(decision --github-output "$GITHUB_OUTPUT")
+          if [[ -n "${REQUESTED_NOW}" ]]; then
+            args+=(--now "${REQUESTED_NOW}")
+          fi
+          if [[ "${FORCE}" == "true" ]]; then
+            args+=(--force)
+          fi
+          python3 tools/scheduled_task_digest.py "${args[@]}"
+
+  digest:
+    if: >-
+      always() &&
+      needs.timezone_guard.result == 'success' &&
+      needs.timezone_guard.outputs.due == 'true' &&
+      (needs.validate.result == 'success' || needs.validate.result == 'skipped')
+    needs:
+      - validate
+      - timezone_guard
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: scheduled-task-digest
+    env:
+      SCHEDULE_DIGEST_GH_TOKEN: ${{ secrets.SCHEDULE_DIGEST_GH_TOKEN || github.token }}
+      SCHEDULE_DIGEST_SENDGRID_API_KEY: ${{ secrets.SCHEDULE_DIGEST_SENDGRID_API_KEY || secrets.SENDGRID_API_KEY }}
+      SCHEDULE_DIGEST_FROM_EMAIL: ${{ vars.SCHEDULE_DIGEST_FROM_EMAIL }}
+      SCHEDULE_DIGEST_SMTP_HOST: ${{ vars.SCHEDULE_DIGEST_SMTP_HOST }}
+      SCHEDULE_DIGEST_SMTP_PORT: ${{ vars.SCHEDULE_DIGEST_SMTP_PORT }}
+      SCHEDULE_DIGEST_SMTP_USERNAME: ${{ secrets.SCHEDULE_DIGEST_SMTP_USERNAME }}
+      SCHEDULE_DIGEST_SMTP_PASSWORD: ${{ secrets.SCHEDULE_DIGEST_SMTP_PASSWORD }}
+      GMAIL_SMTP_USERNAME: ${{ secrets.GMAIL_SMTP_USERNAME }}
+      GMAIL_SMTP_APP_PASSWORD: ${{ secrets.GMAIL_SMTP_APP_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Collect 24-hour evidence and deliver one consolidated email
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_MODE: ${{ inputs.mode }}
+          REQUESTED_NOW: ${{ inputs.now }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          mode=send
+          if [[ "${EVENT_NAME}" == "workflow_dispatch" && "${REQUESTED_MODE}" == "dry-run" ]]; then
+            mode=stdout
+          fi
+          args=(
+            run
+            --config config/scheduled-task-digest.json
+            --output-dir artifacts/scheduled-task-digest
+            --delivery-mode "${mode}"
+            --repository "${GITHUB_REPOSITORY}"
+            --ignore-schedule-gate
+          )
+          if [[ -n "${REQUESTED_NOW}" ]]; then
+            args+=(--now "${REQUESTED_NOW}")
+          fi
+          if [[ "${FORCE}" == "true" ]]; then
+            args+=(--force)
+          fi
+          python3 tools/scheduled_task_digest.py "${args[@]}"
+      - name: Upload accepted delivery receipt or manual dry run
+        if: success()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: >-
+            ${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'dry-run'
+                && format('scheduled-task-digest-dry-run-{0}', github.run_id)
+                || needs.timezone_guard.outputs.artifact_name }}
+          path: artifacts/scheduled-task-digest
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Upload failed-delivery evidence without poisoning the dedupe receipt name
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scheduled-task-digest-failure-${{ needs.timezone_guard.outputs.logical_date }}-${{ github.run_id }}
+          path: artifacts/scheduled-task-digest
+          if-no-files-found: warn
+          retention-days: 90
