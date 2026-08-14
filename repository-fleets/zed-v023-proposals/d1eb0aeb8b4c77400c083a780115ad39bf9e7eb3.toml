@@ -1,0 +1,32 @@
+[package]
+org = "daedalus"
+name = "dfab-cli"
+version = "0.1.0"
+description = "Vehicle-part quoting, prepaid intake, and plan event CLI for Daedalus Fab"
+license = "MIT"
+keywords = ["fabrication", "vehicle", "cli", "rust"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/daedalus-fab/daedalus-clients"
+
+[dependencies]
+"flags-2-env/flags-2-env" = "^0.3.0"
+
+[build]
+command = "cargo build --release"
+outputs = ["target/release/dfab", ".cli-flags.toml", "README.md"]
+
+[bin]
+dfab = "target/release/dfab"
+
+[install]
+adapter = "none"
+
+[publish]
+include_readme = true
+tag_format = "dfab-cli/v{version}"
+exclude = ["target/**", ".env", ".env.*"]
+
+[scripts]
+test = "cargo test"

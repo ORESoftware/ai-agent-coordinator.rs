@@ -1,0 +1,23 @@
+[package]
+org = "discrete-event-systems"
+name = "des-web"
+version = "0.1.0"
+description = "Existing Rust web server for Discrete Event Systems"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/discrete-event-systems/des-web.rs"
+
+[install]
+dir = "zed_modules"
+
+[dependencies]
+"discrete-event-systems/des-lib" = "^0.1.0"
+"discrete-event-systems/des-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "build/**", "*.log", "zed_modules/**"]

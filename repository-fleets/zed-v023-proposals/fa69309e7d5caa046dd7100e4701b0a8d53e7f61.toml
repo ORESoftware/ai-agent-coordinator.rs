@@ -1,0 +1,19 @@
+[package]
+org = "hacker-house-medellin"
+name = "hacker-house-medellin-github-io"
+version = "0.1.0"
+description = "Astro marketing site for Hacker House Medellín"
+license = "MIT"
+language = "astro"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/hacker-house-medellin/hacker-house-medellin.github.io"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "*.log"]
+
+[scripts]
+test = "npm test"

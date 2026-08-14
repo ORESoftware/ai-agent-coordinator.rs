@@ -1,0 +1,133 @@
+[package]
+org = "quaestor-ledger"
+name = "quaestor-clients"
+version = "0.1.0"
+description = "Official polyglot clients for Quaestor Ledger"
+license = "Apache-2.0"
+keywords = ["clients", "sdk", "polyglot", "quaestor"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/quaestor-ledger/quaestor-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"quaestor-ledger/quaestor-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", ".vendor/.zed/**", "tmp/**", "**/*.log", ".DS_Store", "benches/**", "**/target/**", "**/node_modules/**", "**/dist/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.c]
+dir = "package-slices/c"
+adapter = "none"
+
+[targets.cpp]
+dir = "package-slices/cpp"
+adapter = "none"
+
+[targets.zig]
+dir = "package-slices/zig"
+adapter = "none"
+
+# The TypeScript package contains explicit Node.js, Deno, Bun, and edge
+# entrypoints while retaining one shared generated implementation.
+[targets.nodejs]
+dir = "clients/typescript"
+name = "quaestor-clients-nodejs"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@quaestor-ledger/client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.python]
+dir = "clients/python"
+
+[targets.python.native]
+registry = "pypi"
+package = "quaestor"
+forge = ["gitlab-packages"]
+
+[targets.golang]
+dir = "clients/go"
+name = "quaestor-clients-golang"
+
+[targets.golang.native]
+registry = "go-modules"
+package = "github.com/quaestor-ledger/quaestor-clients/clients/go"
+tag_format = "clients/go/v{version}"
+forge = ["gitlab-packages"]
+
+[targets.rust]
+dir = "clients/rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "quaestor"
+
+[targets.dart]
+dir = "clients/dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "quaestor_client"
+
+[targets.ruby]
+dir = "clients/ruby"
+
+[targets.ruby.native]
+registry = "rubygems"
+package = "quaestor"
+forge = ["github-packages", "gitlab-packages"]
+
+[targets.php]
+dir = "clients/php"
+
+[targets.php.native]
+registry = "packagist"
+package = "quaestor-ledger/client"
+forge = ["gitlab-packages"]
+
+[targets.gleam]
+dir = "package-slices/gleam"
+
+[targets.erlang]
+dir = "package-slices/erlang"
+
+[targets.elixir]
+dir = "clients/elixir"
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.java.native]
+registry = "maven-central"
+package = "cloud.quaestor:quaestor-client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+
+[targets.csharp]
+dir = "clients/csharp"
+
+[targets.csharp.native]
+registry = "nuget"
+package = "Quaestor.Client"
+forge = ["github-packages", "gitlab-packages"]
+
+[targets.swift]
+dir = "clients/swift"
+
+[targets.shell]
+dir = "clients/shell"

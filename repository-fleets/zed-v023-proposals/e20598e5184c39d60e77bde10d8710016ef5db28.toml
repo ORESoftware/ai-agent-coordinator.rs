@@ -1,0 +1,38 @@
+[package]
+org = "zed-pkg"
+name = "zed-lock"
+version = "0.1.1"
+description = "Kernel-backed, event-driven file locking for zed-pkg"
+license = "MIT"
+keywords = ["locking", "flock", "lockfile", "concurrency", "rust"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg/zed-lock"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "python3 \"$ZED_PKG_TEST_TARGET/scripts/check-package-contract.py\" && cargo test --manifest-path \"$ZED_PKG_TEST_TARGET/Cargo.toml\" --all-targets"
+exclude = [
+  ".env",
+  ".env.*",
+  ".direnv/**",
+  ".zed/**",
+  ".zed-pack/**",
+  "target/**",
+  "tmp/**",
+  "**/*.log",
+  ".DS_Store",
+]
+
+# Keep the repository's required Rust target. Because it spans the repository
+# root, Zed canonicalizes it to zed-pkg/zed-lock; crates.io publication remains
+# an independent release operation and must not be declared on this target.
+[targets.rust]
+dir = "."
+adapter = "rust"
+
+[scripts]
+test = "cargo test --all-targets && cargo clippy --all-targets -- -D warnings && cargo fmt --all --check && python3 scripts/check-package-contract.py"

@@ -1,0 +1,30 @@
+[package]
+org = "streempilot"
+name = "sp-web-dioxus"
+version = "0.1.0"
+description = "Dioxus full-stack broadcast portal for StreemPilot"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/StreemPilot/sp-web-dioxus"
+
+[dependencies]
+"streempilot/sp-interfaces" = "^0.1.0"
+"streempilot/sp-libs" = "^0.1.0"
+"streempilot/streempilot-sync" = "^0.1.0"
+"shared-auth/shared-auth-clients" = "^0.1.0"
+
+[install]
+adapter = "rust"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "cargo test --manifest-path \"$ZED_PKG_TEST_TARGET/Cargo.toml\" --all-targets --all-features"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "tmp/**", "**/*.log", ".DS_Store", ".vendor/.zed/**"]
+
+[scripts]
+test = "cargo test --all-targets --all-features"

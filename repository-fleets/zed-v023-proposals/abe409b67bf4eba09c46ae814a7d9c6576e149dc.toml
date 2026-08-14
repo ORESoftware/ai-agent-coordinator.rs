@@ -1,0 +1,27 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-infra"
+version = "0.1.0"
+description = "Cloudflare and Kubernetes infrastructure for Benefactor services"
+license = "UNLICENSED"
+keywords = ["cloudflare", "cloudflared", "kubernetes", "gitops", "dns"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-infra"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "bash -n scripts/plan-cloudflare.sh scripts/apply-cloudflare.sh scripts/verify-routes.sh"
+exclude = [".env", ".env.*", "cloudflared-credentials.json", "*.pem", "*.key", ".zed/**", ".zed-pack/**", "zed_modules/**"]
+
+[install]
+dir = "zed_modules"
+
+[targets.infrastructure]
+dir = "."
+adapter = "none"
+
+[scripts]
+test = "bash -n scripts/plan-cloudflare.sh scripts/apply-cloudflare.sh scripts/verify-routes.sh"

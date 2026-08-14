@@ -34,6 +34,7 @@ USER_AGENT = "test-org-deep-fleet-bootstrap/1"
 FOUNDATION_BRANCH = "agent/den-3717-zpkg-v021-20260814"
 CHECK_NAME = "verify"
 MAX_ERROR_BYTES = 4096
+MAX_RESPONSE_BYTES = 64 * 1024 * 1024
 TOKEN_PATTERN = re.compile(r"(?i)(?:gh[pousr]_[A-Za-z0-9]{20,}|Bearer\s+[A-Za-z0-9._~+/=-]{16,})")
 
 
@@ -69,6 +70,18 @@ def quote(value: str) -> str:
 def git_blob_sha(content: str) -> str:
     raw = content.encode("utf-8")
     return hashlib.sha1(f"blob {len(raw)}\0".encode("ascii") + raw).hexdigest()  # noqa: S324
+
+
+def read_json_response(response: Any) -> Any:
+    raw = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(raw) > MAX_RESPONSE_BYTES:
+        raise BootstrapError(
+            f"GitHub response exceeds the {MAX_RESPONSE_BYTES}-byte safety limit"
+        )
+    try:
+        return json.loads(raw) if raw else None
+    except json.JSONDecodeError as error:
+        raise BootstrapError(f"GitHub returned malformed JSON: {error.msg}") from None
 
 
 class GitHub:
@@ -113,12 +126,11 @@ class GitHub:
             )
             try:
                 with self.opener.open(request, timeout=timeout) as response:
-                    raw = response.read(MAX_ERROR_BYTES * 64)
                     response_headers = dict(response.headers.items())
                     remaining = response.headers.get("X-RateLimit-Remaining")
                     if remaining and remaining.isdigit():
                         self.remaining = int(remaining)
-                    parsed = json.loads(raw) if raw else None
+                    parsed = read_json_response(response)
                     return response.status, parsed, response_headers
             except urllib.error.HTTPError as error:
                 raw = error.read(MAX_ERROR_BYTES)
