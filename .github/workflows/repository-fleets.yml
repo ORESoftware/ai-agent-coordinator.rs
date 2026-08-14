@@ -167,7 +167,7 @@ jobs:
 
           import json
           import os
-          import pathlib
+          from pathlib import Path
           import subprocess
           import sys
 
