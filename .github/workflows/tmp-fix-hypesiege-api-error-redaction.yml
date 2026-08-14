@@ -1,4 +1,4 @@
-name: Temporary HypeSiege API error redaction fix
+name: Temporary HypeSiege fleet publisher repair
 
 on:
   push:
@@ -12,7 +12,7 @@ permissions:
 jobs:
   patch-and-test:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Check out exact branch state
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -40,23 +40,36 @@ jobs:
           path.write_text(source.replace(old, new, 1))
           PY
 
+      - name: Regenerate the canonical sealed fleet manifest
+        run: |
+          set -euo pipefail
+          python scripts/reconstruct_hypesiege_streempilot_fleet.py \
+            --output-root "$RUNNER_TEMP/hypesiege-streempilot-fleet" \
+            --manifest-out repository-fleets/hypesiege-streempilot.json
+
       - name: Run publisher security and fleet tests
         run: |
           set -euo pipefail
-          python -m py_compile scripts/publish_hypesiege_streempilot_fleet.py
+          python -m py_compile \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            scripts/reconstruct_hypesiege_streempilot_fleet.py
           python -m unittest -v \
             scripts/test_publish_hypesiege_streempilot_fleet.py \
             scripts/test_hypesiege_streempilot_publisher_hardening.py
 
-      - name: Commit the focused source repair
+      - name: Commit the focused publisher and manifest repair
         run: |
           set -euo pipefail
-          if git diff --quiet -- scripts/publish_hypesiege_streempilot_fleet.py; then
-            echo 'publisher redaction path is already current'
+          if git diff --quiet -- \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            repository-fleets/hypesiege-streempilot.json; then
+            echo 'publisher and sealed fleet manifest are already current'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add scripts/publish_hypesiege_streempilot_fleet.py
-          git commit -m 'fix(fleet): preserve API error redaction'
+          git add \
+            scripts/publish_hypesiege_streempilot_fleet.py \
+            repository-fleets/hypesiege-streempilot.json
+          git commit -m 'fix(fleet): restore sealed publisher validation'
           git push origin "HEAD:${GITHUB_REF_NAME}"
