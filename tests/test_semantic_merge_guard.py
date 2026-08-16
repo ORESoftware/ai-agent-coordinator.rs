@@ -98,12 +98,14 @@ class SemanticMergeGuardTests(unittest.TestCase):
             "src/session.rs",
             f"pub struct Session {{\n    pub user_id: String,\n    pub auth_time: u64, // {sentinel}\n}}\n",
         )
+        repo.write("docs/feature.md", "feature-side context\n")
         head = repo.commit("feature auth time")
         repo.switch("main")
         repo.write(
             "src/session.rs",
             "pub struct Session {\n    pub user_id: String,\n    pub auth_time: i64,\n}\n",
         )
+        repo.write("README.md", "base-side context\n")
         repo.commit("main auth time")
         original_head = repo.head()
         original_refs = repo.heads()
@@ -113,7 +115,9 @@ class SemanticMergeGuardTests(unittest.TestCase):
         self.assertEqual(result.returncode, 2, result.stdout + result.stderr)
         self.assertEqual(report["status"], "manual_resolution_required")
         self.assertFalse(report["safe_to_publish"])
-        self.assertEqual(report["changed_paths"], ["src/session.rs"])
+        self.assertFalse(report["safe_to_open_review_pr"])
+        self.assertEqual(report["changed_paths"], ["README.md", "docs/feature.md", "src/session.rs"])
+        self.assertEqual(report["conflict_paths"], ["src/session.rs"])
         self.assertEqual(set(report["conflicts"][0]["stages"]), {"1", "2", "3"})
         self.assertEqual(repo.head(), original_head)
         self.assertEqual(repo.heads(), original_refs)
@@ -139,12 +143,14 @@ class SemanticMergeGuardTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(report["status"], "clean_preview")
-        self.assertTrue(report["safe_to_publish"])
+        self.assertFalse(report["safe_to_publish"])
+        self.assertTrue(report["safe_to_open_review_pr"])
         self.assertRegex(report["preview_tree"], r"^[0-9a-f]{40}$")
         self.assertEqual(report["findings"], [])
         self.assertEqual(repo.head(), original_head)
         self.assertEqual(repo.heads(), original_refs)
-        self.assertIn("src/lib.rs", report["changed_paths"])
+        self.assertEqual(report["changed_paths"], ["README.md", "src/lib.rs"])
+        self.assertEqual(report["preview_changed_paths"], ["src/lib.rs"])
 
     def test_clean_merge_with_duplicate_toml_table_is_rejected(self) -> None:
         directory, repo = self.make_repo()

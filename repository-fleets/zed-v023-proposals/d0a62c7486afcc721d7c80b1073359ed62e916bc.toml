@@ -1,0 +1,82 @@
+[package]
+org = "zed-pkg-test"
+name = "zed-lib"
+version = "0.1.0"
+description = "Implementations of the zed-pkg interfaces: resolution and policy over the shared contract types"
+license = "MIT"
+keywords = ["package-manager", "resolution", "implementation", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg-test/zed-lib"
+
+[dependencies]
+"zed-pkg/zed-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/conformance/cases/version-resolution.json\""
+exclude = [
+  ".env",
+  ".env.*",
+  ".direnv/**",
+  ".vendor/.zed/**",
+  ".zed/**",
+  ".zed-pack/**",
+  "target/**",
+  "**/target/**",
+  "**/node_modules/**",
+  "**/.dart_tool/**",
+  "tmp/**",
+  "**/*.log",
+  ".DS_Store",
+]
+
+[install]
+dir = ".vendor/.zed"
+
+# Whole-repository slice: every implementation plus the shared corpus they are
+# all verified against.
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "src/rust"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "zed-lib"
+
+# The corpus is consumable on its own: an implementation in a language zed-lib
+# does not ship yet still has something to be correct against.
+[targets.conformance]
+dir = "conformance"
+name = "zed-lib-conformance"
+adapter = "none"
+
+# Front-end implementations of the same behavior. Not thin bindings — each is a
+# native implementation held to `conformance/cases/*.json`, so a browser or
+# Flutter client resolves a requirement exactly the way zed-cli does.
+[targets.dart]
+dir = "src/dart"
+adapter = "dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "zed_lib"
+tag_format = "dart/v{version}"
+
+[targets.typescript]
+dir = "src/ts"
+name = "zed-lib-typescript"
+adapter = "node"
+
+[targets.typescript.native]
+registry = "npm"
+package = "@zed-pkg/zed-lib"
+tag_format = "ts/v{version}"
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && cargo fmt --all -- --check && cargo test --locked --test conformance"

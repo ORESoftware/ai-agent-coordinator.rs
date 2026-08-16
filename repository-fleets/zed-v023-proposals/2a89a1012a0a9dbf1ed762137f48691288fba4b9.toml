@@ -1,0 +1,46 @@
+[package]
+org = "shared-auth"
+name = "shared-auth-web-server"
+version = "0.1.0"
+description = "Rust MASH administration dashboard for the Shared Auth identity plane"
+license = "UNLICENSED"
+keywords = ["authentication", "rust", "axum", "maud", "htmx", "seaorm", "supabase"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/shared-auth/shared-auth-web-server.js"
+
+[dependencies]
+# Install the exact Rust target packages emitted by the polyglot repositories.
+"oresoftware/next-loggers-rust" = "=0.1.0"
+"ores-otel/ores-interfaces-rust" = "=0.1.0"
+"ores-otel/ores-lib-core-rust" = "=0.1.0"
+"shared-auth/shared-auth-interfaces-rust" = "=0.1.0"
+"shared-auth/shared-auth-lib-rust" = "=0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [
+  ".deps/**",
+  ".tools/**",
+  ".vendor/**",
+  ".zed/**",
+  "env/dec/**",
+  ".env",
+  ".env.*",
+  "target/**",
+  "node_modules/**",
+  "static/vendor/**",
+]
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[targets.server]
+dir = "."
+adapter = "rust"
+
+[scripts]
+test = "just test"

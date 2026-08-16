@@ -1,0 +1,43 @@
+[package]
+org = "daedalus-fab"
+name = "daedalus-sync"
+version = "0.1.0"
+description = "Private Rust, TypeScript, Dart, PostgreSQL, and Supabase synchronization for Daedalus"
+license = "UNLICENSED"
+keywords = ["sync", "offline-first", "supabase", "sqlite", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/daedalus-fab/daedalus-sync"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/rust/Cargo.toml\" && test -f \"$ZED_PKG_TEST_TARGET/typescript/package.json\" && test -f \"$ZED_PKG_TEST_TARGET/dart/pubspec.yaml\" && test -f \"$ZED_PKG_TEST_TARGET/sql/schema.sql\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "rust"
+adapter = "rust"
+
+[targets.nodejs]
+dir = "typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "dart"
+adapter = "dart"
+
+[targets.sql]
+dir = "sql"
+adapter = "none"
+
+[targets.protocol]
+dir = "protocol"
+adapter = "none"
+
+[scripts]
+test = "cargo test --manifest-path rust/Cargo.toml --all-features && npm --prefix typescript test"

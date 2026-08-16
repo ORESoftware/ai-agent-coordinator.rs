@@ -1,0 +1,35 @@
+[package]
+org = "canonical-cloud"
+name = "canonical-lib"
+version = "0.1.0"
+description = "Canonical Cloud compliance quote domain types and validation"
+license = "MIT"
+keywords = ["compliance", "quotes", "domain", "rust"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/canonical-cloud/canonical-lib"
+
+[dependencies]
+"canonical-cloud/canonical-interfaces" = "^0.1.0"
+
+[build]
+command = "cargo build --release --locked"
+outputs = ["target/release/libcanonical_lib.rlib"]
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".vendor/.zed/**", ".zed/**", ".zed-pack/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[publish.native]
+registry = "crates-io"
+package = "canonical-lib"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && cargo fmt --all -- --check"

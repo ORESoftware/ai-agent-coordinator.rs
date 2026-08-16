@@ -1,0 +1,19 @@
+[package]
+org = "fiducia-cloud-test"
+name = "package-ingestion-matrix"
+version = "0.1.0"
+description = "Independent package acceptance harness"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/fiducia-cloud-test/package-ingestion-matrix"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"fiducia-cloud/fiducia-clients" = "*"
+
+[publish]
+exclude = ["artifacts/**", "vendor/**", ".vendor/**", ".env", ".env.*"]

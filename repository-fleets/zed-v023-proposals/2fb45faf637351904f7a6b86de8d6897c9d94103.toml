@@ -1,0 +1,34 @@
+[package]
+org = "voxletra"
+name = "vxl-interfaces"
+version = "0.1.0"
+description = "Shared Voxletra STT, TTS, translation, and API-error wire interfaces"
+keywords = ["interfaces", "speech", "translation", "fixtures", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/voxletra/vxl-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/conformance/fixtures/stt_request.full.json\" && test -f \"$ZED_PKG_TEST_TARGET/rust/Cargo.toml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "rust"
+adapter = "rust"
+
+[targets.typescript]
+dir = "ts"
+adapter = "node"
+
+[targets.dart]
+dir = "dart"
+adapter = "dart"
+
+[scripts]
+test = "bash conformance/run-conformance.sh"

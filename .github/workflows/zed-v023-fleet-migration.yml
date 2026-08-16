@@ -1,0 +1,99 @@
+name: Zed v0.2.3 fleet migration
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/zed-v023-fleet-migration.yml
+      - repository-blueprints/memebank/**/.zpkg.toml
+      - repository-fleets/zed-v023-manifest-migration.json
+      - repository-fleets/zed-v023-proposals/**
+      - scripts/build_zpkg_v023_migration_plan.py
+      - scripts/publish_zpkg_v023_migration.py
+      - scripts/test_zpkg_v023_migration.py
+  push:
+    paths:
+      - .github/workflows/zed-v023-fleet-migration.yml
+      - repository-blueprints/memebank/**/.zpkg.toml
+      - repository-fleets/zed-v023-manifest-migration.json
+      - repository-fleets/zed-v023-proposals/**
+      - scripts/build_zpkg_v023_migration_plan.py
+      - scripts/publish_zpkg_v023_migration.py
+      - scripts/test_zpkg_v023_migration.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+          cache: ''
+      - name: Compile and test the fail-closed plan and publisher
+        env:
+          PYTHONPATH: scripts
+        run: |
+          python -m py_compile \
+            scripts/build_zpkg_v023_migration_plan.py \
+            scripts/publish_zpkg_v023_migration.py \
+            scripts/test_zpkg_v023_migration.py
+          python -m unittest -v scripts/test_zpkg_v023_migration.py
+      - name: Download the released Zed v0.2.3 Linux binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          release=https://github.com/zed-pkg/zed-cli/releases/download/v0.2.3
+          archive=zed-x86_64-unknown-linux-gnu.tar.gz
+          mkdir -p .tmp/zed-v0.2.3
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output ".tmp/zed-v0.2.3/$archive" "$release/$archive"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output ".tmp/zed-v0.2.3/$archive.sha256" "$release/$archive.sha256"
+          (cd .tmp/zed-v0.2.3 && sha256sum --check "$archive.sha256")
+          tar -C .tmp/zed-v0.2.3 -xzf ".tmp/zed-v0.2.3/$archive"
+          test "$(.tmp/zed-v0.2.3/zed --version)" = 'zed 0.2.3'
+      - name: Validate every proposed manifest with released Zed
+        shell: bash
+        run: |
+          set -euo pipefail
+          revision=8428bc574111fa148e590c8350c7855035ce2046
+          count=0
+          while IFS= read -r -d '' manifest; do
+            report="$(.tmp/zed-v0.2.3/zed validate --manifest "$manifest" --json)"
+            jq -e --arg revision "$revision" \
+              '.valid == true and .interface_revision == $revision' <<<"$report" >/dev/null
+            count=$((count + 1))
+          done < <(find repository-fleets/zed-v023-proposals -type f -name '*.toml' -print0 | sort -z)
+          test "$count" -eq 160
+      - name: Reject credentials and conflict markers
+        shell: bash
+        run: |
+          set -euo pipefail
+          credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_'"'"'api_[A-Za-z0-9]{20,}|BEGIN [A-Z ]*PRIVATE KEY'
+          files=(
+            .github/workflows/zed-v023-fleet-migration.yml
+            repository-fleets/zed-v023-manifest-migration.json
+            repository-fleets/zed-v023-proposals
+            scripts/build_zpkg_v023_migration_plan.py
+            scripts/publish_zpkg_v023_migration.py
+            scripts/test_zpkg_v023_migration.py
+          )
+          if grep -RInE "$credential_pattern" "${files[@]}"; then
+            echo 'Credential-shaped source is forbidden.' >&2
+            exit 1
+          fi
+          if grep -RInE '^(<{7}|={7}|>{7})' "${files[@]}"; then
+            echo 'Conflict markers are forbidden.' >&2
+            exit 1
+          fi

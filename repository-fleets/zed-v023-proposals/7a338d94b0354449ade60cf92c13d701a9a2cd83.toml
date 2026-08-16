@@ -1,0 +1,115 @@
+[package]
+org = "threefa"
+name = "threefa-clients"
+version = "0.1.0"
+description = "Official polyglot clients for the 3FA sync backend"
+license = "UNLICENSED"
+keywords = ["clients", "sdk", "polyglot", "threefa", "zero-knowledge"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/3fa-app/3fa-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"threefa/threefa-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", ".vendor/.zed/**", "tmp/**", "**/*.log", ".DS_Store", "benches/**", "**/target/**", "**/node_modules/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.c]
+dir = "clients/c"
+adapter = "none"
+
+[targets.cpp]
+dir = "clients/cpp"
+adapter = "none"
+
+[targets.zig]
+dir = "clients/zig"
+adapter = "none"
+
+# One re-rooted TypeScript package owns the Node.js, Deno, Bun, and edge
+# entrypoints declared in clients/ts/package.json.
+[targets.nodejs]
+dir = "clients/ts"
+name = "threefa-clients-nodejs"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@threefa/client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.golang]
+dir = "clients/go"
+name = "threefa-clients-golang"
+adapter = "go"
+
+[targets.golang.native]
+registry = "go-modules"
+package = "github.com/3FA-app/3fa-clients/clients/go"
+tag_format = "clients/go/v{version}"
+forge = ["gitlab-packages"]
+
+[targets.python]
+dir = "clients/python"
+adapter = "python"
+
+[targets.ruby]
+dir = "clients/ruby"
+
+[targets.php]
+dir = "clients/php"
+
+[targets.rust]
+dir = "clients/rust"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "threefa-client"
+
+[targets.rust-wasm]
+dir = "clients/wasm"
+name = "threefa-clients-wasm"
+adapter = "node"
+
+[targets.dart]
+dir = "clients/dart"
+adapter = "dart"
+# Dart remains a self-contained Zed target until DEN-320 publishes
+# threefa_interfaces and clients/dart/pubspec.yaml can remove publish_to: none.
+# Do not advertise a pub.dev route that the native package explicitly refuses.
+
+[targets.gleam]
+dir = "clients/gleam"
+
+[targets.erlang]
+dir = "clients/erlang"
+
+[targets.elixir]
+dir = "clients/elixir"
+
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+
+[targets.java.native]
+registry = "maven-central"
+package = "app.threefa:threefa-client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+
+[targets.swift]
+dir = "clients/swift"

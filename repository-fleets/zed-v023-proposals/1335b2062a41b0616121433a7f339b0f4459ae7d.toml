@@ -1,0 +1,73 @@
+[package]
+org = "oresoftware"
+name = "k8s-libs-and-shared-defs"
+version = "0.1.0"
+description = "Shared definitions for the ORESoftware k8s cluster: segmented Postgres contracts, generated adapters, NATS subjects, Redis/shared interfaces, and small client libraries"
+keywords = ["schema", "codegen", "postgres", "nats", "redis", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/ORESoftware/k8s-libs-and-shared-defs"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"shared-auth/shared-auth-interfaces" = "^0.1.0"
+"shared-auth/shared-auth-lib" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [
+  ".env",
+  ".env.*",
+  "*.env",
+  "env/**",
+  ".direnv/**",
+  ".vendor/.zed/**",
+  ".zed/**",
+  ".zed-pack/**",
+  "target/**",
+  "**/target/**",
+  "**/node_modules/**",
+  "**/.dart_tool/**",
+  "**/.gradle/**",
+  "**/build/**",
+  "**/bin/**",
+  "**/.zig-cache/**",
+  "**/zig-out/**",
+  "pg-defs/tmp/**",
+  "tmp/**",
+  "**/*.log",
+  "erl_crash.dump",
+  ".DS_Store",
+  # async-java is versioned and distributed independently as a Git submodule.
+  "async-java/**",
+  # The shared-auth trees are no longer gitlinks (they are Zed dependencies
+  # materialized under .vendor/.zed); the excludes stay as a guard against a
+  # stale working-tree checkout leaking into a published archive.
+  "shared-auth-interfaces/**",
+  "shared-auth-lib/**",
+]
+
+[targets.repository]
+dir = "."
+
+[targets.pg-defs]
+dir = "pg-defs"
+name = "k8s-pg-defs"
+adapter = "none"
+
+[targets.interfaces]
+dir = "interfaces"
+name = "k8s-interfaces"
+adapter = "none"
+
+[targets.nats]
+dir = "nats/subject-defs"
+name = "k8s-nats-subject-defs"
+adapter = "none"
+
+[scripts]
+test = "node scripts/check-zed-package.mjs && node pg-defs/src/assemble.mjs --check && node pg-defs/src/parity.mjs --check && node pg-defs/src/generate.mjs --check && node nats/subject-defs/src/generate.mjs --check && node interfaces/redis/src/generate.mjs --check && node interfaces/shared/src/generate.mjs --check"

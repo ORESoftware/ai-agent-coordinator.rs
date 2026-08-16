@@ -1,0 +1,25 @@
+[package]
+org = "anticaptrad"
+name = "act-monorepo"
+version = "0.1.0"
+description = "Anticaptrad integration workspace with separate Zed package and Git submodule ownership"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/anticaptrad/act-monorepo"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"anticaptrad/act-interfaces" = "^0.1.0"
+"anticaptrad/act-clients" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".vendor/.zed/**", "apps/**", "**/*.log"]
+
+[targets.repository]
+dir = "."

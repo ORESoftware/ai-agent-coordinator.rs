@@ -167,7 +167,7 @@ jobs:
 
           import json
           import os
-          import pathlib
+          from pathlib import Path
           import subprocess
           import sys
 
@@ -240,7 +240,9 @@ jobs:
           workflow = pathlib.Path(
               ".github/workflows/repository-fleets.yml"
           ).read_text(encoding="utf-8")
-          references = re.findall(r"uses:\s*[^@\s]+@([^\s#]+)", workflow)
+          references = re.findall(
+              r"(?m)^[ \t]*uses:[ \t]*[^@\s]+@([^\s#]+)", workflow
+          )
           assert references
           assert all(re.fullmatch(r"[0-9a-f]{40}", ref) for ref in references), references
           PY
@@ -263,7 +265,7 @@ jobs:
           python-version: "3.12"
       - name: Install pinned Chrome for Testing and ChromeDriver
         id: chrome
-        uses: browser-actions/setup-chrome@73954683cc80eced513145a42b668b9b91f753c3 # v2.1.2
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2 release bundle
         with:
           chrome-version: 151.0.7922.71
           install-dependencies: true
