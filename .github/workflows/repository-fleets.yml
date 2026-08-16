@@ -140,14 +140,14 @@ jobs:
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/publish_hypesiege_streempilot_fleet.py \
             scripts/test_publish_hypesiege_streempilot_fleet.py \
-            scripts/test_hypesiege_streempilot_publisher_hardening.py \
+            scripts/test_publish_hypesiege_streempilot_publisher_hardening.py \
             scripts/render_hypesiege_streempilot_plan.py \
             scripts/test_hypesiege_streempilot_plan_browser.py
       - name: Reconstruct, compare, and preflight the sealed fleet
         run: |
           python -m unittest -v \
             scripts/test_publish_hypesiege_streempilot_fleet.py \
-            scripts/test_hypesiege_streempilot_publisher_hardening.py
+            scripts/test_publish_hypesiege_streempilot_publisher_hardening.py
       - name: Render representative network-free plans
         shell: bash
         env:
@@ -206,7 +206,7 @@ jobs:
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/publish_hypesiege_streempilot_fleet.py \
             scripts/test_publish_hypesiege_streempilot_fleet.py \
-            scripts/test_hypesiege_streempilot_publisher_hardening.py \
+            scripts/test_publish_hypesiege_streempilot_publisher_hardening.py \
             scripts/render_hypesiege_streempilot_plan.py \
             scripts/test_hypesiege_streempilot_plan_browser.py; then
             echo 'conflict markers found' >&2
@@ -217,7 +217,7 @@ jobs:
             .github/workflows/repository-fleets.yml \
             scripts/reconstruct_hypesiege_streempilot_fleet.py \
             scripts/test_publish_hypesiege_streempilot_fleet.py \
-            scripts/test_hypesiege_streempilot_publisher_hardening.py \
+            scripts/test_publish_hypesiege_streempilot_publisher_hardening.py \
             scripts/render_hypesiege_streempilot_plan.py \
             scripts/test_hypesiege_streempilot_plan_browser.py; then
             echo 'live organization credentials must not be wired into validation CI' >&2
@@ -265,7 +265,7 @@ jobs:
           python-version: "3.12"
       - name: Install pinned Chrome for Testing and ChromeDriver
         id: chrome
-        uses: browser-actions/setup-chrome@73954683cc80eced513145a42b668b9b91f753c3 # v2.1.2
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2 release bundle
         with:
           chrome-version: 151.0.7922.71
           install-dependencies: true
