@@ -1,0 +1,30 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-automations"
+version = "0.1.0"
+description = "Data preparation and browser automations for Benefactor outreach operations"
+license = "UNLICENSED"
+keywords = ["browser-automation", "hubspot", "outreach", "normalization", "provenance"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-automations"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/package.json\" && test -f \"$ZED_PKG_TEST_TARGET/src/clean-contacts.mjs\" && test -f \"$ZED_PKG_TEST_TARGET/src/lib/normalize.mjs\""
+exclude = [".env", ".env.*", ".cdp-endpoint", ".cdp.pid", ".hubspot-session/**", "out/**", "*.xlsx", "packages/benefactor-gas/**", ".zed/**", ".zed-pack/**", "zed_modules/**", "node_modules/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[dependencies]
+"benefactor-cc/benefactor-interfaces" = "^0.1.0"
+
+[install]
+dir = "zed_modules"
+
+[targets.nodejs]
+dir = "."
+adapter = "node"
+
+[scripts]
+test = "npm test"

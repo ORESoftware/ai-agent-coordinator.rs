@@ -1,0 +1,16 @@
+[package]
+org = "flags-2-env-test"
+name = "feature-matrix"
+version = "0.1.0"
+description = "Feature coverage for flags-2-env/flags-2-env beyond the argv contract"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/flags-2-env-test/feature-matrix"
+
+[dependencies]
+"flags-2-env/flags-2-env" = "^0.3.0"
+
+[install]
+dir = ".vendor/.zed"

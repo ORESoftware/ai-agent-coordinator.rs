@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "bootstrap_date": "2026-08-08",
   "tracking_issue": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/139",
   "live_creation_enabled": false,
@@ -60,5 +60,17 @@
       "suite": "security",
       "description": "Tenant isolation, replay protection, signature verification, path traversal, SSRF, redaction, and CI supply-chain boundary tests."
     }
-  ]
+  ],
+  "zed_manifest_overrides": {
+    "opto-sync-test/contract-conformance-tests": {
+      "version": "0.2.0",
+      "description": "Executable Rust, TypeScript, and Dart conformance for opto-sync contracts",
+      "test_commands": [
+        "PYTHONPATH=src python -m unittest discover -s tests -v",
+        "node --test tests/temporary_rust_workspace.test.mjs",
+        "python scripts/verify_repository.py",
+        "node scripts/run_cross_language_matrix.mjs --prepare --require-telemetry"
+      ]
+    }
+  }
 }

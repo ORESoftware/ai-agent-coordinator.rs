@@ -1,0 +1,30 @@
+[package]
+org = "quaestor-ledger"
+name = "quaestor-monorepo"
+version = "0.1.0"
+description = "Pinned Quaestor Ledger integration workspace with Zed packages and Git submodules"
+license = "Apache-2.0"
+keywords = ["ledger", "billing", "monorepo", "zed", "git-submodules"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/quaestor-ledger/quaestor-monorepo"
+
+[dependencies]
+"quaestor-ledger/quaestor-interfaces" = "^0.1.0"
+"quaestor-ledger/quaestor-clients" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".vendor/.zed/**", ".zed/**", ".zed-pack/**", "apps/**", "**/*.log"]
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[targets.repository]
+dir = "."
+
+[scripts]
+test = "node --test tests/*.test.mjs && python3 scripts/verify-zed-submodules.py"

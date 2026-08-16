@@ -1,0 +1,469 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/ORESoftware/ai-agent-coordinator.rs/blob/main/.github/artifact-recovery-evidence-admissibility.schema.json",
+  "title": "Artifact recovery evidence admissibility v1",
+  "description": "Canonical, public-safe evidence freshness and recertification report.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "generated_at",
+    "policy",
+    "subjects",
+    "evidence",
+    "summary",
+    "recertification_queue",
+    "report_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "artifact_recovery_evidence_admissibility.v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "policy": {
+      "$ref": "#/$defs/policy"
+    },
+    "subjects": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/subject"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "maxItems": 10000,
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "recertification_queue": {
+      "$ref": "#/$defs/queue"
+    },
+    "report_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nullable_sha256": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/sha256"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "risk_class": {
+      "enum": ["security", "deployment", "code", "documentation"]
+    },
+    "evidence_kind": {
+      "enum": [
+        "exact_head_test",
+        "mergeability_review",
+        "deployment_health",
+        "dependency_certification",
+        "policy_conformance",
+        "documentation"
+      ]
+    },
+    "dependency_kind": {
+      "enum": [
+        "pr_head",
+        "pr_base",
+        "dependency_graph",
+        "deployed_image",
+        "environment_config",
+        "source_coverage",
+        "required_check_set",
+        "workflow_policy"
+      ]
+    },
+    "state": {
+      "enum": [
+        "current",
+        "stale",
+        "superseded",
+        "invalidated",
+        "unverifiable",
+        "expired"
+      ]
+    },
+    "reason_code": {
+      "enum": [
+        "subject_unresolved",
+        "subject_revision_changed",
+        "policy_version_changed",
+        "dependency_unresolved",
+        "dependency_changed",
+        "freshness_warning_elapsed",
+        "admissibility_ttl_elapsed"
+      ]
+    },
+    "dependency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "digest"],
+      "properties": {
+        "kind": {
+          "$ref": "#/$defs/dependency_kind"
+        },
+        "digest": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version_sha256", "max_clock_skew_seconds", "risk_ttls"],
+      "properties": {
+        "version_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "max_clock_skew_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3600
+        },
+        "risk_ttls": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["security", "deployment", "code", "documentation"],
+          "properties": {
+            "security": {
+              "$ref": "#/$defs/ttl"
+            },
+            "deployment": {
+              "$ref": "#/$defs/ttl"
+            },
+            "code": {
+              "$ref": "#/$defs/ttl"
+            },
+            "documentation": {
+              "$ref": "#/$defs/ttl"
+            }
+          }
+        }
+      }
+    },
+    "ttl": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale_after_seconds", "expires_after_seconds"],
+      "properties": {
+        "stale_after_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2678400
+        },
+        "expires_after_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2678400
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["identity_sha256", "revision_sha256", "dependencies"],
+      "properties": {
+        "identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "revision_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "dependencies": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identity_sha256",
+        "kind",
+        "subject_identity_sha256",
+        "subject_revision_sha256",
+        "producer_sha256",
+        "captured_at",
+        "policy_version_sha256",
+        "payload_sha256",
+        "risk_class",
+        "owner_sha256",
+        "dependency_digests",
+        "record_sha256",
+        "current_subject_revision_sha256",
+        "age_seconds",
+        "state",
+        "reason_codes",
+        "changed_dependencies",
+        "unresolved_dependencies"
+      ],
+      "properties": {
+        "identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "kind": {
+          "$ref": "#/$defs/evidence_kind"
+        },
+        "subject_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "subject_revision_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "producer_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "captured_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "policy_version_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "payload_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "risk_class": {
+          "$ref": "#/$defs/risk_class"
+        },
+        "owner_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "dependency_digests": {
+          "type": "array",
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        },
+        "record_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "current_subject_revision_sha256": {
+          "$ref": "#/$defs/nullable_sha256"
+        },
+        "age_seconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "state": {
+          "$ref": "#/$defs/state"
+        },
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/reason_code"
+          }
+        },
+        "changed_dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dependency_kind"
+          }
+        },
+        "unresolved_dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dependency_kind"
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "complete",
+        "subjects",
+        "evidence",
+        "current",
+        "stale",
+        "superseded",
+        "invalidated",
+        "unverifiable",
+        "expired",
+        "recertification_items"
+      ],
+      "properties": {
+        "status": {
+          "enum": ["complete", "partial", "blocked"]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "subjects": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "current": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stale": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "superseded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invalidated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unverifiable": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expired": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "recertification_items": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "queue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "summary", "items", "queue_sha256"],
+      "properties": {
+        "schema_version": {
+          "const": "artifact_recovery_recertification_queue.v1"
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["items"],
+          "properties": {
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "items": {
+          "type": "array",
+          "maxItems": 10000,
+          "items": {
+            "$ref": "#/$defs/queue_item"
+          }
+        },
+        "queue_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "queue_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprint_sha256",
+        "subject_identity_sha256",
+        "evidence_kind",
+        "current_revision_sha256",
+        "owner_sha256",
+        "action",
+        "highest_state",
+        "observed_states",
+        "evidence_identity_sha256s",
+        "reason_codes",
+        "changed_dependencies",
+        "unresolved_dependencies"
+      ],
+      "properties": {
+        "fingerprint_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "subject_identity_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "evidence_kind": {
+          "$ref": "#/$defs/evidence_kind"
+        },
+        "current_revision_sha256": {
+          "$ref": "#/$defs/nullable_sha256"
+        },
+        "owner_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "action": {
+          "const": "recertify"
+        },
+        "highest_state": {
+          "$ref": "#/$defs/state"
+        },
+        "observed_states": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/state"
+          }
+        },
+        "evidence_identity_sha256s": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/sha256"
+          }
+        },
+        "reason_codes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/reason_code"
+          }
+        },
+        "changed_dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dependency_kind"
+          }
+        },
+        "unresolved_dependencies": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/dependency_kind"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,43 @@
+[package]
+org = "zedtest"
+name = "awkward-lib"
+version = "0.1.0"
+description = "Fixture for repository layouts zed has to cope with, not just the tidy one."
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg-test/awkward-lib"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+
+# Every target below is deliberately awkward in a different way. The tidy case
+# (one target per top-level language dir) is already covered by polyglot-lib;
+# what is NOT covered is what real repos actually look like.
+
+# 1. A target buried several levels down, under generated-code directories --
+#    the shape you get when an OpenAPI/protobuf generator owns the subtree.
+[targets.nodejs]
+dir = "clients/generated/v2/typescript"
+adapter = "node"
+
+# 2. A target whose directory name says nothing about its language, so the
+#    inference has to come from the manifest and the marker file, not the path.
+[targets.python]
+dir = "services/py-worker"
+adapter = "python"
+
+# 3. A target nested under a path containing a hyphen and three levels of
+#    nesting, with its source under an inner src/.
+[targets.rust]
+dir = "deeply/nested/rust-core"
+
+# 4. The whole-repository target. `dir = "."` is explicitly supported alongside
+#    language slices, and it is the one case allowed to sit atop the root
+#    manifest -- every OTHER target dir is refused if it carries its own
+#    .zpkg.toml. Publishing this alongside the slices means one repo yields
+#    both per-language packages and an everything package.
+[targets.repository]
+dir = "."

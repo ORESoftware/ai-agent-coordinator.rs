@@ -1,0 +1,81 @@
+[package]
+org = "sonus-auris"
+name = "sonus-auris-lib"
+version = "0.1.0"
+description = "Sonus Auris rule engine — Rust reference with wasm and FFI artifacts, plus native Dart and TypeScript implementations"
+license = "MIT"
+keywords = ["rules", "retention", "entitlements", "polyglot", "wasm", "ffi"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/sonus-auris/sonus-auris-lib"
+
+[dependencies]
+"sonus-auris/sonus-auris-interfaces" = "^0.1.0"
+"oresoftware/k8s-libs-and-shared-defs" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/conformance/cases/corpus.json\""
+exclude = [".env", ".env.*", ".direnv/**", ".vendor/.zed/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/dist/**", "**/.dart_tool/**", "**/pkg/**"]
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[targets.repository]
+dir = "."
+
+# --- the reference implementation and its compiled artifacts ---
+
+[targets.rust]
+dir = "rust/crates/sonus-auris-lib"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "sonus-auris-lib"
+
+[targets.rust-wasm]
+dir = "rust/crates/sonus-auris-lib-wasm"
+name = "sonus-auris-lib-wasm"
+adapter = "rust"
+
+[targets.ffi]
+dir = "rust/crates/sonus-auris-lib-ffi"
+name = "sonus-auris-lib-ffi"
+adapter = "rust"
+
+[targets.rust-orm]
+dir = "rust/crates/sonus-auris-orm"
+name = "sonus-auris-orm"
+adapter = "rust"
+
+# --- native ports ---
+
+[targets.dart]
+dir = "dart"
+adapter = "dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "sonus_auris_lib"
+
+[targets.typescript]
+dir = "typescript"
+adapter = "node"
+ecosystem = "npm"
+
+[targets.typescript.native]
+registry = "npm"
+package = "@sonus-auris/lib"
+
+# --- the contract binding all of the above ---
+
+[targets.conformance]
+dir = "conformance"
+adapter = "none"
+
+[scripts]
+test = "cd rust && cargo test --all-targets --locked && cd ../dart && dart test && cd ../typescript && npm test && cd rust && cargo clippy --all-targets --locked -- -D warnings && cd ../dart && dart analyze --fatal-infos && cd rust && cargo fmt --all -- --check && cd ../dart && dart format --output=none --set-exit-if-changed . && cd rust && cargo run --locked --example corpus -- --check"

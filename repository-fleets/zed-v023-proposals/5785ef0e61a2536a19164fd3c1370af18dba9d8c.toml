@@ -1,0 +1,31 @@
+[package]
+org = "threefa"
+name = "threefa-interfaces"
+version = "0.1.0"
+description = "Shared generated Rust, TypeScript, and Dart wire contracts for 3FA"
+license = "UNLICENSED"
+keywords = ["interfaces", "schema", "rust", "typescript", "dart"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/3fa-app/3fa-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[targets.repository]
+dir = "."
+
+[targets.typescript]
+dir = "generated/typescript"
+name = "threefa-interfaces-typescript"
+
+[targets.rust]
+dir = "generated/rust"
+name = "threefa-interfaces-rust"
+
+[targets.dart]
+dir = "generated/dart"
+name = "threefa-interfaces-dart"

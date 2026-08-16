@@ -1,0 +1,81 @@
+name: Evidence admissibility contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/artifact-recovery-evidence-admissibility.schema.json'
+      - '.github/workflows/evidence-admissibility-contract.yml'
+      - 'docs/artifact-recovery-evidence-admissibility.md'
+      - 'tools/artifact_recovery/evidence_admissibility.py'
+      - 'tools/artifact_recovery_evidence_admissibility.py'
+      - 'tests/test_artifact_recovery_evidence_admissibility.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/artifact-recovery-evidence-admissibility.schema.json'
+      - '.github/workflows/evidence-admissibility-contract.yml'
+      - 'docs/artifact-recovery-evidence-admissibility.md'
+      - 'tools/artifact_recovery/evidence_admissibility.py'
+      - 'tools/artifact_recovery_evidence_admissibility.py'
+      - 'tests/test_artifact_recovery_evidence_admissibility.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: evidence-admissibility-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Compile and run adversarial contract tests
+        run: |
+          python3 -m py_compile \
+            tools/artifact_recovery/evidence_admissibility.py \
+            tools/artifact_recovery_evidence_admissibility.py \
+            tests/test_artifact_recovery_evidence_admissibility.py
+          python3 -m unittest -v tests/test_artifact_recovery_evidence_admissibility.py
+      - name: Validate schema and deterministic fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m json.tool .github/artifact-recovery-evidence-admissibility.schema.json >/dev/null
+          evidence="$RUNNER_TEMP/evidence-admissibility"
+          mkdir -p "$evidence"
+          python3 tools/artifact_recovery_evidence_admissibility.py example \
+            --output "$evidence/evidence-admissibility-ci-fixture.json" \
+            --now 2026-08-10T20:00:00Z
+          python3 tools/artifact_recovery_evidence_admissibility.py validate \
+            "$evidence/evidence-admissibility-ci-fixture.json" \
+            --now 2026-08-10T20:00:00Z
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(
+              (Path(os.environ['EVIDENCE']) / 'evidence-admissibility-ci-fixture.json').read_text()
+          )
+          assert report['summary']['status'] == 'complete'
+          assert report['summary']['current'] == 1
+          assert report['summary']['recertification_items'] == 0
+          assert len(report['report_sha256']) == 64
+          assert len(report['recertification_queue']['queue_sha256']) == 64
+          PY
+      - name: Upload bounded contract evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: evidence-admissibility-${{ github.sha }}
+          path: ${{ runner.temp }}/evidence-admissibility
+          retention-days: 14
+          if-no-files-found: error
