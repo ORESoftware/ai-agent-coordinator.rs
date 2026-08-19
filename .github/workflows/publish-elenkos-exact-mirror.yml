@@ -30,37 +30,36 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check out publisher workflow
+      - name: Check out the exact reviewed Elenkos payload at repository root
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          repository: ORESoftware/k8s-cluster
+          ref: ${{ env.TRUSTED_K8S_CLUSTER_SHA }}
+          persist-credentials: false
+          fetch-depth: 2
+
+      - name: Check out publisher workflow for syntax validation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: publisher-control
           persist-credentials: false
           fetch-depth: 1
 
       - name: Validate workflow syntax
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
         with:
-          args: .github/workflows/publish-elenkos-exact-mirror.yml
-
-      - name: Check out the exact reviewed Elenkos payload
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ORESoftware/k8s-cluster
-          ref: ${{ env.TRUSTED_K8S_CLUSTER_SHA }}
-          path: k8s-cluster
-          persist-credentials: false
-          fetch-depth: 1
+          args: publisher-control/.github/workflows/publish-elenkos-exact-mirror.yml
 
       - name: Assert exact payload revision
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(git -C k8s-cluster rev-parse HEAD)" = "$TRUSTED_K8S_CLUSTER_SHA"
+          test "$(git rev-parse HEAD)" = "$TRUSTED_K8S_CLUSTER_SHA"
 
       - name: Materialize and validate the exact 22-repository fleet
         shell: bash
         run: |
           set -Eeuo pipefail
-          cd k8s-cluster
           python3 -m py_compile \
             scripts/ops/patch_elenkos_fleet_payload_20260819.py \
             scripts/ops/patch_elenkos_mirror_fleet_20260819.py
@@ -79,12 +78,11 @@ jobs:
       contents: read
       issues: write
     steps:
-      - name: Check out the exact reviewed Elenkos payload
+      - name: Check out the exact reviewed Elenkos payload at repository root
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ORESoftware/k8s-cluster
           ref: ${{ env.TRUSTED_K8S_CLUSTER_SHA }}
-          path: k8s-cluster
           persist-credentials: false
           fetch-depth: 1
 
@@ -92,8 +90,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          test "$(git -C k8s-cluster rev-parse HEAD)" = "$TRUSTED_K8S_CLUSTER_SHA"
-          cd k8s-cluster
+          test "$(git rev-parse HEAD)" = "$TRUSTED_K8S_CLUSTER_SHA"
           bash scripts/ops/materialize_elenkos_fleet_payload_20260819.sh
 
       - name: Mint elenkos-systems repository administration token
@@ -138,7 +135,7 @@ jobs:
 
           output="$RUNNER_TEMP/elenkos-fleet"
           evidence="$RUNNER_TEMP/elenkos-publication-evidence.json"
-          python3 k8s-cluster/scripts/ops/publish_elenkos_fleet_20260819.py \
+          python3 scripts/ops/publish_elenkos_fleet_20260819.py \
             --execute \
             --output "$output" \
             --trusted-k8s-cluster-sha "$TRUSTED_K8S_CLUSTER_SHA" \
