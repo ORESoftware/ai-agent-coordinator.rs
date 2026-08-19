@@ -1,12 +1,49 @@
 {
   "already_reconciled": [
     {
+      "companion_pull_request": "https://github.com/canonical-cloud/canonical-clients/pull/22",
+      "current_blob": "445603a00bb245faad879b8a495687bd774eb23a",
+      "current_sha256": "75ad84a2b45faefbb1012e40997bb57efc55e821541e65432dfedf6173735d10",
+      "current_size": 2799,
+      "default_branch": "main",
+      "fork": false,
+      "merge_commit": "22924da2ad539346ff36642b40b442e7756786bf",
+      "path": ".zpkg.toml",
+      "private": true,
+      "pull_request": "https://github.com/canonical-cloud/canonical-clients/pull/23",
+      "reason": "concurrent reviewed client hardening removed the legacy root-target alias, canonicalized the v0.2.3 target identifiers, and added the canonical-lib edge",
+      "repository": "canonical-cloud/canonical-clients",
+      "snapshot_blob": "0ed649f5770075f94e06f0fe7036c73afa8e4940",
+      "validated_interface_revision": "8428bc574111fa148e590c8350c7855035ce2046"
+    },
+    {
       "current_blob": "d6b62cdca75610f87c2528f81f65505fc7768dbb",
+      "current_sha256": "6eb70eb27eda8348bf01c8831ee69b4062402827d4ead8453b2b8345fb4b15b4",
+      "current_size": 806,
+      "default_branch": "main",
+      "fork": false,
       "merge_commit": "58ecba6d48b3f776d613353f61d83bea111c9949",
       "path": ".zpkg.toml",
+      "private": false,
       "pull_request": "https://github.com/opto-sync-test/contract-conformance-tests/pull/5",
       "repository": "opto-sync-test/contract-conformance-tests",
-      "snapshot_blob": "4e0489fb54a1af197cc69d3aafc45fa324e81371"
+      "snapshot_blob": "4e0489fb54a1af197cc69d3aafc45fa324e81371",
+      "validated_interface_revision": "8428bc574111fa148e590c8350c7855035ce2046"
+    },
+    {
+      "current_blob": "81ff7c7fc500215d64f8beb2ce0dfdae0ef6bd32",
+      "current_sha256": "0e8671d7a51fc2cc9074e174fb374d0fbb198a905248c52432eb6ca8d3fe85b0",
+      "current_size": 1573,
+      "default_branch": "main",
+      "fork": false,
+      "merge_commit": "6ccc922f4cb27b4a3de5f0e113c4bbf20d736300",
+      "path": ".zpkg.toml",
+      "private": false,
+      "pull_request": "https://github.com/zed-pkg-test/awkward-lib/pull/1",
+      "reason": "concurrent reviewed fixture hardening canonicalized the whole-repository target identity while preserving all four awkward target layouts",
+      "repository": "zed-pkg-test/awkward-lib",
+      "snapshot_blob": "ce2ba307eefef33c275a19176a2834fb3c30f63f",
+      "validated_interface_revision": "8428bc574111fa148e590c8350c7855035ce2046"
     }
   ],
   "authenticated_actor": {
@@ -661,20 +698,6 @@
       ],
       "repository": "canonical-cloud/canonical-api-server.rs",
       "source_blob": "10a3b434a1d36102a1b2d2dd989b769cca177d8e"
-    },
-    {
-      "default_branch": "main",
-      "fork": false,
-      "path": ".zpkg.toml",
-      "phase": 2,
-      "private": true,
-      "proposal": "zed-v023-proposals/0ed649f5770075f94e06f0fe7036c73afa8e4940.toml",
-      "proposed_blob": "62f095a5e15ebc4f1a30c2320cf17f92b41fcd5e",
-      "recipes": [
-        "canonical-root-target-name"
-      ],
-      "repository": "canonical-cloud/canonical-clients",
-      "source_blob": "0ed649f5770075f94e06f0fe7036c73afa8e4940"
     },
     {
       "default_branch": "main",
@@ -2271,20 +2294,6 @@
       "path": ".zpkg.toml",
       "phase": 2,
       "private": false,
-      "proposal": "zed-v023-proposals/ce2ba307eefef33c275a19176a2834fb3c30f63f.toml",
-      "proposed_blob": "ec17b27ccbe90e0b457e4eeeae7dc829e37371cf",
-      "recipes": [
-        "canonical-root-target-name"
-      ],
-      "repository": "zed-pkg-test/awkward-lib",
-      "source_blob": "ce2ba307eefef33c275a19176a2834fb3c30f63f"
-    },
-    {
-      "default_branch": "main",
-      "fork": false,
-      "path": ".zpkg.toml",
-      "phase": 2,
-      "private": false,
       "proposal": "zed-v023-proposals/9e0154ffe40fd3dded22589b4cb0e368e5ff9396.toml",
       "proposed_blob": "a79a98ef3baf962ac26f9bfe37fce6e0f94d698e",
       "recipes": [
@@ -2535,15 +2544,6 @@
         "canonical-root-target-name"
       ],
       "source_blob": "0cbea06ec1aeea93c2cbb5fdd66e4c60908397b6"
-    },
-    {
-      "file": "zed-v023-proposals/0ed649f5770075f94e06f0fe7036c73afa8e4940.toml",
-      "proposed_blob": "62f095a5e15ebc4f1a30c2320cf17f92b41fcd5e",
-      "proposed_sha256": "245139fbdd77ee95801044a676f174e1e1e29bf615796ded0f2cfbeb5c967e40",
-      "recipes": [
-        "canonical-root-target-name"
-      ],
-      "source_blob": "0ed649f5770075f94e06f0fe7036c73afa8e4940"
     },
     {
       "file": "zed-v023-proposals/0ee4a53b232d9829647f51169c929c9207c26af8.toml",
@@ -3620,15 +3620,6 @@
       "source_blob": "cd707eadfc342aa0cab18e57b08243d3a688dcf3"
     },
     {
-      "file": "zed-v023-proposals/ce2ba307eefef33c275a19176a2834fb3c30f63f.toml",
-      "proposed_blob": "ec17b27ccbe90e0b457e4eeeae7dc829e37371cf",
-      "proposed_sha256": "34012c51b967c7e9218665372857acd2e2b61d47d3599b2ad4ef6e36bd672a45",
-      "recipes": [
-        "canonical-root-target-name"
-      ],
-      "source_blob": "ce2ba307eefef33c275a19176a2834fb3c30f63f"
-    },
-    {
       "file": "zed-v023-proposals/d0a62c7486afcc721d7c80b1073359ed62e916bc.toml",
       "proposed_blob": "257f94d7196406227a78424165e6914bc69f8857",
       "proposed_sha256": "965fd78f6bf11ae44ed885c4a11be89d70b0b5b2ba75c3cf01dfee378624efe0",
@@ -3928,10 +3919,10 @@
   ],
   "schema_version": 1,
   "snapshot": {
-    "changed_unique_blobs": 160,
+    "changed_unique_blobs": 158,
     "manifest_instances": 656,
-    "mutation_instances": 171,
-    "mutation_repositories": 155,
+    "mutation_instances": 169,
+    "mutation_repositories": 153,
     "repositories": 620
   },
   "tracking_issue": "DEN-3733",

@@ -75,7 +75,7 @@ jobs:
               '.valid == true and .interface_revision == $revision' <<<"$report" >/dev/null
             count=$((count + 1))
           done < <(find repository-fleets/zed-v023-proposals -type f -name '*.toml' -print0 | sort -z)
-          test "$count" -eq 160
+          test "$count" -eq 158
       - name: Reject credentials and conflict markers
         shell: bash
         run: |

@@ -57,9 +57,36 @@ ALREADY_RECONCILED = {
     ("opto-sync-test/contract-conformance-tests", ".zpkg.toml"): {
         "snapshot_blob": "4e0489fb54a1af197cc69d3aafc45fa324e81371",
         "current_blob": "d6b62cdca75610f87c2528f81f65505fc7768dbb",
+        "current_size": 806,
+        "current_sha256": "6eb70eb27eda8348bf01c8831ee69b4062402827d4ead8453b2b8345fb4b15b4",
         "merge_commit": "58ecba6d48b3f776d613353f61d83bea111c9949",
         "pull_request": "https://github.com/opto-sync-test/contract-conformance-tests/pull/5",
-    }
+    },
+    ("canonical-cloud/canonical-clients", ".zpkg.toml"): {
+        "snapshot_blob": "0ed649f5770075f94e06f0fe7036c73afa8e4940",
+        "current_blob": "445603a00bb245faad879b8a495687bd774eb23a",
+        "current_size": 2799,
+        "current_sha256": "75ad84a2b45faefbb1012e40997bb57efc55e821541e65432dfedf6173735d10",
+        "merge_commit": "22924da2ad539346ff36642b40b442e7756786bf",
+        "pull_request": "https://github.com/canonical-cloud/canonical-clients/pull/23",
+        "companion_pull_request": "https://github.com/canonical-cloud/canonical-clients/pull/22",
+        "reason": (
+            "concurrent reviewed client hardening removed the legacy root-target alias, "
+            "canonicalized the v0.2.3 target identifiers, and added the canonical-lib edge"
+        ),
+    },
+    ("zed-pkg-test/awkward-lib", ".zpkg.toml"): {
+        "snapshot_blob": "ce2ba307eefef33c275a19176a2834fb3c30f63f",
+        "current_blob": "81ff7c7fc500215d64f8beb2ce0dfdae0ef6bd32",
+        "current_size": 1573,
+        "current_sha256": "0e8671d7a51fc2cc9074e174fb374d0fbb198a905248c52432eb6ca8d3fe85b0",
+        "merge_commit": "6ccc922f4cb27b4a3de5f0e113c4bbf20d736300",
+        "pull_request": "https://github.com/zed-pkg-test/awkward-lib/pull/1",
+        "reason": (
+            "concurrent reviewed fixture hardening canonicalized the whole-repository "
+            "target identity while preserving all four awkward target layouts"
+        ),
+    },
 }
 IMMUTABLE_SNAPSHOTS = {
     ("3fa-app-test/clients-consumer-matrix", "proof/den-2612/source/.zpkg.toml"): {
@@ -530,9 +557,6 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             )
             continue
         already = ALREADY_RECONCILED.get((instance.repository, instance.path))
-        if already and already["snapshot_blob"] == instance.blob_sha:
-            reconciled.append({"repository": instance.repository, "path": instance.path, **already})
-            continue
         repository = repositories.get(instance.repository.lower())
         if repository is None:
             raise PlanError(f"repository inventory is missing {instance.repository}")
@@ -540,6 +564,30 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
             raise PlanError(f"migration target is archived: {repository.full_name}")
         if repository.default_branch != instance.default_branch:
             raise PlanError(f"default branch drift in snapshot: {instance.repository}")
+        if already and already["snapshot_blob"] == instance.blob_sha:
+            current_path = args.source_dir / f"{already['current_blob']}.toml"
+            current = current_path.read_text(encoding="utf-8")
+            if (
+                len(current.encode("utf-8")) != already["current_size"]
+                or git_blob_sha(current) != already["current_blob"]
+                or sha256(current) != already["current_sha256"]
+            ):
+                raise PlanError(
+                    f"reconciled manifest identity mismatch: {instance.repository}:{instance.path}"
+                )
+            validate_with_zed(args.zed, current_path)
+            reconciled.append(
+                {
+                    "repository": repository.full_name,
+                    "default_branch": repository.default_branch,
+                    "private": repository.private,
+                    "fork": repository.fork,
+                    "path": instance.path,
+                    "validated_interface_revision": INTERFACE_REVISION,
+                    **already,
+                }
+            )
+            continue
         source_path = args.source_dir / f"{instance.blob_sha}.toml"
         source = source_path.read_text(encoding="utf-8")
         if len(source.encode("utf-8")) != instance.size or git_blob_sha(source) != instance.blob_sha:
