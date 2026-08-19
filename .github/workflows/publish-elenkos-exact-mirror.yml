@@ -1,0 +1,228 @@
+name: Publish exact-mirror Elenkos repository fleets
+run-name: Publish exact-mirror Elenkos fleets from ${{ github.sha }}
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-elenkos-exact-mirror.yml
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-elenkos-exact-mirror.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: publish-exact-mirror-elenkos-fleets
+  cancel-in-progress: false
+
+env:
+  TRUSTED_K8S_CLUSTER_SHA: 38d7ee10a8fc1ef8d5e0c00493767bf8d3d4eabf
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    permissions:
+      contents: read
+    steps:
+      - name: Check out publisher workflow
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/publish-elenkos-exact-mirror.yml
+
+      - name: Check out the exact reviewed Elenkos payload
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/k8s-cluster
+          ref: ${{ env.TRUSTED_K8S_CLUSTER_SHA }}
+          path: k8s-cluster
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Assert exact payload revision
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git -C k8s-cluster rev-parse HEAD)" = "$TRUSTED_K8S_CLUSTER_SHA"
+
+      - name: Materialize and validate the exact 22-repository fleet
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cd k8s-cluster
+          python3 -m py_compile \
+            scripts/ops/patch_elenkos_fleet_payload_20260819.py \
+            scripts/ops/patch_elenkos_mirror_fleet_20260819.py
+          bash scripts/ops/materialize_elenkos_fleet_payload_20260819.sh
+          bash scripts/ops/validate_elenkos_fleet_payload_20260819.sh
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: nightly-org-maintenance
+      deployment: false
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Check out the exact reviewed Elenkos payload
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/k8s-cluster
+          ref: ${{ env.TRUSTED_K8S_CLUSTER_SHA }}
+          path: k8s-cluster
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Assert exact payload revision and materialize
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$(git -C k8s-cluster rev-parse HEAD)" = "$TRUSTED_K8S_CLUSTER_SHA"
+          cd k8s-cluster
+          bash scripts/ops/materialize_elenkos_fleet_payload_20260819.sh
+
+      - name: Mint elenkos-systems repository administration token
+        id: production-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: elenkos-systems
+          skip-token-revoke: true
+          permission-administration: write
+          permission-contents: write
+          permission-metadata: read
+
+      - name: Mint elenkos-systems-test repository administration token
+        id: test-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: elenkos-systems-test
+          skip-token-revoke: true
+          permission-administration: write
+          permission-contents: write
+          permission-metadata: read
+
+      - name: Publish and verify all 22 private repositories
+        id: publication
+        shell: bash
+        env:
+          PRODUCTION_TOKEN: ${{ steps.production-token.outputs.token }}
+          TEST_TOKEN: ${{ steps.test-token.outputs.token }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          prod_token="$RUNNER_TEMP/elenkos-systems.token"
+          test_token="$RUNNER_TEMP/elenkos-systems-test.token"
+          printf '%s' "$PRODUCTION_TOKEN" > "$prod_token"
+          printf '%s' "$TEST_TOKEN" > "$test_token"
+          chmod 600 "$prod_token" "$test_token"
+          unset PRODUCTION_TOKEN TEST_TOKEN
+
+          output="$RUNNER_TEMP/elenkos-fleet"
+          evidence="$RUNNER_TEMP/elenkos-publication-evidence.json"
+          python3 k8s-cluster/scripts/ops/publish_elenkos_fleet_20260819.py \
+            --execute \
+            --output "$output" \
+            --trusted-k8s-cluster-sha "$TRUSTED_K8S_CLUSTER_SHA" \
+            --token-file "elenkos-systems=$prod_token" \
+            --token-file "elenkos-systems-test=$test_token" \
+            --evidence-out "$evidence"
+
+          jq -e '
+            .schema_version == 1 and
+            .tracking_issue == "DEN-3786" and
+            .executed == true and
+            .publication.visibility == "private" and
+            .publication.production_repository_count == 11 and
+            .publication.test_repository_count == 11 and
+            .publication.repository_count == 22 and
+            ([.publication.repositories[].full_name] | length == 22) and
+            (all(.publication.repositories[];
+              .visibility == "private" and
+              .default_branch == "main" and
+              .tag_sha == .main_sha and
+              (.source_fingerprint | test("^[0-9a-f]{64}$")) and
+              (.file_count | type == "number" and . > 8)))
+          ' "$evidence" >/dev/null
+          echo 'VERIFIED_ELENKOS_REPOSITORIES 22/22'
+
+      - name: Upload non-secret publication evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: elenkos-direct-publication-${{ github.run_id }}
+          path: ${{ runner.temp }}/elenkos-publication-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Revoke installation tokens and remove token files
+        if: always()
+        shell: bash
+        env:
+          PRODUCTION_TOKEN: ${{ steps.production-token.outputs.token }}
+          TEST_TOKEN: ${{ steps.test-token.outputs.token }}
+        run: |
+          set +e
+          for token in "$PRODUCTION_TOKEN" "$TEST_TOKEN"; do
+            if [[ -n "$token" ]]; then
+              GH_TOKEN="$token" gh api --method DELETE /installation/token >/dev/null 2>&1
+            fi
+          done
+          unset PRODUCTION_TOKEN TEST_TOKEN GH_TOKEN
+          find "$RUNNER_TEMP" -maxdepth 1 -type f -name 'elenkos-*.token' -exec shred -u {} + 2>/dev/null || true
+
+      - name: Record bounded direct-publication receipt
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PRODUCTION_TOKEN_OUTCOME: ${{ steps.production-token.outcome }}
+          TEST_TOKEN_OUTCOME: ${{ steps.test-token.outcome }}
+          PUBLICATION_OUTCOME: ${{ steps.publication.outcome }}
+        run: |
+          set -Eeuo pipefail
+          result=failure
+          if [[ "$PRODUCTION_TOKEN_OUTCOME" == success && \
+                "$TEST_TOKEN_OUTCOME" == success && \
+                "$PUBLICATION_OUTCOME" == success ]]; then
+            result=success
+          fi
+          receipt="$RUNNER_TEMP/elenkos-direct-publication-receipt.md"
+          cat > "$receipt" <<EOF
+          Automated receipt for the direct GitHub App Elenkos publisher.
+
+          - Conclusion: \`$result\`
+          - Run ID: \`$GITHUB_RUN_ID\`
+          - Run attempt: \`$GITHUB_RUN_ATTEMPT\`
+          - Publisher SHA: \`$GITHUB_SHA\`
+          - Trusted k8s-cluster SHA: \`$TRUSTED_K8S_CLUSTER_SHA\`
+          - Production token step: \`$PRODUCTION_TOKEN_OUTCOME\`
+          - Test token step: \`$TEST_TOKEN_OUTCOME\`
+          - Publication step: \`$PUBLICATION_OUTCOME\`
+          - Intended scope: 22 private repositories, with 11 identically named repositories in each Elenkos organization
+          - Credential model: owner-scoped, short-lived GitHub App installation tokens; tokens are revoked and never committed
+
+          A \`success\` conclusion means the publisher verified private visibility, exact repository identities, \`main\` refs, immutable \`v0.1.0\` tags, source fingerprints, and generated file counts for all 22 repositories.
+          EOF
+          gh issue create \
+            --repo ORESoftware/ai-agent-coordinator.rs \
+            --title "Elenkos direct publication receipt: $result (run $GITHUB_RUN_ID)" \
+            --body-file "$receipt"
