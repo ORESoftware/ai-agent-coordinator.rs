@@ -42,11 +42,23 @@ manifest drift:
 - one pre-contract ClipTown manifest; and
 - one obsolete zed-vscode integration fixture.
 
-The reviewed migration changes 160 unique source blobs, 171 manifest instances,
-and 155 repositories. Every proposed blob passes released zed-cli v0.2.3 against
+The reconciled migration changes 158 unique source blobs, 169 manifest instances,
+and 153 repositories. Every proposed blob passes released zed-cli v0.2.3 against
 the exact interface revision above. Script migrations preserve every prior
 command in source order under `scripts.test`; they do not discard lint, format,
 code-generation, conformance, rendering, or dependency-check behavior.
+
+Three additional manifests are exact, validation-provenanced reconciliations rather
+than pending mutations. `opto-sync-test/contract-conformance-tests` landed its
+semantic migration in PR 5 before the fleet plan. During the source-first phase,
+`canonical-cloud/canonical-clients` independently landed reviewed PRs 22 and 23;
+their combined default-branch blob includes the planned root-target correction,
+current v0.2.3 target identifiers, and the new `canonical-lib` dependency.
+`zed-pkg-test/awkward-lib` then independently landed reviewed PR 1, preserving
+all four fixture layouts while canonicalizing the whole-repository target name.
+The publisher now revalidates all three reconciled blobs on their default
+branches during every full preflight instead of silently excluding them from
+the mutation list.
 
 One of the 656 scanned files is deliberately not a current package surface:
 `3fa-app-test/clients-consumer-matrix/proof/den-2612/source/.zpkg.toml` is an
@@ -92,12 +104,33 @@ phase, accepts only the exact inventoried or exact proposed blob at each managed
 path, verifies target directories against the default-branch tree, and rejects a
 partial repository state.
 
-The authenticated phase-one preflight completed against plan SHA-256
-`36ac1b21bc266cdfffd6de1f1581020b430da5c5e5d23f36f086329caa299a8a`:
-all 155 managed repositories were inspected, all were still at the exact source
-state, and there were zero identity, authorization, visibility, branch, blob,
-target-directory, or partial-state failures. No repository branch or pull
-request was created by this read-only run.
+The authenticated phase-one publication completed against original reviewed plan
+SHA-256
+`36ac1b21bc266cdfffd6de1f1581020b430da5c5e5d23f36f086329caa299a8a`.
+All 155 then-managed repositories were re-preflighted, seven exact-head pull
+requests passed their repository checks and were merged, the already-migrated
+controller was reverified, and all eight source/generator defaults were verified
+at their proposed blobs with zero publisher failures.
+
+Before phase two created any branch, the full preflight failed closed on the
+concurrent `canonical-clients` blob. A separate read-only audit of all 155
+originally managed repositories found exactly that one divergence: 146 remained
+at source, eight phase-one repositories were proposed, and no second path had
+drifted. The first reconciled plan SHA-256 was
+`bde593a5618e829c5ca2a0adec419b6dc5e9f5986404ca518f573a7e901c04a3`.
+A second fail-closed full preflight then caught independently reviewed
+`awkward-lib` PR 1 before any phase-two branch was created. The current plan
+removes both superseded mutations, records and validates all three exact
+reconciled manifests, and retains a 156-repository live preflight (153 mutation
+repositories plus three independently reconciled repositories). A third full
+preflight then stopped at `shared-auth/shared-auth-clients` after reviewed PR 51
+added explicit names to three TypeScript targets. That current manifest still
+failed v0.2.3 because several older runtime aliases shared the same source root,
+so it could not be excluded as already reconciled. The plan instead records the
+snapshot blob, PR, merge commit, byte length, Git blob, and SHA-256 of the exact
+current source, then derives and validates the isolation migration from those
+current bytes. The exact current plan SHA-256 is
+`c1197c4a7699b55ecf46e9e4fdc413cfe6f5486a46fd4ea4a8c00e3db185c479`.
 
 ## Repositories that should be considered for new Zed packages
 

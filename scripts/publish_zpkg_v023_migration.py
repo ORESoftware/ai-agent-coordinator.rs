@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import hashlib
 import json
 import os
@@ -67,6 +69,27 @@ class RepositoryPlan:
     fork: bool
     phase: int
     mutations: tuple[Mutation, ...]
+
+    @property
+    def owner(self) -> str:
+        return self.full_name.split("/", 1)[0]
+
+    @property
+    def name(self) -> str:
+        return self.full_name.split("/", 1)[1]
+
+
+@dataclass(frozen=True)
+class ReconciledManifest:
+    full_name: str
+    default_branch: str
+    private: bool
+    fork: bool
+    path: str
+    snapshot_blob: str
+    current_blob: str
+    current_size: int
+    current_sha256: str
 
     @property
     def owner(self) -> str:
@@ -164,8 +187,80 @@ def safe_repository_path(value: str) -> str:
     return path.as_posix()
 
 
-def repository_api(plan: RepositoryPlan) -> str:
+def load_reconciled(raw: dict[str, Any]) -> tuple[ReconciledManifest, ...]:
+    reconciled: list[ReconciledManifest] = []
+    seen: set[tuple[str, str]] = set()
+    for item in raw.get("already_reconciled", []):
+        repository = str(item.get("repository") or "")
+        path = safe_repository_path(str(item.get("path") or ""))
+        snapshot_blob = str(item.get("snapshot_blob") or "")
+        current_blob = str(item.get("current_blob") or "")
+        current_sha256 = str(item.get("current_sha256") or "")
+        current_size = item.get("current_size")
+        if not re.fullmatch(r"[A-Za-z0-9_.-]{1,100}/[A-Za-z0-9_.-]{1,100}", repository):
+            raise MigrationError(f"malformed reconciled repository: {repository}")
+        if not SHA_PATTERN.fullmatch(snapshot_blob) or not SHA_PATTERN.fullmatch(current_blob):
+            raise MigrationError(f"malformed reconciled blob identity: {repository}:{path}")
+        if not re.fullmatch(r"[0-9a-f]{64}", current_sha256):
+            raise MigrationError(f"malformed reconciled SHA-256: {repository}:{path}")
+        if not isinstance(current_size, int) or current_size <= 0:
+            raise MigrationError(f"malformed reconciled size: {repository}:{path}")
+        if item.get("validated_interface_revision") != "8428bc574111fa148e590c8350c7855035ce2046":
+            raise MigrationError(f"reconciled validation provenance drift: {repository}:{path}")
+        key = (repository.lower(), path)
+        if key in seen:
+            raise MigrationError(f"duplicate reconciled manifest: {repository}:{path}")
+        seen.add(key)
+        reconciled.append(
+            ReconciledManifest(
+                full_name=repository,
+                default_branch=str(item.get("default_branch") or ""),
+                private=item.get("private") is True,
+                fork=item.get("fork") is True,
+                path=path,
+                snapshot_blob=snapshot_blob,
+                current_blob=current_blob,
+                current_size=current_size,
+                current_sha256=current_sha256,
+            )
+        )
+    return tuple(sorted(reconciled, key=lambda item: (item.full_name.lower(), item.path)))
+
+
+def repository_api(plan: RepositoryPlan | ReconciledManifest) -> str:
     return f"/repos/{quote(plan.owner)}/{quote(plan.name)}"
+
+
+def verify_reconciled_blob(github: GitHub, item: ReconciledManifest) -> None:
+    _, blob, _ = github.get(
+        f"{repository_api(item)}/git/blobs/{quote(item.current_blob)}"
+    )
+    if (
+        blob.get("sha") != item.current_blob
+        or blob.get("size") != item.current_size
+        or blob.get("encoding") != "base64"
+    ):
+        raise MigrationError(
+            f"reconciled blob metadata drift: {item.full_name}:{item.path}"
+        )
+    encoded = "".join(str(blob.get("content") or "").split())
+    if len(encoded) > ((item.current_size + 2) // 3) * 4:
+        raise MigrationError(
+            f"reconciled blob encoding is oversized: {item.full_name}:{item.path}"
+        )
+    try:
+        content = base64.b64decode(encoded, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise MigrationError(
+            f"reconciled blob encoding is invalid: {item.full_name}:{item.path}"
+        ) from error
+    if (
+        len(content) != item.current_size
+        or hashlib.sha256(content).hexdigest() != item.current_sha256
+    ):
+        raise MigrationError(
+            f"reconciled blob SHA-256 drift: {item.full_name}:{item.path}"
+        )
 
 
 def load_plan(path: Path) -> tuple[dict[str, Any], dict[str, RepositoryPlan]]:
@@ -244,17 +339,31 @@ def load_plan(path: Path) -> tuple[dict[str, Any], dict[str, RepositoryPlan]]:
     snapshot = raw.get("snapshot") or {}
     if snapshot.get("mutation_repositories") != len(plans) or snapshot.get("mutation_instances") != len(seen_paths):
         raise MigrationError("migration plan summary does not match its mutations")
+    reconciled = load_reconciled(raw)
+    reconciled_paths = {(item.full_name.lower(), item.path) for item in reconciled}
+    if reconciled_paths & seen_paths:
+        raise MigrationError("reconciled manifest must not also be a planned mutation")
     return raw, plans
 
 
-def get_ref(github: GitHub, plan: RepositoryPlan, branch: str, *, missing: bool = False) -> dict[str, Any] | None:
+def get_ref(
+    github: GitHub,
+    plan: RepositoryPlan | ReconciledManifest,
+    branch: str,
+    *,
+    missing: bool = False,
+) -> dict[str, Any] | None:
     status, payload, _ = github.get(
         f"{repository_api(plan)}/git/ref/heads/{quote(branch)}", allow=(404,) if missing else ()
     )
     return None if status == 404 else payload
 
 
-def commit_tree(github: GitHub, plan: RepositoryPlan, commit_sha: str) -> tuple[str, dict[str, str]]:
+def commit_tree(
+    github: GitHub,
+    plan: RepositoryPlan | ReconciledManifest,
+    commit_sha: str,
+) -> tuple[str, dict[str, str]]:
     _, commit, _ = github.get(f"{repository_api(plan)}/git/commits/{quote(commit_sha)}")
     tree_sha = str(commit["tree"]["sha"])
     _, tree, _ = github.get(f"{repository_api(plan)}/git/trees/{quote(tree_sha)}?recursive=1")
@@ -330,7 +439,11 @@ def preflight_all(
     expected_actor = raw_plan.get("authenticated_actor") or {}
     if actor.get("login") != expected_actor.get("login") or actor.get("id") != expected_actor.get("id"):
         raise MigrationError("authenticated GitHub identity drift")
-    owners = sorted({plan.owner for plan in plans.values()}, key=str.lower)
+    reconciled = load_reconciled(raw_plan)
+    owners = sorted(
+        {plan.owner for plan in plans.values()} | {item.owner for item in reconciled},
+        key=str.lower,
+    )
     for owner in owners:
         validate_owner(github, owner, actor)
     output: dict[str, Preflight] = {}
@@ -360,6 +473,31 @@ def preflight_all(
             has_workflows=any(path.startswith(".github/workflows/") for path in paths),
         )
         print(f"preflight [{index}/{len(plans)}] {plan.full_name}: {state}", flush=True)
+    for index, item in enumerate(reconciled, start=1):
+        _, repository, _ = github.get(repository_api(item))
+        if str(repository.get("full_name") or "").lower() != item.full_name.lower():
+            raise MigrationError(f"reconciled repository identity drift: {item.full_name}")
+        if repository.get("archived") or repository.get("disabled"):
+            raise MigrationError(f"reconciled repository is archived or disabled: {item.full_name}")
+        if repository.get("private") is not item.private or repository.get("fork") is not item.fork:
+            raise MigrationError(f"reconciled repository privacy/fork drift: {item.full_name}")
+        if repository.get("default_branch") != item.default_branch:
+            raise MigrationError(f"reconciled default branch drift: {item.full_name}")
+        ref = get_ref(github, item, item.default_branch)
+        default_sha = str(ref["object"]["sha"])
+        _, paths = commit_tree(github, item, default_sha)
+        actual = paths.get(item.path)
+        if actual != item.current_blob:
+            raise MigrationError(
+                f"reconciled manifest drift at {item.full_name}:{item.path}; "
+                f"expected {item.current_blob}, found {actual or 'missing'}"
+            )
+        verify_reconciled_blob(github, item)
+        print(
+            f"preflight reconciled [{index}/{len(reconciled)}] "
+            f"{item.full_name}:{item.path}: {item.current_blob}",
+            flush=True,
+        )
     return output
 
 
@@ -563,7 +701,7 @@ def execute(args: argparse.Namespace) -> int:
     try:
         preflights = preflight_all(github, raw_plan, plans)
         ledger.preflight_complete = True
-        ledger.preflight_repositories_total = len(preflights)
+        ledger.preflight_repositories_total = len(preflights) + len(load_reconciled(raw_plan))
         for plan in selected:
             item = preflights[plan.full_name.lower()]
             result = results[plan.full_name.lower()]
