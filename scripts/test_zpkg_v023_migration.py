@@ -213,6 +213,32 @@ class PlanTests(unittest.TestCase):
             "81ff7c7fc500215d64f8beb2ce0dfdae0ef6bd32",
         )
 
+    def test_reviewed_source_override_preserves_concurrent_manifest_bytes(self) -> None:
+        self.assertEqual(len(self.raw["reviewed_source_overrides"]), 1)
+        override = self.raw["reviewed_source_overrides"][0]
+        self.assertEqual(
+            (override["repository"], override["path"], override["snapshot_blob"]),
+            (
+                "shared-auth/shared-auth-clients",
+                ".zpkg.toml",
+                "ff5150cc4998ceff097678e62aa67691bc212eb6",
+            ),
+        )
+        self.assertEqual(
+            override["current_blob"],
+            "f3ea73b23d579f75230f21d9b6da3a1c9dbf7974",
+        )
+        planned = next(
+            item
+            for item in self.raw["mutations"]
+            if item["repository"] == "shared-auth/shared-auth-clients"
+        )
+        self.assertEqual(planned["source_blob"], override["current_blob"])
+        self.assertEqual(
+            planned["proposed_blob"],
+            "956d097aae003a983bd74550f4777c652cce972d",
+        )
+
     def test_reconciled_blob_verifies_size_git_identity_and_sha256(self) -> None:
         content = b"exact reviewed manifest\n"
         git_sha = hashlib.sha1(
