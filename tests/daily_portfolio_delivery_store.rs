@@ -307,7 +307,7 @@ async fn postgres_repository_preserves_fences_receipts_and_restart_state() {
         RunMode::Manual,
         "daily-portfolio:manual:stale-fence",
         "2026-08-06",
-        '5',
+        '7',
     );
     restarted.plan(&stale_case).await.expect("plan stale case");
     let stale = restarted

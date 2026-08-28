@@ -157,7 +157,16 @@ impl DailyPortfolioDeliveryStore {
         match self.claim_once(run_key, owner, now, lease_seconds).await {
             Ok(token) => Ok(token),
             Err(error) if is_serialization_failure(&error) => {
-                Err(domain(DeliveryStateError::LeaseHeld))
+                let now_ms = datetime_millis(now)?;
+                if self
+                    .get_run(run_key)
+                    .await?
+                    .and_then(|run| run.lease)
+                    .is_some_and(|lease| lease.expires_at_ms > now_ms)
+                {
+                    return Err(domain(DeliveryStateError::LeaseHeld));
+                }
+                self.claim_once(run_key, owner, now, lease_seconds).await
             }
             Err(error) => Err(error),
         }
@@ -190,20 +199,15 @@ impl DailyPortfolioDeliveryStore {
         let row = transaction
             .query_one(statement(
                 r#"
-                UPDATE ai_agent_coordinator.daily_portfolio_delivery_runs
-                   SET lease_owner = $2,
-                       lease_fence = nextval('ai_agent_coordinator.daily_portfolio_delivery_fence_seq'),
-                       lease_expires_at = $3,
-                       updated_at = $4
-                 WHERE run_key = $1
-                 RETURNING lease_fence
-                "#,
-                vec![
-                    run_key.into(),
-                    owner.into(),
-                    expires_at.into(),
-                    now.into(),
-                ],
+            UPDATE ai_agent_coordinator.daily_portfolio_delivery_runs
+               SET lease_owner = $2,
+                   lease_fence = nextval('ai_agent_coordinator.daily_portfolio_delivery_fence_seq'),
+                   lease_expires_at = $3,
+                   updated_at = $4
+             WHERE run_key = $1
+             RETURNING lease_fence
+            "#,
+                vec![run_key.into(), owner.into(), expires_at.into(), now.into()],
             ))
             .await
             .context("failed to claim the daily portfolio delivery run")?
