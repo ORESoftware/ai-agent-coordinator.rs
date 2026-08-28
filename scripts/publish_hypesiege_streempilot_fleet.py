@@ -39,6 +39,7 @@ EXPECTED_GITLINKS = 30
 MAX_API_RESPONSE_BYTES = 256 * 1024
 MAX_API_REQUEST_BYTES = 64 * 1024
 MAX_ERROR_BYTES = 4096
+MAX_ERROR_DETAIL_BYTES = 4096
 MAX_DESCRIPTION_LENGTH = 350
 REPOSITORY_NAME_PATTERN = re.compile(
     r"(?:[a-z0-9]|[a-z0-9][a-z0-9._-]{0,98}[a-z0-9])\Z"
@@ -46,7 +47,6 @@ REPOSITORY_NAME_PATTERN = re.compile(
 KIND_PATTERN = re.compile(r"[a-z][a-z0-9-]{1,31}\Z")
 SHA_PATTERN = re.compile(r"[0-9a-f]{40}\Z")
 TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]{20,255}\Z")
-MAX_ERROR_DETAIL_BYTES = MAX_ERROR_BYTES
 SECRET_PATTERNS = (
     re.compile(r"(?i)\bBearer\s+[^\s,;]+"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]+\b"),

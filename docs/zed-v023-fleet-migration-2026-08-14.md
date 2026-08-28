@@ -122,9 +122,15 @@ A second fail-closed full preflight then caught independently reviewed
 `awkward-lib` PR 1 before any phase-two branch was created. The current plan
 removes both superseded mutations, records and validates all three exact
 reconciled manifests, and retains a 156-repository live preflight (153 mutation
-repositories plus three independently reconciled repositories). Its exact
-SHA-256 is
-`98674db7fcf42d0735a957044701f2572b9bf948ab109bef9a155f22d5beeeab`.
+repositories plus three independently reconciled repositories). A third full
+preflight then stopped at `shared-auth/shared-auth-clients` after reviewed PR 51
+added explicit names to three TypeScript targets. That current manifest still
+failed v0.2.3 because several older runtime aliases shared the same source root,
+so it could not be excluded as already reconciled. The plan instead records the
+snapshot blob, PR, merge commit, byte length, Git blob, and SHA-256 of the exact
+current source, then derives and validates the isolation migration from those
+current bytes. The exact current plan SHA-256 is
+`c1197c4a7699b55ecf46e9e4fdc413cfe6f5486a46fd4ea4a8c00e3db185c479`.
 
 ## Repositories that should be considered for new Zed packages
 

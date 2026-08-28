@@ -2083,13 +2083,13 @@
       "path": ".zpkg.toml",
       "phase": 2,
       "private": true,
-      "proposal": "zed-v023-proposals/ff5150cc4998ceff097678e62aa67691bc212eb6.toml",
-      "proposed_blob": "e3542a1a4e9685af9509034b4c0d86391b3000cc",
+      "proposal": "zed-v023-proposals/f3ea73b23d579f75230f21d9b6da3a1c9dbf7974.toml",
+      "proposed_blob": "956d097aae003a983bd74550f4777c652cce972d",
       "recipes": [
         "isolate-shared-auth-target-roots"
       ],
       "repository": "shared-auth/shared-auth-clients",
-      "source_blob": "ff5150cc4998ceff097678e62aa67691bc212eb6"
+      "source_blob": "f3ea73b23d579f75230f21d9b6da3a1c9dbf7974"
     },
     {
       "default_branch": "main",
@@ -3800,6 +3800,15 @@
       "source_blob": "efe42a351ca349757ffeffefd962178cb4d1b6bd"
     },
     {
+      "file": "zed-v023-proposals/f3ea73b23d579f75230f21d9b6da3a1c9dbf7974.toml",
+      "proposed_blob": "956d097aae003a983bd74550f4777c652cce972d",
+      "proposed_sha256": "f9dc36e40199cb94228cc0457c5c834aa38ff71ae8d58673237f4da303b0d4c3",
+      "recipes": [
+        "isolate-shared-auth-target-roots"
+      ],
+      "source_blob": "f3ea73b23d579f75230f21d9b6da3a1c9dbf7974"
+    },
+    {
       "file": "zed-v023-proposals/f4ada1a91dad1e6ac7b6b5c410d9164772915807.toml",
       "proposed_blob": "644b8c3e6cd3b373b01e437da9d6f7ee736736da",
       "proposed_sha256": "026d9235bf87bd6f008d84814374e00306cc67200a92b3079351e922297d9af7",
@@ -3899,15 +3908,6 @@
       "source_blob": "fed7df91cb001c6764ec8e7dae69f3d617a41004"
     },
     {
-      "file": "zed-v023-proposals/ff5150cc4998ceff097678e62aa67691bc212eb6.toml",
-      "proposed_blob": "e3542a1a4e9685af9509034b4c0d86391b3000cc",
-      "proposed_sha256": "b968fb0d05d95ee8ba24ea176eaae64f13152adfd3d1a6b68ee64720ba3ca1ce",
-      "recipes": [
-        "isolate-shared-auth-target-roots"
-      ],
-      "source_blob": "ff5150cc4998ceff097678e62aa67691bc212eb6"
-    },
-    {
       "file": "zed-v023-proposals/ffdd9940f58207e46ad5d862d9946080a3ed0cff.toml",
       "proposed_blob": "12fd0f8c4ea95502ba6df5a3df63300167aa9653",
       "proposed_sha256": "3ff43a194fb566c8f24f49002baaad1f594196a211bb1827c2786dc3b5ae8418",
@@ -3915,6 +3915,22 @@
         "collapse-scripts-to-test"
       ],
       "source_blob": "ffdd9940f58207e46ad5d862d9946080a3ed0cff"
+    }
+  ],
+  "reviewed_source_overrides": [
+    {
+      "current_blob": "f3ea73b23d579f75230f21d9b6da3a1c9dbf7974",
+      "current_sha256": "7e381a2baecea619c5c636640cf943fb8e19fdf7b9ed8cf4e6a78480b586df36",
+      "current_size": 3756,
+      "default_branch": "main",
+      "fork": false,
+      "merge_commit": "a63d2817c92d0b018899e252536371b07d5622ea",
+      "path": ".zpkg.toml",
+      "private": true,
+      "pull_request": "https://github.com/shared-auth/shared-auth-clients/pull/51",
+      "reason": "concurrent reviewed client hardening added explicit target names after the fleet snapshot; the v0.2.3 isolation migration must transform those exact current bytes rather than overwrite them",
+      "repository": "shared-auth/shared-auth-clients",
+      "snapshot_blob": "ff5150cc4998ceff097678e62aa67691bc212eb6"
     }
   ],
   "schema_version": 1,
