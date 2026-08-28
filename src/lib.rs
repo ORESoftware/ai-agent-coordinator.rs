@@ -5,6 +5,9 @@ pub mod config;
 /// Storage-independent fenced delivery contract; persistence adapters must preserve its invariants.
 pub mod daily_portfolio_delivery;
 /// PostgreSQL-backed fenced delivery repository for durable coordinator execution.
+///
+/// The baseline reconciliation state machine intentionally keeps the older-date
+/// and exact-idempotent-replay no-op branches separate for audit readability.
 #[allow(
     clippy::if_same_then_else,
     reason = "older scheduled baselines and exact same-day replays are both intentional no-ops"
