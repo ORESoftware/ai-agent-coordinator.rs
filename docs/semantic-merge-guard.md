@@ -13,8 +13,10 @@ The guard:
 - resolves base and head to immutable 40-character commit identities;
 - records three to ten commit identities and timestamps from each side without serializing messages, authors, emails, or source text;
 - disables rerere and runs `git merge --no-commit --no-ff` in an isolated detached worktree;
-- on a real conflict, records each unmerged path and the stage-1/base, stage-2/base-side, and stage-3/head-side blob identities and sizes;
+- always records the complete two-sided path union from merge-base→base and merge-base→head;
+- on a real conflict, separately records each unmerged path and the stage-1/base, stage-2/base-side, and stage-3/head-side blob identities and sizes;
 - on a clean textual merge, runs `git diff --check` and scans changed files for unresolved conflict markers, duplicate ordinary TOML tables, duplicate JSON keys, duplicate Rust module declarations, and duplicate Rust fields at the same structural depth;
+- leaves `safe_to_publish=false` in every state; only a clean preview may set `safe_to_open_review_pr=true`;
 - writes an atomic mode-`0600` JSON review artifact containing identities, paths, counts, and findings only;
 - verifies that the source repository's `HEAD` and every local branch ref remain unchanged;
 - exits nonzero on a conflict, suspicious clean merge, moving input ref, missing merge base, or operational error.
@@ -38,7 +40,7 @@ Exit codes:
 
 | Code | Meaning |
 |---:|---|
-| `0` | Textual merge and heuristic validation produced a clean preview tree. Publish only as a feature-branch PR and run the repository-specific gates. |
+| `0` | Textual merge and heuristic validation produced a clean preview tree. `safe_to_open_review_pr=true`; `safe_to_publish` remains false. Reconstruct only on a feature branch and run repository-specific gates. |
 | `2` | Manual conceptual resolution is required. The JSON artifact identifies the exact commits, conflict stages, and/or suspicious output. |
 | `3` | The guard could not establish a safe preview or detected unexpected repository/ref movement. Stop automation. |
 
@@ -55,6 +57,8 @@ Any automation path that currently performs a direct local merge must call this 
 7. Rerun the guard if either input ref moves.
 
 The controller must not interpret “clean preview” as product acceptance.
+It must key feature-branch reconstruction on `safe_to_open_review_pr`, and it must
+never treat `safe_to_publish` as true.
 
 ## Incident discovery baseline
 

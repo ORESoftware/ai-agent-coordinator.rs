@@ -1,0 +1,40 @@
+[package]
+org = "scintilla-run"
+name = "scintilla-cli"
+version = "0.1.0"
+description = "Command-line client for the Scintilla lambda and workflow control plane"
+license = "MIT"
+keywords = ["cli", "serverless", "lambda", "workflows", "rust", "global-tool"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/scintilla-run/scintilla-cli"
+
+# Org dependency graph: interfaces (contract) -> clients (transport) -> this
+# CLI. The org segment is the GitHub org that owns each repo. scintilla-run has
+# no `scintilla-lib`; when one lands, it belongs between these two.
+# scripts/check-zed-dependencies.py fails CI if this list and Cargo.toml disagree.
+[dependencies]
+"scintilla-run/scintilla-interfaces" = "^0.1.0"
+"scintilla-run/scintilla-clients" = "^0.1.0"
+
+[build]
+command = "cargo build --release --locked --bin scintilla"
+outputs = ["target/release/scintilla"]
+
+[bin]
+scintilla = "target/release/scintilla"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -x \"$ZED_PKG_TEST_TARGET/target/release/scintilla\" && \"$ZED_PKG_TEST_TARGET/target/release/scintilla\" --help >/dev/null"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && python3 scripts/check-zed-dependencies.py"

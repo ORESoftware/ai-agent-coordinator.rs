@@ -56,12 +56,6 @@ fn has_state_error(error: &anyhow::Error, expected: DeliveryStateError) -> bool 
     error.downcast_ref::<DeliveryStateError>() == Some(&expected)
 }
 
-fn error_chain_contains(error: &anyhow::Error, fragment: &str) -> bool {
-    error
-        .chain()
-        .any(|cause| cause.to_string().contains(fragment))
-}
-
 async fn reset(database_url: &str) {
     let connection = Database::connect(database_url)
         .await
@@ -115,9 +109,8 @@ async fn postgres_repository_preserves_fences_receipts_and_restart_state() {
     let winning = match (claim_a, claim_b) {
         (Ok(token), Err(error)) | (Err(error), Ok(token)) => {
             assert!(
-                has_state_error(&error, DeliveryStateError::LeaseHeld)
-                    || error_chain_contains(&error, "serialize"),
-                "unexpected losing claim error: {error:#}"
+                has_state_error(&error, DeliveryStateError::LeaseHeld),
+                "claim race was not normalized to LeaseHeld: {error:#}"
             );
             token
         }
@@ -326,7 +319,7 @@ async fn postgres_repository_preserves_fences_receipts_and_restart_state() {
         RunMode::Manual,
         "daily-portfolio:manual:stale-fence",
         "2026-08-06",
-        '9',
+        '5',
     );
     restarted.plan(&stale_case).await.expect("plan stale case");
     let stale = restarted

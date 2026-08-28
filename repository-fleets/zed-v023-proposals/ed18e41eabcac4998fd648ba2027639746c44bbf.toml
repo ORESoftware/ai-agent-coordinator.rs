@@ -1,0 +1,25 @@
+[package]
+org = "flags-2-env-test"
+name = "golang-app"
+version = "0.1.0"
+description = "Go consumer of flags-2-env/flags-2-env, bound through cgo and asserted in Docker."
+license = "MIT"
+keywords = ["flags-2-env", "fixture", "cli", "env"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/flags-2-env-test/golang-app"
+
+# `zed install` materializes dependencies under this directory, so the library
+# lands at .vendor/.zed/flags-2-env/flags-2-env. A git submodule is pinned at
+# that exact path as the offline stand-in, which is why `docker build .` works
+# with no registry reachable. The two mechanisms are interchangeable by design.
+[install]
+dir = ".vendor/.zed"
+adapter = "go"
+
+# The org segment matches the `org` field of the publisher's own .zpkg.toml in
+# ORESoftware/flags-2-env, which is "oresoftware" -- not the GitHub owner
+# casing, and not this org.
+[dependencies]
+"flags-2-env/flags-2-env" = "^0.3.0"

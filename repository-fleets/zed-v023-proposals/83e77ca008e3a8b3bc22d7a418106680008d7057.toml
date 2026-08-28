@@ -1,0 +1,32 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-clients"
+version = "0.1.0"
+description = "Bounded transport primitives for Benefactor APIs"
+license = "MIT"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-clients"
+
+[dependencies]
+"benefactor-cc/benefactor-interfaces" = "^0.1.0"
+"benefactor-cc/benefactor-lib" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", "target/**", "node_modules/**", "tmp/**", "**/*.log"]
+
+# The repository artifact carries the Rust crate and WASM build input; the
+# standards-based TypeScript runtime has an isolated source root.
+[targets.repository]
+dir = "."
+
+[targets.nodejs]
+dir = "typescript"
+name = "benefactor-clients-nodejs"
+adapter = "node"
+
+[scripts]
+test = "node scripts/check-contract.mjs"

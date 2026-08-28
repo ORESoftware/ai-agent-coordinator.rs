@@ -1,0 +1,55 @@
+[package]
+org = "messaging-intel"
+name = "msgint-interfaces"
+version = "0.1.0"
+description = "Consent-gated Messaging Intel domain, policy, SQL, and generated language contracts"
+license = "UNLICENSED"
+keywords = ["interfaces", "consent", "research", "json-schema", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/messaging-intel/msgint-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/domain.schema.json\" && test -f \"$ZED_PKG_TEST_TARGET/policy/consent-lifecycle.json\" && test -f \"$ZED_PKG_TEST_TARGET/contracts/self-report/schema/domain.schema.json\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[targets.domain-schema]
+dir = "schema"
+adapter = "none"
+
+[targets.self-report-schema]
+dir = "contracts/self-report/schema"
+adapter = "none"
+
+[targets.self-report-typescript]
+dir = "contracts/self-report/generated/typescript"
+adapter = "node"
+
+[targets.self-report-rust]
+dir = "contracts/self-report/generated/rust"
+adapter = "rust"
+
+[targets.self-report-dart]
+dir = "contracts/self-report/generated/dart"
+adapter = "dart"
+
+[scripts]
+test = "npm run check"

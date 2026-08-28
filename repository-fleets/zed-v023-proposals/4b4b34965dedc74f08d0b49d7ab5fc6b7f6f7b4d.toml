@@ -1,0 +1,44 @@
+[package]
+org = "led-dynamo"
+name = "leddy-cli"
+version = "0.1.0"
+description = "Command-line client for publishing, previewing, clearing, and inspecting Leddy displays"
+license = "MIT"
+keywords = ["led-matrix", "cli", "automation", "iot", "rust"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/led-dynamo/leddy-cli"
+
+# Org dependency graph: interfaces (shapes) -> lib (behaviour) -> clients
+# (transport) -> this CLI. All three are real Cargo edges too;
+# scripts/check-zed-dependencies.py fails CI if the two manifests disagree.
+[dependencies]
+"led-dynamo/leddy-interfaces" = "^0.1.0"
+"led-dynamo/leddy-lib" = "^0.1.0"
+"led-dynamo/leddy-clients" = "^0.1.0"
+
+[build]
+command = "cargo build --release --locked --bin leddy"
+outputs = ["target/release/leddy"]
+
+[bin]
+leddy = "target/release/leddy"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -x \"$ZED_PKG_TEST_TARGET/target/release/leddy\" && \"$ZED_PKG_TEST_TARGET/target/release/leddy\" --help >/dev/null"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[publish.native]
+registry = "crates-io"
+package = "leddy-cli"
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && python3 scripts/check-zed-dependencies.py"

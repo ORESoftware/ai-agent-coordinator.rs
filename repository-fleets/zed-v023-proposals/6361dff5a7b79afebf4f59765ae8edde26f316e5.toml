@@ -1,0 +1,46 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-gas"
+version = "0.1.0"
+description = "Consent-gated Google Apps Script and Cloudflare gateway for Benefactor outreach"
+license = "UNLICENSED"
+keywords = ["google-apps-script", "gmail", "cloudflare-workers", "outreach", "consent", "idempotency"]
+
+# Canonical extraction target; see EXTRACTION.md while this package is embedded.
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-gas"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/apps-script/appsscript.json\" && test -f \"$ZED_PKG_TEST_TARGET/worker/src/index.mjs\" && test -f \"$ZED_PKG_TEST_TARGET/contracts/outreach-gateway.openapi.yaml\""
+exclude = [".env", ".env.*", ".clasp.json", ".dev.vars", ".wrangler/**", ".zed/**", ".zed-pack/**", "zed_modules/**", "node_modules/**", "coverage/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[dependencies]
+"benefactor-cc/benefactor-interfaces" = "^0.1.0"
+"benefactor-cc/benefactor-sync" = "^0.1.0"
+
+[install]
+dir = "zed_modules"
+
+[targets.repository]
+dir = "."
+
+[targets.google-apps-script]
+dir = "apps-script"
+name = "benefactor-gmail-apps-script"
+adapter = "none"
+
+[targets.cloudflare-worker]
+dir = "worker"
+name = "benefactor-gas-gateway-worker"
+adapter = "node"
+
+[targets.contracts]
+dir = "contracts"
+name = "benefactor-gas-contracts"
+adapter = "none"
+
+[scripts]
+test = "npm test"

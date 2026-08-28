@@ -1,0 +1,35 @@
+[package]
+org = "benefactor-cc"
+name = "benefactor-interfaces"
+version = "0.1.0"
+description = "Canonical Benefactor database, JSON Schema, Rust, and Dart interfaces"
+license = "MIT"
+keywords = ["interfaces", "json-schema", "supabase", "postgres", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/benefactor-cc/benefactor-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schema/tables.json\" && test -f \"$ZED_PKG_TEST_TARGET/generated/rust/Cargo.toml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[targets.json-schema]
+dir = "generated/json-schema"
+adapter = "none"
+
+[scripts]
+test = "node src/generate.mjs --check && node --test src/*.test.mjs"

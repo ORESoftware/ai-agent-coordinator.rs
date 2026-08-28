@@ -1,0 +1,39 @@
+[package]
+org = "cliptown"
+name = "cliptown-interfaces"
+version = "0.1.0"
+description = "Versioned ClipTown protobuf, OpenAPI, JSON Schema, and generated language contracts"
+license = "MIT"
+keywords = ["interfaces", "protobuf", "openapi", "encryption", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/cliptown/cliptown-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -d \"$ZED_PKG_TEST_TARGET/proto/cliptown/v1\" && test -f \"$ZED_PKG_TEST_TARGET/openapi/cliptown.openapi.yaml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.rust]
+dir = "generated/rust"
+adapter = "rust"
+
+[targets.typescript]
+dir = "generated/typescript"
+adapter = "node"
+
+[targets.dart]
+dir = "generated/dart"
+adapter = "dart"
+
+[targets.json-schema]
+dir = "json-schema"
+adapter = "none"
+
+[scripts]
+test = "./scripts/generate.sh && git diff --exit-code -- generated"

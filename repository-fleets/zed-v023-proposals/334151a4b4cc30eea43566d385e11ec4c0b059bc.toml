@@ -1,0 +1,78 @@
+[package]
+org = "anticaptrad"
+name = "act-clients"
+version = "0.1.0"
+description = "Official polyglot clients for Anticapitalist Tradition"
+license = "MIT"
+keywords = ["clients", "sdk", "polyglot", "anticaptrad"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/anticaptrad/act-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"anticaptrad/act-interfaces" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed-pack/**", ".vendor/.zed/**", "tmp/**", "**/*.log", ".DS_Store", "benches/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.nodejs]
+dir = "clients/typescript"
+name = "act-clients-nodejs"
+adapter = "node"
+[targets.nodejs.native]
+registry = "npm"
+package = "@anticaptrad/client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.python]
+dir = "clients/python"
+[targets.golang]
+dir = "clients/go"
+name = "act-clients-golang"
+[targets.rust]
+dir = "clients/rust"
+[targets.rust.native]
+registry = "crates-io"
+package = "anticaptrad-client"
+[targets.dart]
+dir = "clients/dart"
+[targets.dart.native]
+registry = "pub.dev"
+package = "anticaptrad_client"
+[targets.ruby]
+dir = "clients/ruby"
+[targets.php]
+dir = "clients/php"
+[targets.java]
+dir = "clients/java"
+adapter = "java"
+[targets.kotlin]
+dir = "clients/kotlin"
+adapter = "java"
+[targets.csharp]
+dir = "clients/csharp"
+[targets.swift]
+dir = "clients/swift"
+[targets.gleam]
+dir = "clients/gleam"
+[targets.erlang]
+dir = "clients/erlang"
+[targets.elixir]
+dir = "clients/elixir"
+[targets.c]
+dir = "clients/c"
+[targets.cpp]
+dir = "clients/cpp"
+[targets.zig]
+dir = "clients/zig"
+[targets.shell]
+dir = "clients/shell"

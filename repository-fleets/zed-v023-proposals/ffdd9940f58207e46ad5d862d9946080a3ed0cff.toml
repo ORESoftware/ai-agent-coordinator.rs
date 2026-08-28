@@ -1,0 +1,29 @@
+[package]
+org = "apostille-me"
+name = "apme-monorepo"
+version = "0.1.0"
+description = "High-context development monorepo for Apostille Me"
+license = "MIT"
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/apostille-me/apme-monorepo"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"apostille-me/apme-clients" = "^0.1.0"
+"apostille-me/apme-interfaces" = "^0.1.0"
+"apostille-me/apme-libs" = "^0.1.0"
+"apostille-me/apme-sync" = "^0.1.0"
+"shared-auth/shared-auth-clients" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", "node_modules/**", "target/**", "dist/**", "*.log", ".vendor/.zed/**"]
+
+[scripts]
+test = "bash scripts/test.sh && bash scripts/validate-zed-submodules.sh && bash scripts/zed-install-with-submodules.sh"

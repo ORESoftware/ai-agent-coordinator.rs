@@ -1,0 +1,77 @@
+[package]
+org = "zed-pkg-test"
+name = "zed-interfaces"
+version = "0.1.0"
+description = "Core manifest, lockfile, registry, version, and package-model interfaces for zed-pkg"
+license = "MIT"
+keywords = ["package-manager", "interfaces", "manifest", "lockfile", "polyglot"]
+# Polyglot: one source of truth and one version in the repo, three packages on
+# the wire. `language` stays unset because no single language describes the
+# package — each `[targets.*]` declares its own.
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg-test/zed-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/schemas/index.json\" && test -f \"$ZED_PKG_TEST_TARGET/src/rust/Cargo.toml\" && test -f \"$ZED_PKG_TEST_TARGET/src/dart/lib/zed_interfaces.dart\" && test -f \"$ZED_PKG_TEST_TARGET/src/ts/index.ts\""
+exclude = [
+  ".env",
+  ".env.*",
+  ".direnv/**",
+  ".zed/**",
+  ".zed-pack/**",
+  "target/**",
+  "**/target/**",
+  "**/node_modules/**",
+  "**/.dart_tool/**",
+  "tmp/**",
+  "**/*.log",
+  ".DS_Store",
+]
+
+# Whole-repository slice: schemas + all three language trees + the generator.
+# Take this one to regenerate or to diff the contract; take a language slice to
+# consume it.
+[targets.repository]
+dir = "."
+
+# The Rust crate is hand-written and is the source of truth: `cargo run
+# --example generate_schemas` derives schemas/, and codegen/generate.mjs
+# derives the Dart and TS slices from those.
+[targets.rust]
+dir = "src/rust"
+adapter = "rust"
+
+[targets.rust.native]
+registry = "crates-io"
+package = "zed-interfaces"
+
+# Front-end slices. Generated — never hand-edited — and deliberately narrower
+# than Rust: only the schemas marked front-end-facing in schemas/index.json.
+[targets.dart]
+dir = "src/dart"
+adapter = "dart"
+
+[targets.dart.native]
+registry = "pub.dev"
+package = "zed_interfaces"
+tag_format = "dart/v{version}"
+
+[targets.typescript]
+dir = "src/ts"
+name = "zed-interfaces-typescript"
+adapter = "node"
+
+[targets.typescript.native]
+registry = "npm"
+package = "@zed-pkg/zed-interfaces"
+tag_format = "ts/v{version}"
+
+[install]
+dir = ".vendor/.zed"
+
+[scripts]
+test = "cargo test --all-targets --locked && npm test && cargo run --locked --example generate_schemas && npm run codegen && npm run codegen:check"
