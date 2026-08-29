@@ -106,6 +106,20 @@ def changed_paths(worktree: Path) -> list[str]:
     return sorted(nul_paths(payload))
 
 
+def candidate_changed_paths(
+    repo: Path,
+    merge_base: str,
+    base_sha: str,
+    head_sha: str,
+) -> list[str]:
+    """Return the complete two-sided review surface, not only conflict paths."""
+    paths: set[str] = set()
+    for descendant in (base_sha, head_sha):
+        payload = git(repo, "diff", "--name-only", "-z", merge_base, descendant).stdout
+        paths.update(nul_paths(payload))
+    return sorted(paths)
+
+
 def history(repo: Path, sha: str, depth: int) -> list[dict[str, Any]]:
     # Deliberately omit author names, emails, and commit messages from the
     # persisted artifact. Exact SHAs and timestamps are sufficient pointers
@@ -325,16 +339,19 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
     merge_base = text(merge_base_result)
     if not FULL_SHA_RE.fullmatch(merge_base):
         raise GuardError("Git returned an invalid merge-base identity")
+    review_paths = candidate_changed_paths(root, merge_base, base_sha, head_sha)
 
     report: dict[str, Any] = {
         "schema_version": "ore.semantic-merge-review.v1",
         "status": "started",
         "safe_to_publish": False,
-        "repository_root": str(root),
+        "safe_to_open_review_pr": False,
         "base": {"ref": args.base, "sha": base_sha, "history": history(root, base_sha, args.history_depth)},
         "head": {"ref": args.head, "sha": head_sha, "history": history(root, head_sha, args.history_depth)},
         "merge_base": merge_base,
-        "changed_paths": [],
+        "changed_paths": review_paths,
+        "preview_changed_paths": [],
+        "conflict_paths": [],
         "conflicts": [],
         "findings": [],
         "preview_tree": None,
@@ -376,8 +393,8 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             if not conflicts:
                 raise GuardError("merge failed without producing reviewable unmerged paths")
             report["status"] = "manual_resolution_required"
-            report["changed_paths"] = sorted(conflicts)
-            report["conflicts"] = conflict_stages(worktree, conflicts)
+            report["conflict_paths"] = sorted(conflicts)
+            report["conflicts"] = conflict_stages(worktree, report["conflict_paths"])
             report["required_next_step"] = (
                 "Create a fresh feature branch from the current reviewed base; inspect the merge base, "
                 "both stage blobs, 3-10 relevant commits on each side, APIs, schemas, migrations, tests, "
@@ -386,7 +403,7 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
             exit_code = EXIT_REVIEW_REQUIRED
         else:
             paths = changed_paths(worktree)
-            report["changed_paths"] = paths
+            report["preview_changed_paths"] = paths
             diff_check = git(worktree, "diff", "--cached", "--check", check=False)
             findings = semantic_findings(worktree, paths)
             if diff_check.returncode != 0:
@@ -402,7 +419,8 @@ def execute(args: argparse.Namespace) -> tuple[int, dict[str, Any]]:
                 exit_code = EXIT_REVIEW_REQUIRED
             else:
                 report["status"] = "clean_preview"
-                report["safe_to_publish"] = True
+                report["safe_to_publish"] = False
+                report["safe_to_open_review_pr"] = True
                 report["required_next_step"] = (
                     "Publish this exact preview tree only as a feature-branch pull request, then require the "
                     "repository-specific build, test, review, and immutable-head merge gates."
@@ -451,6 +469,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             "schema_version": "ore.semantic-merge-review.v1",
             "status": "guard_error",
             "safe_to_publish": False,
+            "safe_to_open_review_pr": False,
             "error_type": type(exc).__name__,
             "error": str(exc),
             "invariants": {
@@ -461,7 +480,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             },
         }
     write_report(Path(args.output), report)
-    print(json.dumps({"status": report.get("status"), "safe_to_publish": report.get("safe_to_publish")}))
+    print(
+        json.dumps(
+            {
+                "status": report.get("status"),
+                "safe_to_publish": report.get("safe_to_publish"),
+                "safe_to_open_review_pr": report.get("safe_to_open_review_pr"),
+            }
+        )
+    )
     return code
 
 

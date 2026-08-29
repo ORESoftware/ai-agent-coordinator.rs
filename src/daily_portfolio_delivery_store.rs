@@ -154,6 +154,22 @@ impl DailyPortfolioDeliveryStore {
         validate_identifier(owner)?;
         validate_lease_seconds(lease_seconds)?;
 
+        match self.claim_once(run_key, owner, now, lease_seconds).await {
+            Ok(token) => Ok(token),
+            Err(error) if is_serialization_failure(&error) => {
+                Err(domain(DeliveryStateError::LeaseHeld))
+            }
+            Err(error) => Err(error),
+        }
+    }
+
+    async fn claim_once(
+        &self,
+        run_key: &str,
+        owner: &str,
+        now: DateTime<Utc>,
+        lease_seconds: i64,
+    ) -> Result<LeaseToken> {
         let transaction = serializable(&self.connection).await?;
         let record = load_run_for_update(&transaction, run_key)
             .await?
@@ -161,10 +177,11 @@ impl DailyPortfolioDeliveryStore {
         if record.status == DeliveryStatus::Delivered {
             return Err(domain(DeliveryStateError::InvalidTransition));
         }
+        let now_ms = datetime_millis(now)?;
         if record
             .lease
             .as_ref()
-            .is_some_and(|lease| lease.expires_at_ms > datetime_millis(now).unwrap_or(u64::MAX))
+            .is_some_and(|lease| lease.expires_at_ms > now_ms)
         {
             return Err(domain(DeliveryStateError::LeaseHeld));
         }
@@ -548,6 +565,13 @@ impl DailyPortfolioDeliveryStore {
         transaction.commit().await?;
         Ok(MutationOutcome::Applied)
     }
+}
+
+fn is_serialization_failure(error: &anyhow::Error) -> bool {
+    error.chain().any(|cause| {
+        let message = cause.to_string().to_ascii_lowercase();
+        message.contains("could not serialize access") || message.contains("sqlstate 40001")
+    })
 }
 
 async fn serializable(connection: &DatabaseConnection) -> Result<DatabaseTransaction> {
