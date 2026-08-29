@@ -580,7 +580,10 @@ fn start_of_utc_day() -> DateTime<Utc> {
         .and_utc()
 }
 
-fn is_serialization_failure(error: &anyhow::Error) -> bool {
+/// Detects a PostgreSQL serialization failure (SQLSTATE 40001) anywhere in the
+/// error chain. This is the single source of truth for the whole crate; callers
+/// on other persistence paths must use it rather than re-deriving the match.
+pub(crate) fn is_serialization_failure(error: &anyhow::Error) -> bool {
     error.chain().any(|cause| {
         let message = cause.to_string().to_ascii_lowercase();
         message.contains("could not serialize access")

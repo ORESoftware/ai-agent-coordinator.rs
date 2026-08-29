@@ -153,6 +153,81 @@ class OvernightWatchdogTests(unittest.TestCase):
         self.assertEqual(result["status"], "success")
         self.assertEqual(result["dispatch_delay_minutes"], 97)
 
+    def test_report_passes_when_any_redundant_attempt_is_fully_valid(self) -> None:
+        # nightly-artifact-recovery.yml dispatches on two nightly crons under one
+        # daily idempotency key, so a failed first invocation must not condemn the
+        # night when the redundant invocation produced complete evidence.
+        failed_run, failed_jobs, failed_artifacts = successful_attempt(run_id=41)
+        failed_jobs[0]["conclusion"] = "failure"
+        good_run, good_jobs, good_artifacts = successful_attempt(run_id=42)
+        good_run["created_at"] = good_run["run_started_at"] = "2026-08-10T06:04:00Z"
+        client = watchdog.SnapshotClient(
+            {
+                "workflow_runs": [failed_run, good_run],
+                "jobs_by_run": {"41": failed_jobs, "42": good_jobs},
+                "artifacts_by_run": {"41": failed_artifacts, "42": good_artifacts},
+            }
+        )
+        now = datetime(2026, 8, 10, 13, 30, tzinfo=timezone.utc)
+        night = watchdog.logical_night(now, ENTRY, "2026-08-10")
+        report = watchdog.build_report(client, entry=ENTRY, night=night, now=now)
+        self.assertEqual(report["status"], "success")
+        self.assertEqual(report["reasons"], [])
+        self.assertEqual(len(report["attempts"]), 2)
+        self.assertEqual(report["selected_attempt"]["run_id"], 42)
+
+    def test_every_redundant_attempt_failing_still_fails_closed(self) -> None:
+        first_run, first_jobs, first_artifacts = successful_attempt(run_id=41)
+        first_jobs[0]["conclusion"] = "failure"
+        second_run, second_jobs, second_artifacts = successful_attempt(run_id=42)
+        second_run["created_at"] = second_run["run_started_at"] = "2026-08-10T06:04:00Z"
+        second_jobs[0]["conclusion"] = "failure"
+        client = watchdog.SnapshotClient(
+            {
+                "workflow_runs": [first_run, second_run],
+                "jobs_by_run": {"41": first_jobs, "42": second_jobs},
+                "artifacts_by_run": {"41": first_artifacts, "42": second_artifacts},
+            }
+        )
+        now = datetime(2026, 8, 10, 13, 30, tzinfo=timezone.utc)
+        night = watchdog.logical_night(now, ENTRY, "2026-08-10")
+        report = watchdog.build_report(client, entry=ENTRY, night=night, now=now)
+        self.assertEqual(report["status"], "failure")
+        self.assertIsNone(report["selected_attempt"])
+
+    def test_catalog_registers_the_nightly_artifact_recovery_job(self) -> None:
+        entry = watchdog.select_entry(
+            watchdog.load_catalog(str(CATALOG)), "nightly-artifact-recovery"
+        )
+        self.assertEqual(entry["workflow"], "nightly-artifact-recovery.yml")
+        self.assertEqual(entry["execution_job"], "enqueue-and-verify")
+        self.assertEqual(
+            entry["terminal_artifact_prefix"], "artifact-recovery-terminal-"
+        )
+        self.assertEqual(
+            entry["report_artifact_prefix"], "nightly-artifact-recovery-report-"
+        )
+        self.assertEqual(entry["run_key_prefix"], "artifact-recovery")
+        self.assertEqual(
+            entry["terminal_receipt_schema"], "artifact_recovery_schedule_receipt.v1"
+        )
+
+    def test_terminal_receipt_schema_is_enforced_per_job(self) -> None:
+        recovery = watchdog.select_entry(
+            watchdog.load_catalog(str(CATALOG)), "nightly-artifact-recovery"
+        )
+        with self.assertRaises(watchdog.WatchdogError):
+            watchdog.validate_evidence(
+                entry=recovery,
+                terminal_receipt=self.receipt,
+                report_dir=self.report,
+                expected_run_key="artifact-recovery:scheduled:2026-08-10",
+                run_id=42,
+                run_attempt=1,
+                terminal_artifact_name="artifact-recovery-terminal-42-1",
+                report_artifact_name="nightly-artifact-recovery-report-42-1",
+            )
+
     def test_run_outside_delivery_window_is_not_selected(self) -> None:
         snapshot = json.loads(self.snapshot.read_text())
         snapshot["workflow_runs"][0]["created_at"] = "2026-08-10T10:31:00Z"
