@@ -1,0 +1,154 @@
+[package]
+org = "shared-auth"
+name = "shared-auth-clients"
+version = "0.1.0"
+description = "Polyglot clients for shared-auth"
+license = "MIT"
+keywords = ["auth", "clients", "sdk", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/shared-auth/shared-auth-clients"
+
+[install]
+dir = ".vendor/.zed"
+
+[dependencies]
+"shared-auth/shared-auth-interfaces" = "^0.1.0"
+"shared-auth/shared-auth-lib" = "^0.1.0"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".vendor/.zed/**", ".zed/**", ".zpkg.lock", "**/target/**", "**/node_modules/**", "**/*.log"]
+
+# The unnamed whole-repository target publishes the canonical
+# shared-auth/shared-auth-clients package.
+[targets.repository]
+dir = "."
+adapter = "none"
+
+[targets.c]
+dir = "clients/c"
+name = "shared-auth-clients-c"
+adapter = "none"
+
+[targets.cpp]
+dir = "clients/cpp"
+name = "shared-auth-clients-cpp"
+adapter = "none"
+
+[targets.zig]
+dir = "clients/zig"
+name = "shared-auth-clients-zig"
+adapter = "none"
+
+[targets.erlang]
+dir = "clients/erlang"
+name = "shared-auth-clients-erlang"
+adapter = "none"
+
+[targets.elixir]
+dir = "clients/elixir"
+name = "shared-auth-clients-elixir"
+adapter = "none"
+
+[targets.dart]
+dir = "clients/dart"
+name = "shared-auth-clients-dart"
+adapter = "dart"
+
+[targets.rust]
+dir = "clients/rust"
+name = "shared-auth-clients-rust"
+adapter = "rust"
+
+[targets.rust-wasm]
+dir = "clients/wasm"
+name = "shared-auth-clients-wasm"
+adapter = "rust"
+
+[targets.java]
+dir = "clients/java"
+name = "shared-auth-clients-java"
+adapter = "java"
+
+[targets.java.native]
+registry = "maven-central"
+package = "auth.shared:shared-auth-client"
+forge = ["github-packages", "gitlab-packages", "bitbucket-packages"]
+
+[targets.golang]
+dir = "clients/go"
+name = "shared-auth-clients-golang"
+adapter = "go"
+
+[targets.golang.native]
+registry = "go-modules"
+package = "github.com/shared-auth/shared-auth-clients/clients/go"
+tag_format = "clients/go/v{version}"
+
+[targets.ruby]
+dir = "clients/ruby"
+name = "shared-auth-clients-ruby"
+adapter = "none"
+
+[targets.php]
+dir = "clients/php"
+name = "shared-auth-clients-php"
+adapter = "none"
+
+# One canonical npm/TypeScript Zed slice contains explicit runtime entrypoints
+# for Node.js, Deno, Bun, and edge runtimes.
+[targets.javascript]
+dir = "clients/js"
+name = "shared-auth-clients-javascript"
+adapter = "node"
+
+[targets.kotlin]
+dir = "clients/kotlin"
+name = "shared-auth-clients-kotlin"
+adapter = "java"
+
+[targets.swift]
+dir = "clients/swift"
+name = "shared-auth-clients-swift"
+adapter = "none"
+
+[targets.python3]
+dir = "clients/python3"
+name = "shared-auth-clients-python3"
+adapter = "none"
+
+# Compatibility target IDs retain distinct source roots; the canonical Node.js
+# target owns the shared Node.js, Deno, Bun, and edge runtime entrypoints.
+[targets.gleam]
+dir = "clients/gleam"
+name = "shared-auth-clients-gleam"
+adapter = "none"
+
+[targets.python]
+dir = "clients/python"
+name = "shared-auth-clients-python"
+adapter = "none"
+
+[targets.nodejs]
+dir = "clients/ts"
+name = "shared-auth-clients-nodejs"
+adapter = "node"
+
+[targets.nodejs.native]
+registry = "npm"
+package = "@shared-auth/client"
+
+[targets.typescript-deno]
+dir = "clients/typescript/deno"
+adapter = "none"
+
+[targets.typescript-bun]
+dir = "clients/typescript/bun"
+adapter = "node"
+
+[targets.typescript-edge]
+dir = "clients/typescript/edge"
+adapter = "none"

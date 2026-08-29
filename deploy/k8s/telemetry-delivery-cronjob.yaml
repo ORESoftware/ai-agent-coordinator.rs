@@ -8,12 +8,15 @@ metadata:
     app.kubernetes.io/component: telemetry-delivery
 spec:
   schedule: "*/1 * * * *"
+  suspend: false
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 30
   successfulJobsHistoryLimit: 1
   failedJobsHistoryLimit: 3
   jobTemplate:
     spec:
-      backoffLimit: 2
+      activeDeadlineSeconds: 45
+      backoffLimit: 0
       ttlSecondsAfterFinished: 600
       template:
         metadata:
@@ -23,6 +26,7 @@ spec:
         spec:
           automountServiceAccountToken: false
           restartPolicy: Never
+          terminationGracePeriodSeconds: 5
           securityContext:
             runAsNonRoot: true
             runAsUser: 10001
@@ -51,6 +55,8 @@ spec:
               args:
                 - |
                   curl --fail-with-body --silent --show-error \
+                    --connect-timeout 3 \
+                    --max-time 20 \
                     --request POST \
                     --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
                     --header "Content-Type: application/json" \

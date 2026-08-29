@@ -1,0 +1,264 @@
+# Legacy filename retained for continuity with the original 30-hour task.
+name: Recent-96-hours ChatGPT introspection and reconciliation
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/last-30-hours-introspection.yml'
+      - '.github/workflows/overnight-job-watchdog.yml'
+      - 'config/overnight-jobs.json'
+      - 'docs/overnight-job-operations.md'
+      - 'tools/run_recent_chat_reconciliation.py'
+      - 'tools/run_nightly_artifact_recovery.py'
+      - 'tools/overnight_job_watchdog.py'
+      - 'tests/test_run_recent_chat_reconciliation.py'
+      - 'tests/test_run_nightly_artifact_recovery.py'
+      - 'tests/test_overnight_job_watchdog.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/last-30-hours-introspection.yml'
+      - '.github/workflows/overnight-job-watchdog.yml'
+      - 'config/overnight-jobs.json'
+      - 'docs/overnight-job-operations.md'
+      - 'tools/run_recent_chat_reconciliation.py'
+      - 'tools/run_nightly_artifact_recovery.py'
+      - 'tools/overnight_job_watchdog.py'
+      - 'tests/test_run_recent_chat_reconciliation.py'
+      - 'tests/test_run_nightly_artifact_recovery.py'
+      - 'tests/test_overnight_job_watchdog.py'
+  schedule:
+    - cron: '30 0 * * *'
+      timezone: 'America/Lima'
+    # Recovery invocation; namespaced daily idempotency prevents duplicate work.
+    - cron: '7 2 * * *'
+      timezone: 'America/Lima'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Validate only, or enqueue and verify one manual reconciliation.
+        required: true
+        default: dry-run
+        type: choice
+        options: [dry-run, enqueue]
+      manual_id:
+        description: Required for an enqueued manual run.
+        required: false
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: recent-chat-reconciliation-${{ github.event_name == 'schedule' && 'scheduled' || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: >-
+            .github/workflows/last-30-hours-introspection.yml
+            .github/workflows/overnight-job-watchdog.yml
+      - name: Compile and test schedule, receipts, and watchdog
+        run: |
+          python3 -m py_compile \
+            tools/run_nightly_artifact_recovery.py \
+            tools/run_recent_chat_reconciliation.py \
+            tools/overnight_job_watchdog.py \
+            tests/test_run_nightly_artifact_recovery.py \
+            tests/test_run_recent_chat_reconciliation.py \
+            tests/test_overnight_job_watchdog.py
+          python3 -m unittest -v \
+            tests/test_run_nightly_artifact_recovery.py \
+            tests/test_run_recent_chat_reconciliation.py \
+            tests/test_overnight_job_watchdog.py
+          python3 -m json.tool config/overnight-jobs.json >/dev/null
+      - name: Render credential-free canonical plan
+        run: >-
+          python3 tools/run_recent_chat_reconciliation.py
+          --endpoint https://coordinator.example.invalid
+          --now 2026-08-10T05:30:00Z --dry-run
+          --evidence-output "$RUNNER_TEMP/recent-chat-plan-receipt.json"
+          > "$RUNNER_TEMP/recent-chat-plan.json"
+      - name: Verify the namespaced 96-hour plan
+        env:
+          PLAN: ${{ runner.temp }}/recent-chat-plan.json
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          plan = json.loads(Path(os.environ['PLAN']).read_text())
+          assert plan['idempotency_key'] == 'recent-chat-reconciliation:scheduled:2026-08-10'
+          request = plan['request']['payload']
+          assert request['source_contract']['rolling_window_hours'] == 96
+          assert request['source_contract']['overlap_hours'] == 6
+          assert request['job_contract']['require_duplicate_free_mutations'] is True
+          PY
+      - name: Upload validation evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recent-chat-reconciliation-validation-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/recent-chat-plan.json
+            ${{ runner.temp }}/recent-chat-plan-receipt.json
+          retention-days: 14
+          if-no-files-found: error
+
+  enqueue-and-verify:
+    needs: validate
+    if: >-
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.mode == 'enqueue')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment:
+      name: nightly-artifact-recovery
+      deployment: false
+    env:
+      AI_AGENT_COORDINATOR_URL: ${{ vars.AI_AGENT_COORDINATOR_URL }}
+      AI_AGENT_COORDINATOR_API_TOKEN: ${{ secrets.AI_AGENT_COORDINATOR_API_TOKEN }}
+      ARTIFACT_RECOVERY_ENQUEUE_ENABLED: ${{ vars.ARTIFACT_RECOVERY_ENQUEUE_ENABLED }}
+      ARTIFACT_RECOVERY_TIMEZONE: America/Lima
+      ARTIFACT_RECOVERY_LOCAL_TIME: '00:30'
+      ARTIFACT_RECOVERY_RECOVERY_MINUTES: '60'
+      ARTIFACT_RECOVERY_MAX_LATENESS_MINUTES: '240'
+      ARTIFACT_RECOVERY_WINDOW_HOURS: '96'
+      ARTIFACT_RECOVERY_OVERLAP_HOURS: '6'
+      ARTIFACT_RECOVERY_CLI_TASK_ID: 019fd526-f34d-7f72-94fa-2da6185f2d74
+      RECENT_CHAT_RECONCILIATION_RUN_KEY_PREFIX: recent-chat-reconciliation
+      RECENT_CHAT_RECONCILIATION_JOB_NAME: Recent-96-hours ChatGPT introspection and reconciliation
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Record execution start
+        id: timing
+        run: echo "started_at=$(date -u +'%Y-%m-%dT%H:%M:%SZ')" >> "$GITHUB_OUTPUT"
+      - name: Enqueue, poll, and verify terminal reconciliation
+        id: execute
+        continue-on-error: true
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_ID: ${{ inputs.manual_id }}
+        run: |
+          set -euo pipefail
+          receipt="$RUNNER_TEMP/recent-chat-reconciliation-terminal.json"
+          args=(--evidence-output "$receipt")
+          if [[ "$EVENT_NAME" == workflow_dispatch ]]; then
+            [[ -n "$MANUAL_ID" ]] || exit 64
+            args+=(--force --manual-id "$MANUAL_ID")
+          fi
+          python3 tools/run_recent_chat_reconciliation.py "${args[@]}"
+      - name: Upload terminal receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recent-chat-reconciliation-terminal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recent-chat-reconciliation-terminal.json
+          retention-days: 90
+          if-no-files-found: error
+      - name: Write durable run ledger and report
+        if: always()
+        env:
+          EXECUTION_OUTCOME: ${{ steps.execute.outcome }}
+          STARTED_AT: ${{ steps.timing.outputs.started_at }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          report="$RUNNER_TEMP/recent-chat-reconciliation-report"
+          mkdir -p "$report"
+          REPORT="$report" RECEIPT="$RUNNER_TEMP/recent-chat-reconciliation-terminal.json" python3 - <<'PY'
+          import json, os
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          receipt_path = Path(os.environ['RECEIPT'])
+          receipt = json.loads(receipt_path.read_text()) if receipt_path.exists() else {
+              'status': 'failed', 'error': 'terminal receipt was not created'
+          }
+          execution_ok = os.environ['EXECUTION_OUTCOME'] == 'success'
+          completion = receipt.get('completion_summary') or {}
+          outcome = 'success' if execution_ok and receipt.get('status') == 'complete' else 'failure'
+          errors = []
+          if not execution_ok:
+              errors.append(f"execution step concluded {os.environ['EXECUTION_OUTCOME']!r}")
+          if receipt.get('error'):
+              errors.append(str(receipt['error']))
+          ledger = {
+              'schema_version': 'overnight_run_ledger.v1',
+              'job_id': 'recent-chat-reconciliation',
+              'workflow': 'last-30-hours-introspection.yml',
+              'repository': os.environ['REPOSITORY'],
+              'timezone': 'America/Lima',
+              'local_time': '00:30',
+              'lookback_hours': 96,
+              'overlap_hours': 6,
+              'run_id': int(os.environ['RUN_ID']),
+              'run_attempt': int(os.environ['RUN_ATTEMPT']),
+              'run_url': os.environ['RUN_URL'],
+              'sha': os.environ['SHA'],
+              'started_at': os.environ.get('STARTED_AT') or None,
+              'completed_at': datetime.now(timezone.utc).isoformat(),
+              'outcome': outcome,
+              'reconciliation_complete': receipt.get('status') == 'complete',
+              'all_work_complete': completion.get('all_work_complete'),
+              'unfinished_items': completion.get('unfinished_items'),
+              'completion_summary': completion,
+              'error_summary': errors,
+              'terminal_receipt_sha256': receipt.get('receipt_sha256'),
+              'artifact_manifest': [
+                  f"recent-chat-reconciliation-terminal-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}",
+                  f"recent-chat-reconciliation-report-{os.environ['RUN_ID']}-{os.environ['RUN_ATTEMPT']}",
+              ],
+          }
+          root = Path(os.environ['REPORT'])
+          (root / 'run-ledger.json').write_text(
+              json.dumps(ledger, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          (root / 'report.md').write_text(
+              '# Recent-96-hours ChatGPT reconciliation\n\n'
+              f"- Outcome: **{outcome.upper()}**\n"
+              '- Schedule: `00:30 America/Lima` plus `02:07` recovery invocation\n'
+              '- Rolling window: `96 hours` with `6 hours` overlap\n'
+              f"- Reconciliation complete: `{ledger['reconciliation_complete']}`\n"
+              f"- All work complete: `{ledger['all_work_complete']}`\n"
+              f"- Unfinished items: `{ledger['unfinished_items']}`\n"
+              f"- Errors: `{'; '.join(errors) or 'none'}`\n"
+              f"- Run: `{ledger['run_id']}` attempt `{ledger['run_attempt']}`\n",
+              encoding='utf-8',
+          )
+          PY
+          cat "$report/report.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload durable post-schedule report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: recent-chat-reconciliation-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/recent-chat-reconciliation-report
+          retention-days: 90
+          if-no-files-found: error
+      - name: Preserve execution failure after evidence upload
+        if: always()
+        env:
+          EXECUTION_OUTCOME: ${{ steps.execute.outcome }}
+        run: test "$EXECUTION_OUTCOME" = success

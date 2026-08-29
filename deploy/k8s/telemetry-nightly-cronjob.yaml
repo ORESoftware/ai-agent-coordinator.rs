@@ -9,12 +9,15 @@ metadata:
 spec:
   schedule: "0 4 * * *"
   timeZone: America/New_York
+  suspend: false
   concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 900
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 7
   jobTemplate:
     spec:
-      backoffLimit: 2
+      activeDeadlineSeconds: 180
+      backoffLimit: 0
       ttlSecondsAfterFinished: 3600
       template:
         metadata:
@@ -24,6 +27,7 @@ spec:
         spec:
           automountServiceAccountToken: false
           restartPolicy: Never
+          terminationGracePeriodSeconds: 10
           securityContext:
             runAsNonRoot: true
             runAsUser: 10001
@@ -52,6 +56,8 @@ spec:
               args:
                 - |
                   curl --fail-with-body --silent --show-error \
+                    --connect-timeout 5 \
+                    --max-time 120 \
                     --request POST \
                     --header "Authorization: Bearer ${COORDINATOR_API_TOKEN}" \
                     --header "Content-Type: application/json" \

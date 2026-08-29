@@ -1,0 +1,43 @@
+[package]
+org = "scintilla-run"
+name = "scintilla-interfaces"
+version = "0.1.0"
+description = "Canonical Scintilla OpenAPI, JSON Schema, AsyncAPI, WIT, and language contracts"
+license = "UNLICENSED"
+keywords = ["interfaces", "lambda", "workflow", "wasm", "polyglot"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/scintilla-run/scintilla-interfaces"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -f \"$ZED_PKG_TEST_TARGET/openapi/scintilla.openapi.yaml\" && test -f \"$ZED_PKG_TEST_TARGET/wit/scintilla.wit\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", "tmp/**", "**/*.log", ".DS_Store", "**/target/**", "**/node_modules/**", "**/.dart_tool/**", "**/_build/**"]
+
+[targets.repository]
+dir = "."
+
+[targets.typescript]
+dir = "typescript"
+adapter = "node"
+
+[targets.rust]
+dir = "rust"
+adapter = "rust"
+
+[targets.dart]
+dir = "dart"
+adapter = "dart"
+
+[targets.gleam]
+dir = "gleam"
+adapter = "none"
+
+[targets.wit]
+dir = "wit"
+adapter = "none"
+
+[scripts]
+test = "./verify-all.sh"

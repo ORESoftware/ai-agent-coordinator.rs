@@ -1,0 +1,32 @@
+[package]
+org = "file-tunnel"
+name = "ftnl-lib-core"
+version = "0.1.0"
+description = "JSON Schema driven code, SQL, and ORM foundation for File Tunnel"
+license = "MIT"
+keywords = ["json-schema", "codegen", "sql", "orm", "rust"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/file-tunnel/ftnl-lib-core"
+
+[dependencies]
+"declarative-migrations/declarative-postgres-migrate" = "^0.3.2"
+
+[build]
+command = "cargo build --release --locked"
+outputs = ["target/release/libftnl_lib_core.rlib"]
+
+[install]
+adapter = "rust"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "cargo test --locked --manifest-path \"$ZED_PKG_TEST_TARGET/Cargo.toml\""
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/**", "target/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[scripts]
+test = "cargo test --all-targets --locked && cargo clippy --all-targets --locked -- -D warnings && python3 scripts/check-zed-dependencies.py"

@@ -1,0 +1,49 @@
+[package]
+org = "led-dynamo"
+name = "leddy-web-server"
+version = "0.1.0"
+description = "Rust web UI and operator WebSocket surface for publishing and previewing Leddy messages"
+license = "MIT"
+keywords = ["led-matrix", "web-ui", "websocket", "digital-signage", "rust"]
+language = "rust"
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/led-dynamo/leddy-web-server.rs"
+
+[dependencies]
+"led-dynamo/leddy-interfaces" = "^0.1.0"
+"led-dynamo/leddy-lib" = "^0.1.0"
+"shared-auth/shared-auth-clients" = "^0.1.0"
+
+[build]
+command = "cargo build --release"
+outputs = ["target/release/leddy-web-server"]
+
+[bin]
+leddy-web-server = "target/release/leddy-web-server"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+smoke_test = "test -x \"$ZED_PKG_TEST_TARGET/target/release/leddy-web-server\""
+exclude = [
+  ".env",
+  ".env.*",
+  ".vendor/.zed/**",
+  ".zed/**",
+  ".zed-pack/**",
+  "target/**",
+  "**/*.log",
+]
+
+[publish.native]
+registry = "crates-io"
+package = "leddy-web-server"
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[scripts]
+test = "cargo test --all-targets"

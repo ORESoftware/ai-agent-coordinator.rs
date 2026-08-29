@@ -1,0 +1,81 @@
+name: Artifact recovery worker contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/artifact-recovery-worker.yml'
+      - 'config/artifact-recovery-sources.example.json'
+      - 'docs/artifact-recovery-worker.md'
+      - 'tools/artifact_recovery_worker_runtime/**'
+      - 'tools/run_artifact_recovery_worker.py'
+      - 'tests/test_artifact_recovery_worker.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/artifact-recovery-worker.yml'
+      - 'config/artifact-recovery-sources.example.json'
+      - 'docs/artifact-recovery-worker.md'
+      - 'tools/artifact_recovery_worker_runtime/**'
+      - 'tools/run_artifact_recovery_worker.py'
+      - 'tests/test_artifact_recovery_worker.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: artifact-recovery-worker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/artifact-recovery-worker.yml
+      - name: Compile worker and tests
+        run: |
+          python3 -m py_compile \
+            tools/artifact_recovery_worker_runtime/*.py \
+            tools/run_artifact_recovery_worker.py \
+            tests/test_artifact_recovery_worker.py
+      - name: Run adversarial worker tests
+        run: python3 -m unittest -v tests/test_artifact_recovery_worker.py
+      - name: Validate protected configuration shape
+        env:
+          AI_AGENT_COORDINATOR_URL: https://coordinator.example.invalid
+          AI_AGENT_COORDINATOR_API_TOKEN: ci-placeholder-not-a-live-token
+          ARTIFACT_RECOVERY_WORKER_ID: artifact-recovery-ci
+          ARTIFACT_RECOVERY_SOURCE_MANIFEST: ${{ github.workspace }}/config/artifact-recovery-sources.example.json
+          ARTIFACT_RECOVERY_STATE_DIR: ${{ runner.temp }}/artifact-recovery-state
+        run: |
+          python3 tools/run_artifact_recovery_worker.py --check-config \
+            > "$RUNNER_TEMP/artifact-recovery-config-check.json"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = json.loads(
+              Path(os.environ["RUNNER_TEMP"], "artifact-recovery-config-check.json").read_text()
+          )
+          assert receipt["status"] == "valid"
+          assert "chatgpt" in receipt["required_sources"]
+          assert receipt["config"]["coordinator_token"] == "[REDACTED]"
+          PY
+      - name: Upload exact-head validation receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: artifact-recovery-worker-contract-${{ github.sha }}
+          path: ${{ runner.temp }}/artifact-recovery-config-check.json
+          retention-days: 30
+          if-no-files-found: error

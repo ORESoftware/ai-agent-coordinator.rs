@@ -1,0 +1,23 @@
+[package]
+org = "zed-pkg"
+name = "zed-pkg-github-io"
+version = "0.1.0"
+description = "zed-pkg marketing site (Astro, GitHub Pages)"
+license = "MIT"
+keywords = ["zed-pkg", "package-manager"]
+
+[package.repository]
+vcs = "git"
+url = "https://github.com/zed-pkg/zed-pkg.github.io"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".direnv/**", ".zed/**", ".zed-pack/**", ".vendor/.zed/**", "target/**", "**/target/**", "**/node_modules/**", "tmp/**", "**/*.log", ".DS_Store"]
+
+[install]
+dir = ".vendor/.zed"
+
+[targets.repository]
+dir = "."
+adapter = "none"

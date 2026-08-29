@@ -14,6 +14,7 @@ import threading
 import time
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
@@ -434,13 +435,26 @@ class BrowserPlanTests(unittest.TestCase):
                                     for key, value in headers.items()
                                 }
                 self.assertTrue(requests)
-                allowed_prefix = f"http://127.0.0.1:{server.server_port}/"
-                unexpected = [
-                    request
-                    for request in requests
-                    if not request.startswith(allowed_prefix)
-                    and not request.startswith(("data:", "blob:", "about:"))
-                ]
+                allowed_internal_schemes = {
+                    "about",
+                    "blob",
+                    "chrome",
+                    "chrome-extension",
+                    "chrome-untrusted",
+                    "data",
+                    "devtools",
+                }
+                unexpected = []
+                for request in requests:
+                    parsed = urllib.parse.urlsplit(request)
+                    is_local_plan_request = (
+                        parsed.scheme == "http"
+                        and parsed.hostname == "127.0.0.1"
+                        and parsed.port == server.server_port
+                    )
+                    if is_local_plan_request or parsed.scheme in allowed_internal_schemes:
+                        continue
+                    unexpected.append(request)
                 self.assertEqual(unexpected, [])
                 self.assertEqual(
                     plan_headers.get("content-security-policy"),
