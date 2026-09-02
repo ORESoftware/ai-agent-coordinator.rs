@@ -1,0 +1,185 @@
+name: Redis LRU cross-org exact-head
+
+on:
+  push:
+    branches:
+      - feat/redis-lru-cross-org-validator
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: redis-lru-cross-org-exact-head-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actionlint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out validator source
+        uses: actions/checkout@3d3c42d5f451ad5aa963db03d91874e3c7b263e7
+        with:
+          persist-credentials: false
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/redis-lru-cross-org-exact-head.yml
+
+  validate:
+    needs: actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: benefactor-web-server.rs
+            package: benefactor-web-server
+            sha: 6591af2b75b6b60645b9ff51158ba6444d5e4bc8
+          - repository: benefactor-admin-web-server.rs
+            package: benefactor-admin-web-server
+            sha: 3a7a127ec3371730f6cc12aeb805c0a7cc7b6f94
+          - repository: benefactor-admin-api-server.rs
+            package: benefactor-admin-api-server
+            sha: e86cbbec3e2709d0480b620cf7897048fdb12e87
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Check out validator source
+        uses: actions/checkout@3d3c42d5f451ad5aa963db03d91874e3c7b263e7
+        with:
+          persist-credentials: false
+
+      - name: Mint Benefactor repository token
+        id: consumer-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: benefactor-cc
+          repositories: ${{ matrix.repository }}
+          permission-contents: read
+
+      - name: Mint shared-cache repository token
+        id: shared-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ores-redis-lru-cache
+          repositories: ores-lru-redis.rs
+          permission-contents: read
+
+      - name: Check out exact Benefactor head
+        uses: actions/checkout@3d3c42d5f451ad5aa963db03d91874e3c7b263e7
+        with:
+          repository: benefactor-cc/${{ matrix.repository }}
+          ref: ${{ matrix.sha }}
+          token: ${{ steps.consumer-token.outputs.token }}
+          path: consumer
+          persist-credentials: false
+
+      - name: Pin Rust toolchain
+        run: |
+          rustup toolchain install 1.85.1 --profile minimal --component clippy,rustfmt
+          rustup default 1.85.1
+
+      - name: Verify exact source identity
+        working-directory: consumer
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ matrix.sha }}"
+          test "$(git status --porcelain --untracked-files=no)" = ""
+
+      - name: Configure least-privilege shared dependency access
+        env:
+          SHARED_TOKEN: ${{ steps.shared-token.outputs.token }}
+        run: |
+          git config --global url."https://x-access-token:${SHARED_TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Format and dependency resolution
+        working-directory: consumer
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: |
+          cargo fmt --all --check
+          cargo generate-lockfile
+
+      - name: Clippy
+        working-directory: consumer
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+
+      - name: Unit and integration tests
+        working-directory: consumer
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+          REDIS_URL: redis://127.0.0.1:6379
+        run: cargo test --locked --all-targets --all-features
+
+      - name: Release build
+        working-directory: consumer
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: cargo build --locked --release
+
+      - name: Redis-required service smoke
+        working-directory: consumer
+        env:
+          SERVICE_HOST: 127.0.0.1
+          PORT: "18080"
+          K_REVISION: ${{ matrix.sha }}
+          REDIS_URL: redis://127.0.0.1:6379
+          REDIS_LRU_NAMESPACE: central-ci-${{ matrix.package }}
+          REDIS_LRU_POLL_SECONDS: "180"
+          REDIS_LRU_REQUIRED: "true"
+          MAINTENANCE_MODE: "false"
+          SERVICE_BANNER: central-ci
+          RUST_LOG: info
+        run: |
+          set -euo pipefail
+          ./target/release/${{ matrix.package }} >service.log 2>&1 &
+          pid=$!
+          cleanup() {
+            kill -TERM "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for _ in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:18080/healthz >/dev/null
+          curl --fail --silent http://127.0.0.1:18080/readyz >/dev/null
+          curl --fail --silent http://127.0.0.1:18080/metrics | grep -F 'ores_runtime_env_revision'
+          ! grep -F 'redis://127.0.0.1:6379' service.log
+
+      - name: Preserve validation evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: redis-lru-${{ matrix.repository }}-${{ matrix.sha }}
+          path: |
+            consumer/Cargo.lock
+            consumer/service.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Verify production lockfile is committed
+        working-directory: consumer
+        run: git diff --exit-code -- Cargo.lock
+
+      - name: Remove temporary credential rewrite
+        if: ${{ always() }}
+        run: git config --global --unset-all url."https://x-access-token:${{ steps.shared-token.outputs.token }}@github.com/".insteadOf || true
