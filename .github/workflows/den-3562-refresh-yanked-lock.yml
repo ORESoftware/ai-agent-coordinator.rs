@@ -1,0 +1,52 @@
+name: Refresh DEN-3562 yanked lock entry once
+
+on:
+  push:
+    branches:
+      - fix/den-3562-delayed-digest-catchup
+    paths:
+      - .github/workflows/den-3562-refresh-yanked-lock.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-3562-refresh-yanked-lock
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'ORESoftware/ai-agent-coordinator.rs'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+          ref: ${{ github.sha }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: taiki-e/install-action@c44f6b046f1c29ae5918b1e0bfdbb2f1813836fd
+        with:
+          tool: cargo-audit@0.22.2
+      - name: Refresh only the yanked compatible transitive crate
+        run: cargo update -p chacha20@0.10.1 --precise 0.10.2
+      - name: Verify the full Rust and advisory gates
+        run: |
+          set -euo pipefail
+          cargo fmt --all -- --check
+          cargo test --all-targets --all-features --locked
+          cargo clippy --all-targets --all-features --locked -- -D warnings
+          cargo audit --deny warnings --ignore RUSTSEC-2023-0071
+      - name: Commit the reviewed lock delta and remove this one-time workflow
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- Cargo.lock
+          git rm -- .github/workflows/den-3562-refresh-yanked-lock.yml
+          unexpected="$(git diff --cached --name-only | grep -Ev '^(Cargo.lock|\.github/workflows/den-3562-refresh-yanked-lock\.yml)$' || true)"
+          test -z "$unexpected"
+          git commit -m 'chore(DEN-3562): replace yanked chacha20 lock entry'
+          git push origin HEAD:refs/heads/fix/den-3562-delayed-digest-catchup
