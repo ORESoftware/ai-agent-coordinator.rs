@@ -30,6 +30,9 @@ jobs:
     needs: actionlint
     runs-on: ubuntu-24.04
     timeout-minutes: 35
+    environment:
+      name: nightly-org-maintenance
+      deployment: false
     strategy:
       fail-fast: false
       matrix:
