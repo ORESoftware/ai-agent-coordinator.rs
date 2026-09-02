@@ -7,6 +7,7 @@ import contextlib
 import fcntl
 import json
 import os
+import signal
 import sys
 import time
 from pathlib import Path
@@ -28,10 +29,22 @@ MAX_WORKERS = 3
 
 
 def configured_window() -> tuple[int, int]:
-    window = parse_int_env("ARTIFACT_RECOVERY_WINDOW_HOURS", MAX_WINDOW_HOURS, 24, MAX_WINDOW_HOURS)
-    overlap = parse_int_env("ARTIFACT_RECOVERY_OVERLAP_HOURS", 6, 0, 48)
+    window = parse_int_env(
+        "ARTIFACT_RECOVERY_WINDOW_HOURS",
+        MAX_WINDOW_HOURS,
+        24,
+        MAX_WINDOW_HOURS,
+    )
+    overlap = parse_int_env(
+        "ARTIFACT_RECOVERY_OVERLAP_HOURS",
+        6,
+        0,
+        48,
+    )
     if overlap >= window:
-        raise WorkerError("ARTIFACT_RECOVERY_OVERLAP_HOURS must be smaller than the window")
+        raise WorkerError(
+            "ARTIFACT_RECOVERY_OVERLAP_HOURS must be smaller than the window"
+        )
     return window, overlap
 
 
@@ -60,9 +73,13 @@ def state_fence(state_dir: Path, timeout_seconds: int) -> Iterator[None]:
 
 
 class FencedRecoveryEngine(engine_runtime.RecoveryEngine):
-    def run(self, job):
+    @contextlib.contextmanager
+    def state_transaction(self) -> Iterator[None]:
+        # The base engine invokes this only for shared cursor/ledger
+        # read-modify-write transactions. Source collection and delivery remain
+        # concurrent across the bounded worker pool.
         with state_fence(self.config.state_dir, self.config.lease_seconds * 2):
-            return super().run(job)
+            yield
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -73,13 +90,15 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
     try:
+        args = build_parser().parse_args(argv)
         window, overlap = configured_window()
         engine_runtime.DEFAULT_WINDOW_HOURS = window
         engine_runtime.DEFAULT_OVERLAP_HOURS = overlap
         config = WorkerConfig.from_env(once=args.once)
-        manifest = SourceManifest.from_value(load_json_file(config.source_manifest, "source manifest"))
+        manifest = SourceManifest.from_value(
+            load_json_file(config.source_manifest, "source manifest")
+        )
         if args.check_config:
             output = {
                 "status": "valid",
@@ -93,25 +112,40 @@ def main(argv: Sequence[str] | None = None) -> int:
             ensure_public_safe(output, "configuration summary")
             print(json.dumps(output, indent=2, sort_keys=True))
             return 0
+
+        stop_requested = False
+
+        def request_stop(_signum: int, _frame: object) -> None:
+            nonlocal stop_requested
+            stop_requested = True
+
+        signal.signal(signal.SIGTERM, request_stop)
+        signal.signal(signal.SIGINT, request_stop)
+
         http = JsonHttpClient(
             timeout_seconds=config.request_timeout_seconds,
             max_response_bytes=config.max_response_bytes,
         )
         coordinator = CoordinatorClient(config, http)
         engine = FencedRecoveryEngine(config, http=http)
-        while True:
+
+        while not stop_requested:
             try:
                 processed = engine_runtime.process_one(config, coordinator, engine)
             except WorkerError as exc:
                 print(f"error: {exc}", file=sys.stderr)
                 if config.once or not exc.retryable:
                     return 2
+                if stop_requested:
+                    return 0
                 time.sleep(config.poll_seconds)
                 continue
+
             if config.once:
                 return 0
-            if not processed:
+            if not processed and not stop_requested:
                 time.sleep(config.poll_seconds)
+        return 0
     except (OSError, WorkerError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
