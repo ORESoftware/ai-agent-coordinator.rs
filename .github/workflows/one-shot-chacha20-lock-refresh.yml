@@ -54,7 +54,7 @@ jobs:
           cargo check --locked --all-targets
 
       - name: Export reviewed lockfile candidate
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0 # v7.0.1
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: chacha20-0.10.2-lockfile
           path: Cargo.lock
