@@ -1,0 +1,156 @@
+name: Chacha20 lock remediation evidence
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chacha20-lock-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+      EXPECTED_OLD_VERSION: 0.10.1
+      EXPECTED_OLD_CHECKSUM: d524456ba66e72eb8b115ff89e01e497f8e6d11d78b70b1aa13c0fbd97540a81
+      EXPECTED_NEW_VERSION: 0.10.2
+      EXPECTED_NEW_CHECKSUM: 65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06
+    steps:
+      - name: Check out the exact reviewed head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+          submodules: false
+
+      - name: Prove exact-head execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+
+      - name: Set up the repository Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+
+      - name: Generate and validate the narrow lock remediation
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp Cargo.lock "$RUNNER_TEMP/Cargo.lock.before"
+          cargo update -p chacha20 --precise "$EXPECTED_NEW_VERSION"
+          git diff --no-ext-diff -- Cargo.lock > "$RUNNER_TEMP/Cargo.lock.diff"
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          from collections import Counter
+          from pathlib import Path
+          import tomllib
+
+          before_path = Path(os.environ['RUNNER_TEMP']) / 'Cargo.lock.before'
+          after_path = Path('Cargo.lock')
+          before = tomllib.loads(before_path.read_text(encoding='utf-8'))
+          after = tomllib.loads(after_path.read_text(encoding='utf-8'))
+
+          def records(document: dict[str, object]) -> list[dict[str, object]]:
+              packages = document.get('package')
+              if not isinstance(packages, list) or not all(isinstance(item, dict) for item in packages):
+                  raise SystemExit('Cargo.lock package records are malformed')
+              return packages
+
+          def select_chacha(packages: list[dict[str, object]]) -> dict[str, object]:
+              matches = [item for item in packages if item.get('name') == 'chacha20']
+              if len(matches) != 1:
+                  raise SystemExit('expected exactly one chacha20 package record')
+              return matches[0]
+
+          def canonical_counter(packages: list[dict[str, object]]) -> Counter[str]:
+              return Counter(
+                  json.dumps(item, sort_keys=True, separators=(',', ':'))
+                  for item in packages
+                  if item.get('name') != 'chacha20'
+              )
+
+          before_packages = records(before)
+          after_packages = records(after)
+          old = select_chacha(before_packages)
+          new = select_chacha(after_packages)
+
+          expected_old_version = os.environ['EXPECTED_OLD_VERSION']
+          expected_old_checksum = os.environ['EXPECTED_OLD_CHECKSUM']
+          expected_new_version = os.environ['EXPECTED_NEW_VERSION']
+          expected_new_checksum = os.environ['EXPECTED_NEW_CHECKSUM']
+
+          if old.get('version') != expected_old_version:
+              raise SystemExit('unexpected original chacha20 version')
+          if old.get('checksum') != expected_old_checksum:
+              raise SystemExit('unexpected original chacha20 checksum')
+          if new.get('version') != expected_new_version:
+              raise SystemExit('unexpected remediated chacha20 version')
+          if new.get('checksum') != expected_new_checksum:
+              raise SystemExit('unexpected remediated chacha20 checksum')
+          if old.get('source') != new.get('source'):
+              raise SystemExit('chacha20 source changed')
+          if old.get('dependencies') != new.get('dependencies'):
+              raise SystemExit('chacha20 dependency shape changed')
+          if canonical_counter(before_packages) != canonical_counter(after_packages):
+              raise SystemExit('a package record other than chacha20 changed')
+
+          evidence = {
+              'schema_version': 1,
+              'reviewed_head': os.environ['EXPECTED_HEAD'],
+              'package': 'chacha20',
+              'before_version': old['version'],
+              'before_checksum': old['checksum'],
+              'after_version': new['version'],
+              'after_checksum': new['checksum'],
+              'source': new['source'],
+              'dependencies': new.get('dependencies', []),
+              'unchanged_other_package_records': True,
+              'before_lock_sha256': hashlib.sha256(before_path.read_bytes()).hexdigest(),
+              'after_lock_sha256': hashlib.sha256(after_path.read_bytes()).hexdigest(),
+          }
+          output = Path(os.environ['RUNNER_TEMP']) / 'chacha20-lock-remediation.json'
+          output.write_text(json.dumps(evidence, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          print(json.dumps(evidence, sort_keys=True))
+          PY
+
+      - name: Test the remediated exact lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo test --locked --all
+
+      - name: Install pinned cargo-audit
+        uses: taiki-e/install-action@c44f6b046f1c29ae5918b1e0bfdbb2f1813836fd # v2
+        with:
+          tool: cargo-audit@0.22.2
+
+      - name: Prove the yanked dependency finding is removed
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo audit --deny warnings --ignore RUSTSEC-2023-0071
+
+      - name: Retain the exact lock remediation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: chacha20-lock-remediation-${{ github.event.pull_request.head.sha }}
+          path: |
+            Cargo.lock
+            ${{ runner.temp }}/Cargo.lock.diff
+            ${{ runner.temp }}/chacha20-lock-remediation.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
