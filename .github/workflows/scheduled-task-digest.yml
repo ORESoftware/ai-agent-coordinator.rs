@@ -11,6 +11,7 @@ on:
       - tools/scheduled_task_digest_scan.py
       - tools/scheduled_task_digest_delivery.py
       - tests/test_scheduled_task_digest.py
+      - tests/test_scheduled_task_digest_catchup.py
   push:
     branches: [main]
     paths:
@@ -22,6 +23,7 @@ on:
       - tools/scheduled_task_digest_scan.py
       - tools/scheduled_task_digest_delivery.py
       - tests/test_scheduled_task_digest.py
+      - tests/test_scheduled_task_digest_catchup.py
   schedule:
     # 07:07 America/Chicago in daylight and standard time. The earlier UTC
     # alternative remains not-due before 07:00; a delayed GitHub event may catch
@@ -81,11 +83,12 @@ jobs:
           tools/scheduled_task_digest_scan.py
           tools/scheduled_task_digest_delivery.py
           tests/test_scheduled_task_digest.py
+          tests/test_scheduled_task_digest_catchup.py
       - name: Run focused digest tests
         run: >-
           python3 -m unittest discover
           -s tests
-          -p 'test_scheduled_task_digest.py'
+          -p 'test_scheduled_task_digest*.py'
           -v
       - name: Verify Central-time alternatives and delayed catch-up
         shell: bash
