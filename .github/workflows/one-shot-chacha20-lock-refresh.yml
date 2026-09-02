@@ -9,17 +9,18 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   resolve:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
-      - name: Check out exact branch revision
+      - name: Check out exact recovery branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
+          ref: agent/recovery-chacha20-0-10-2
+          persist-credentials: true
 
       - name: Select repository Rust toolchain
         shell: bash
@@ -28,35 +29,45 @@ jobs:
           rustup toolchain install 1.88.0 --profile minimal
           rustup default 1.88.0
 
-      - name: Resolve the non-yanked compatible release
+      - name: Resolve and verify the bounded lockfile change
         shell: bash
         run: |
           set -euo pipefail
+          test "${GITHUB_REF_NAME}" = "agent/recovery-chacha20-0-10-2"
+          test "$(git rev-parse HEAD:Cargo.lock)" = "d9caeb085a0c1c0f3777887cb7c9dbe9bb571815"
+
           cargo update -p chacha20 --precise 0.10.2
+
           python3 - <<'PY'
           from pathlib import Path
+          import subprocess
 
-          lock = Path("Cargo.lock").read_text(encoding="utf-8")
-          expected = '''[[package]]
-          name = "chacha20"
-          version = "0.10.2"
-          '''.replace("          ", "")
-          if expected not in lock:
-              raise SystemExit("Cargo.lock did not resolve chacha20 0.10.2")
-          if 'name = "chacha20"\nversion = "0.10.1"' in lock:
-              raise SystemExit("yanked chacha20 0.10.1 remains in Cargo.lock")
+          before = subprocess.check_output(["git", "show", "HEAD:Cargo.lock"], text=True)
+          after = Path("Cargo.lock").read_text(encoding="utf-8")
+
+          expected = before.replace(
+              "version = 3\n\n[[package]]",
+              "version = 4\n\n[[package]]",
+              1,
+          ).replace(
+              'name = "chacha20"\nversion = "0.10.1"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "d524456ba66e72eb8b115ff89e01e497f8e6d11d78b70b1aa13c0fbd97540a81"',
+              'name = "chacha20"\nversion = "0.10.2"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\nchecksum = "65c35e4b699c7e15ccbe7ee35c005e4fc0a278d22238a2857e6ce2dadeda1b06"',
+              1,
+          )
+
+          if after != expected:
+              raise SystemExit("Cargo produced changes beyond the reviewed lock-format/version/checksum refresh")
           PY
 
-      - name: Compile the exact locked graph
+          test "$(git diff --name-only)" = "Cargo.lock"
+          cargo check --locked --all-targets
+
+      - name: Commit the generated lockfile to the recovery branch
         shell: bash
         run: |
           set -euo pipefail
-          cargo check --locked --all-targets
-
-      - name: Export reviewed lockfile candidate
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: chacha20-0.10.2-lockfile
-          path: Cargo.lock
-          if-no-files-found: error
-          retention-days: 3
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Cargo.lock
+          git commit -m "chore(deps): refresh chacha20 to non-yanked 0.10.2"
+          git push origin HEAD:agent/recovery-chacha20-0-10-2
