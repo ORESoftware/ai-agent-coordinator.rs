@@ -36,23 +36,48 @@ class ContinuousRecoveryError(RuntimeError):
 
 
 def _bounded_int(value: int, name: str, minimum: int, maximum: int) -> int:
-    if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
-        raise ContinuousRecoveryError(f"{name} must be between {minimum} and {maximum}")
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, int)
+        or not minimum <= value <= maximum
+    ):
+        raise ContinuousRecoveryError(
+            f"{name} must be between {minimum} and {maximum}"
+        )
     return value
 
 
+def _integer_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise ContinuousRecoveryError(f"{name} must be an integer") from exc
+
+
 def validate_settings(
-    *, interval_seconds: int, lookback_hours: int, overlap_hours: int, max_workers: int
+    *,
+    interval_seconds: int,
+    lookback_hours: int,
+    overlap_hours: int,
+    max_workers: int,
 ) -> None:
     _bounded_int(interval_seconds, "interval-seconds", 60, 3600)
     _bounded_int(lookback_hours, "lookback-hours", 24, LOOKBACK_HOURS)
     _bounded_int(overlap_hours, "overlap-hours", 0, 48)
     _bounded_int(max_workers, "max-workers", 1, MAX_WORKERS)
     if overlap_hours >= lookback_hours:
-        raise ContinuousRecoveryError("overlap-hours must be smaller than lookback-hours")
+        raise ContinuousRecoveryError(
+            "overlap-hours must be smaller than lookback-hours"
+        )
 
 
-def floor_bucket(now: datetime, interval_seconds: int = INTERVAL_SECONDS) -> datetime:
+def floor_bucket(
+    now: datetime,
+    interval_seconds: int = INTERVAL_SECONDS,
+) -> datetime:
     if now.tzinfo is None:
         raise ContinuousRecoveryError("bucket time must be timezone-aware")
     _bounded_int(interval_seconds, "interval-seconds", 60, 3600)
@@ -93,7 +118,10 @@ def schedule_decision(
         kind="manual",
         local_time=now.astimezone(timezone.utc),
         scheduled_for=bucket,
-        run_key=f"{RUN_KEY_PREFIX}:manual:{bucket.strftime('%Y%m%dT%H%M%SZ')}:{identifier}",
+        run_key=(
+            f"{RUN_KEY_PREFIX}:manual:"
+            f"{bucket.strftime('%Y%m%dT%H%M%SZ')}:{identifier}"
+        ),
         scheduled_run_key=scheduled_key,
         recovered=False,
         manual_id=identifier,
@@ -145,7 +173,9 @@ def build_payload(
         {
             "rolling_window_hours": lookback_hours,
             "overlap_hours": overlap_hours,
-            "window_selection": "threads_or_tasks_created_or_updated_since_cutoff",
+            "window_selection": (
+                "threads_or_tasks_created_or_updated_since_cutoff"
+            ),
             "revisit_unresolved_items_outside_window": True,
             "require_full_pagination": True,
             "require_fresh_source_coverage_receipt": True,
@@ -193,15 +223,24 @@ def build_payload(
     return payload
 
 
-def redacted_plan(endpoint: str, decision: scheduler.ScheduleDecision, payload: Mapping[str, Any]) -> dict[str, Any]:
+def redacted_plan(
+    endpoint: str,
+    decision: scheduler.ScheduleDecision,
+    payload: Mapping[str, Any],
+) -> dict[str, Any]:
     plan = scheduler.redacted_plan(endpoint, decision, dict(payload))
     plan["status"] = "dry_run_continuous_50_day_reconciliation"
     plan["interval_seconds"] = payload["payload"]["run"]["interval_seconds"]
-    plan["worker_concurrency_limit"] = payload["payload"]["source_contract"]["worker_concurrency_limit"]
+    plan["worker_concurrency_limit"] = payload["payload"]["source_contract"][
+        "worker_concurrency_limit"
+    ]
     return plan
 
 
-def run_once(args: argparse.Namespace, now: datetime | None = None) -> dict[str, Any]:
+def run_once(
+    args: argparse.Namespace,
+    now: datetime | None = None,
+) -> dict[str, Any]:
     observed = now or scheduler.parse_instant(args.now)
     decision = schedule_decision(
         observed,
@@ -210,7 +249,9 @@ def run_once(args: argparse.Namespace, now: datetime | None = None) -> dict[str,
     )
     endpoint_env = scheduler.validate_env_name(args.endpoint_env)
     token_env = scheduler.validate_env_name(args.token_env)
-    endpoint = scheduler.validate_endpoint(args.endpoint or os.getenv(endpoint_env, ""))
+    endpoint = scheduler.validate_endpoint(
+        args.endpoint or os.getenv(endpoint_env, "")
+    )
     payload = build_payload(
         decision,
         interval_seconds=args.interval_seconds,
@@ -245,24 +286,68 @@ def run_once(args: argparse.Namespace, now: datetime | None = None) -> dict[str,
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--endpoint")
-    parser.add_argument("--endpoint-env", default=scheduler.DEFAULT_ENDPOINT_ENV)
-    parser.add_argument("--token-env", default=scheduler.DEFAULT_TOKEN_ENV)
-    parser.add_argument("--cli-task-id", default=os.getenv("ARTIFACT_RECOVERY_CLI_TASK_ID", scheduler.DEFAULT_CLI_TASK_ID))
-    parser.add_argument("--interval-seconds", type=int, default=int(os.getenv("CONTINUOUS_RECOVERY_INTERVAL_SECONDS", str(INTERVAL_SECONDS))))
-    parser.add_argument("--lookback-hours", type=int, default=int(os.getenv("CONTINUOUS_RECOVERY_LOOKBACK_HOURS", str(LOOKBACK_HOURS))))
-    parser.add_argument("--overlap-hours", type=int, default=int(os.getenv("CONTINUOUS_RECOVERY_OVERLAP_HOURS", str(OVERLAP_HOURS))))
-    parser.add_argument("--max-workers", type=int, default=int(os.getenv("CONTINUOUS_RECOVERY_MAX_WORKERS", str(MAX_WORKERS))))
+    parser.add_argument(
+        "--endpoint-env",
+        default=scheduler.DEFAULT_ENDPOINT_ENV,
+    )
+    parser.add_argument(
+        "--token-env",
+        default=scheduler.DEFAULT_TOKEN_ENV,
+    )
+    parser.add_argument(
+        "--cli-task-id",
+        default=os.getenv(
+            "ARTIFACT_RECOVERY_CLI_TASK_ID",
+            scheduler.DEFAULT_CLI_TASK_ID,
+        ),
+    )
+    parser.add_argument(
+        "--interval-seconds",
+        type=int,
+        default=_integer_env(
+            "CONTINUOUS_RECOVERY_INTERVAL_SECONDS",
+            INTERVAL_SECONDS,
+        ),
+    )
+    parser.add_argument(
+        "--lookback-hours",
+        type=int,
+        default=_integer_env(
+            "CONTINUOUS_RECOVERY_LOOKBACK_HOURS",
+            LOOKBACK_HOURS,
+        ),
+    )
+    parser.add_argument(
+        "--overlap-hours",
+        type=int,
+        default=_integer_env(
+            "CONTINUOUS_RECOVERY_OVERLAP_HOURS",
+            OVERLAP_HOURS,
+        ),
+    )
+    parser.add_argument(
+        "--max-workers",
+        type=int,
+        default=_integer_env(
+            "CONTINUOUS_RECOVERY_MAX_WORKERS",
+            MAX_WORKERS,
+        ),
+    )
     parser.add_argument("--timeout-seconds", type=float, default=15.0)
     parser.add_argument("--now")
     parser.add_argument("--manual-id")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--loop", action="store_true", help="run continuously, aligning each enqueue to the next bucket")
+    parser.add_argument(
+        "--loop",
+        action="store_true",
+        help="run continuously, aligning each enqueue to the next bucket",
+    )
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
     try:
+        args = build_parser().parse_args(argv)
         validate_settings(
             interval_seconds=args.interval_seconds,
             lookback_hours=args.lookback_hours,
@@ -270,16 +355,26 @@ def main(argv: Sequence[str] | None = None) -> int:
             max_workers=args.max_workers,
         )
         if not 0 < args.timeout_seconds <= 60:
-            raise ContinuousRecoveryError("timeout-seconds must be greater than 0 and at most 60")
+            raise ContinuousRecoveryError(
+                "timeout-seconds must be greater than 0 and at most 60"
+            )
         if args.loop and args.now:
-            raise ContinuousRecoveryError("--now cannot be combined with --loop")
+            raise ContinuousRecoveryError(
+                "--now cannot be combined with --loop"
+            )
         while True:
             result = run_once(args)
-            print(json.dumps(result, indent=2, sort_keys=True), flush=True)
+            print(
+                json.dumps(result, indent=2, sort_keys=True),
+                flush=True,
+            )
             if not args.loop:
                 return 0
             now = datetime.now(timezone.utc)
-            next_bucket = floor_bucket(now, args.interval_seconds).timestamp() + args.interval_seconds
+            next_bucket = (
+                floor_bucket(now, args.interval_seconds).timestamp()
+                + args.interval_seconds
+            )
             time.sleep(max(1.0, next_bucket - now.timestamp()))
     except (ContinuousRecoveryError, scheduler.SchedulerError) as exc:
         print(f"error: {exc}", file=sys.stderr)
