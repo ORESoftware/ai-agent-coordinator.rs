@@ -28,14 +28,26 @@ The message is bounded for readability. The Actions artifact retains the full
 record, coverage errors, job summaries, digest SHA-256, and delivery receipt for
 90 days.
 
-## Schedule and DST
+## Schedule, DST, and delayed dispatch
 
 GitHub Actions cron is UTC-only. The workflow invokes at both `12:07Z` and
 `13:07Z`; a timezone gate accepts only the invocation that falls in the 07:00
 hour in `America/Chicago`. This preserves 07:00 Central across daylight and
-standard time. The alternate invocation exits through the timezone guard as `NOT DUE`, not as a
-failure or false green. The digest excludes its own currently executing workflow
-from the evidence scan to avoid a self-referential `RUNNING` warning.
+standard time. The alternate invocation exits through the timezone guard as
+`NOT DUE`, not as a failure or false green. The digest excludes its own currently
+executing workflow from the evidence scan to avoid a self-referential `RUNNING`
+warning.
+
+GitHub may dispatch a scheduled event late. A scheduled event that arrives
+after the intended 07:07 local time may recover through the bounded
+`--same-day-catchup` path, but only while the local calendar date still matches
+the logical delivery date. A delayed event never rolls into a later local date,
+and a manual `--force` remains a separate operator action.
+
+A terminal `schedule-outcome` job verifies the timezone decision and the
+substantive digest result. When the digest is due, skipped or failed delivery
+makes the workflow fail. This prevents a validation-only run from being reported
+as a successful scheduled delivery.
 
 The logical delivery key is:
 
@@ -44,8 +56,9 @@ scheduled-task-digest:YYYY-MM-DD
 ```
 
 Before sending, the collector checks for an unexpired artifact named
-`scheduled-task-digest-receipt-YYYY-MM-DD`. This prevents ordinary retries from
-sending a second message. Manual dry runs use a different artifact name.
+`scheduled-task-digest-receipt-YYYY-MM-DD`. This prevents ordinary retries, the
+second DST cron alternative, and delayed same-day recovery from sending a second
+message. Manual dry runs use a different artifact name.
 
 ## Required GitHub configuration
 
@@ -95,9 +108,9 @@ not the account password.
   the desired sender.
 
 A scheduled run fails closed when no provider is configured or when the
-provider does not accept the message. A failed delivery is uploaded under a distinct failure-artifact name. Only an
-accepted delivery receives the daily receipt artifact name, so a failed attempt
-cannot poison retry deduplication.
+provider does not accept the message. A failed delivery is uploaded under a
+distinct failure-artifact name. Only an accepted delivery receives the daily
+receipt artifact name, so a failed attempt cannot poison retry deduplication.
 
 ## Explicit non-Actions inventory
 
@@ -125,6 +138,10 @@ Render without sending:
 python3 tools/scheduled_task_digest.py decision \
   --now 2026-08-12T12:07:00Z
 
+python3 tools/scheduled_task_digest.py decision \
+  --now 2026-09-02T17:06:00Z \
+  --same-day-catchup
+
 python3 tools/scheduled_task_digest.py run \
   --config config/scheduled-task-digest.json \
   --now 2026-08-12T12:07:00Z \
@@ -138,7 +155,7 @@ Run the focused test suite:
 ```bash
 python3 -m unittest discover \
   -s tests \
-  -p 'test_scheduled_task_digest.py' \
+  -p 'test_scheduled_task_digest*.py' \
   -v
 ```
 
