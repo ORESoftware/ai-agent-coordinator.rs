@@ -8,6 +8,7 @@ on:
       - repository-fleets/hhaus-org-standard.json
       - scripts/bootstrap_hhaus_org_fleet_live.py
       - scripts/test_bootstrap_hhaus_org_fleet_live.py
+      - scripts/hhaus_bootstrap/**
   push:
     branches: [main]
     paths:
@@ -16,6 +17,7 @@ on:
       - repository-fleets/hhaus-org-standard.json
       - scripts/bootstrap_hhaus_org_fleet_live.py
       - scripts/test_bootstrap_hhaus_org_fleet_live.py
+      - scripts/hhaus_bootstrap/**
   workflow_dispatch:
 
 permissions:
@@ -53,7 +55,6 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22.23.1"
-          package-manager-cache: false
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
