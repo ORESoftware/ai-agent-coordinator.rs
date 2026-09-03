@@ -178,6 +178,22 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Verify GitHub App publication credentials are configured
+        shell: bash
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_ID" ]]; then
+            echo '::error::nightly-org-maintenance is missing PORTFOLIO_GITHUB_APP_ID'
+            exit 1
+          fi
+          if [[ -z "$PRIVATE_KEY" ]]; then
+            echo '::error::nightly-org-maintenance is missing PORTFOLIO_GITHUB_APP_PRIVATE_KEY'
+            exit 1
+          fi
+
       - name: Mint an H/HAUS-scoped repository administration token
         id: token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
@@ -271,7 +287,7 @@ jobs:
           PY
 
       - name: Upload the publication ledger
-        if: always()
+        if: always() && steps.publish.outputs.ledger != ''
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: hhaus-standard-fleet-publication-${{ github.run_id }}
