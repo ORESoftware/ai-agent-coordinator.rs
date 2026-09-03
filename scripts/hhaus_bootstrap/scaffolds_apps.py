@@ -25,6 +25,11 @@ pub struct ClientConfig {
 }
 
 impl ClientConfig {
+    /// Verifies the minimum production transport configuration.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a non-HTTPS base URL or a blank user agent.
     pub fn validate(&self) -> Result<(), &'static str> {
         if !self.base_url.starts_with("https://") {
             return Err("production clients require HTTPS");
@@ -135,7 +140,9 @@ pub struct InvocationContext {
     pub route_class: RouteClass,
 }
 
-pub fn requires_durable_quota(route: RouteClass) -> bool {
+/// Returns whether a route class must reach the durable security or billing quota layer.
+#[must_use]
+pub const fn requires_durable_quota(route: RouteClass) -> bool {
     matches!(route, RouteClass::PublicIntake | RouteClass::AuthenticatedWrite | RouteClass::Admin)
 }
 
