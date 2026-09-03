@@ -82,7 +82,8 @@ jobs:
           set -euo pipefail
           python3 -m py_compile \
             scripts/bootstrap_hhaus_org_fleet_live.py \
-            scripts/test_bootstrap_hhaus_org_fleet_live.py
+            scripts/test_bootstrap_hhaus_org_fleet_live.py \
+            scripts/hhaus_bootstrap/*.py
           python3 -m unittest -v scripts/test_bootstrap_hhaus_org_fleet_live.py
 
       - name: Render and re-verify every repository
