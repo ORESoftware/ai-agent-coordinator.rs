@@ -1,0 +1,81 @@
+name: Continuous artifact recovery deployment contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/continuous-artifact-recovery-deployment-contract.yml'
+      - 'deploy/continuous-artifact-recovery/k8s/**'
+      - 'scripts/verify_continuous_artifact_recovery_deployment.rb'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/continuous-artifact-recovery-deployment-contract.yml'
+      - 'deploy/continuous-artifact-recovery/k8s/**'
+      - 'scripts/verify_continuous_artifact_recovery_deployment.rb'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: continuous-artifact-recovery-deployment-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WORKER_IMAGE: ghcr.io/oresoftware/ai-agent-coordinator-artifact-recovery:sha-5af90a5f89b76a91c348f2e6d5e52cf06e3fc311
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/continuous-artifact-recovery-deployment-contract.yml
+
+      - name: Validate source manifests
+        run: ruby scripts/verify_continuous_artifact_recovery_deployment.rb
+
+      - name: Render and validate manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl kustomize deploy/continuous-artifact-recovery/k8s > rendered-worker.yaml
+          ruby scripts/verify_continuous_artifact_recovery_deployment.rb rendered-worker.yaml
+
+      - name: Reject credential-shaped committed values
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|lin_api_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{16,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' \
+            deploy/continuous-artifact-recovery/k8s \
+            scripts/verify_continuous_artifact_recovery_deployment.rb; then
+            echo 'credential-shaped material is forbidden' >&2
+            exit 1
+          fi
+
+      - name: Authenticate to GHCR with read-only package access
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+
+      - name: Pull reviewed immutable worker image
+        run: docker pull "$WORKER_IMAGE"
+
+      - name: Validate image pool boundary
+        run: |
+          docker run --rm \
+            --env ARTIFACT_RECOVERY_WORKER_COUNT=3 \
+            "$WORKER_IMAGE" --check-config
+          if docker run --rm \
+            --env ARTIFACT_RECOVERY_WORKER_COUNT=4 \
+            "$WORKER_IMAGE" --check-config; then
+            echo 'worker image accepted more than three workers' >&2
+            exit 1
+          fi
