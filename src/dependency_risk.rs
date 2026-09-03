@@ -12,6 +12,8 @@ use sha2::{Digest, Sha256};
 
 pub const DEPENDENCY_RISK_SCHEMA_VERSION: &str = "1.0.0";
 pub const DEPENDENCY_RISK_CLASSIFIER_VERSION: &str = "1.0.0";
+const MAX_EVIDENCE_LIST_ITEMS: usize = 1_024;
+const MAX_EDGE_ITEMS: usize = 1_024;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -130,6 +132,9 @@ pub enum DependencyRiskLevel {
 pub enum DependencyRiskReason {
     MissingRequiredEvidence,
     InvalidEvidence,
+    EvidenceItemLimitExceeded,
+    ContradictoryGraphEvidence,
+    InconsistentChangeEvidence,
     InvalidDigestEvidence,
     EvidenceFromAnotherHead,
     StaleAdvisoryEvidence,
@@ -261,9 +266,9 @@ fn valid_name(value: &str) -> bool {
 
 fn invalid_string_list(values: &Option<Vec<String>>) -> bool {
     values.as_ref().is_some_and(|values| {
-        values
-            .iter()
-            .any(|value| value.is_empty() || value.len() > 512)
+        values.iter().any(|value| {
+            value.is_empty() || value.len() > 512 || value.chars().any(char::is_control)
+        })
     })
 }
 
@@ -272,12 +277,29 @@ fn invalid_edges(values: &Option<Vec<DependencyEdge>>) -> bool {
         values.iter().any(|edge| {
             !valid_name(&edge.from)
                 || !valid_name(&edge.to)
-                || edge
-                    .requirement
-                    .as_ref()
-                    .is_some_and(|requirement| requirement.is_empty() || requirement.len() > 256)
+                || edge.requirement.as_ref().is_some_and(|requirement| {
+                    requirement.is_empty()
+                        || requirement.len() > 256
+                        || requirement.chars().any(char::is_control)
+                })
         })
     })
+}
+
+fn list_exceeds<T>(values: &Option<Vec<T>>, maximum: usize) -> bool {
+    values.as_ref().is_some_and(|values| values.len() > maximum)
+}
+
+fn evidence_item_limit_exceeded(input: &DependencyRiskInput) -> bool {
+    list_exceeds(&input.edge_additions, MAX_EDGE_ITEMS)
+        || list_exceeds(&input.edge_removals, MAX_EDGE_ITEMS)
+        || list_exceeds(&input.mutable_git_refs, MAX_EVIDENCE_LIST_ITEMS)
+        || list_exceeds(&input.introduced_registries, MAX_EVIDENCE_LIST_ITEMS)
+        || list_exceeds(&input.lifecycle_hooks, MAX_EVIDENCE_LIST_ITEMS)
+        || list_exceeds(&input.native_build_scripts, MAX_EVIDENCE_LIST_ITEMS)
+        || list_exceeds(&input.binary_downloads, MAX_EVIDENCE_LIST_ITEMS)
+        || list_exceeds(&input.known_advisories, MAX_EVIDENCE_LIST_ITEMS)
+        || list_exceeds(&input.cross_boundary_impact, MAX_EVIDENCE_LIST_ITEMS)
 }
 
 fn canonical_input_sha256(input: &DependencyRiskInput) -> String {
@@ -362,10 +384,55 @@ fn has_values<T>(values: &Option<Vec<T>>) -> bool {
     values.as_ref().is_some_and(|values| !values.is_empty())
 }
 
+fn contradictory_graph_evidence(input: &DependencyRiskInput) -> bool {
+    let (Some(additions), Some(removals)) = (&input.edge_additions, &input.edge_removals) else {
+        return false;
+    };
+    let removed: BTreeSet<&DependencyEdge> = removals.iter().collect();
+    additions.iter().any(|edge| removed.contains(edge))
+}
+
+fn inconsistent_change_evidence(input: &DependencyRiskInput) -> bool {
+    if matches!(
+        input.ecosystem,
+        Some(Ecosystem::GitSubmodule | Ecosystem::ZedPackage)
+    ) {
+        return false;
+    }
+
+    let manifest_changed = matches!(
+        (
+            input.before_manifest_sha256.as_ref(),
+            input.after_manifest_sha256.as_ref()
+        ),
+        (Some(before), Some(after)) if before != after
+    );
+    let lockfile_changed = matches!(
+        (
+            input.before_lockfile_sha256.as_ref(),
+            input.after_lockfile_sha256.as_ref()
+        ),
+        (Some(before), Some(after)) if before != after
+    );
+    let graph_changed = has_values(&input.edge_additions) || has_values(&input.edge_removals);
+    let any_change = manifest_changed || lockfile_changed || graph_changed;
+
+    match input.semver_delta {
+        Some(SemverDelta::None) => any_change,
+        Some(SemverDelta::Patch | SemverDelta::Minor | SemverDelta::Major) => !any_change,
+        Some(SemverDelta::Unknown) | None => false,
+    }
+}
+
 /// Classify already-collected evidence without performing an effect.
 #[must_use]
 pub fn classify_dependency_update(input: &DependencyRiskInput) -> DependencyRiskEnvelope {
-    let normalized = normalize_dependency_risk_input(input);
+    let item_limit_exceeded = evidence_item_limit_exceeded(input);
+    let normalized = if item_limit_exceeded {
+        input.clone()
+    } else {
+        normalize_dependency_risk_input(input)
+    };
     let mut reasons = BTreeSet::new();
     let mut blocked = false;
     let mut high = false;
@@ -377,6 +444,18 @@ pub fn classify_dependency_update(input: &DependencyRiskInput) -> DependencyRisk
     }
     if invalid_semantic_evidence(&normalized) {
         reasons.insert(DependencyRiskReason::InvalidEvidence);
+        blocked = true;
+    }
+    if item_limit_exceeded {
+        reasons.insert(DependencyRiskReason::EvidenceItemLimitExceeded);
+        blocked = true;
+    }
+    if contradictory_graph_evidence(&normalized) {
+        reasons.insert(DependencyRiskReason::ContradictoryGraphEvidence);
+        blocked = true;
+    }
+    if inconsistent_change_evidence(&normalized) {
+        reasons.insert(DependencyRiskReason::InconsistentChangeEvidence);
         blocked = true;
     }
     if invalid_digests(&normalized) {
@@ -668,6 +747,127 @@ mod tests {
         assert_eq!(high.classification, DependencyRiskLevel::High);
         assert!(high.requires_test_org_canary);
         assert!(!high.auto_merge_authorized);
+    }
+
+    #[test]
+    fn contradictory_and_inconsistent_change_evidence_blocks() {
+        let edge = DependencyEdge {
+            from: "root".to_owned(),
+            to: "dependency".to_owned(),
+            requirement: Some("^1".to_owned()),
+        };
+        let mut contradictory = base_input(Ecosystem::Cargo);
+        contradictory.edge_additions = Some(vec![edge.clone()]);
+        contradictory.edge_removals = Some(vec![edge]);
+        let envelope = classify_dependency_update(&contradictory);
+        assert_eq!(envelope.classification, DependencyRiskLevel::Blocked);
+        assert!(envelope
+            .reasons
+            .contains(&DependencyRiskReason::ContradictoryGraphEvidence));
+
+        let mut false_patch = base_input(Ecosystem::NpmPnpm);
+        false_patch.after_manifest_sha256 = false_patch.before_manifest_sha256.clone();
+        false_patch.after_lockfile_sha256 = false_patch.before_lockfile_sha256.clone();
+        let envelope = classify_dependency_update(&false_patch);
+        assert_eq!(envelope.classification, DependencyRiskLevel::Blocked);
+        assert!(envelope
+            .reasons
+            .contains(&DependencyRiskReason::InconsistentChangeEvidence));
+
+        let mut false_none = base_input(Ecosystem::GoModules);
+        false_none.semver_delta = Some(SemverDelta::None);
+        let envelope = classify_dependency_update(&false_none);
+        assert_eq!(envelope.classification, DependencyRiskLevel::Blocked);
+        assert!(envelope
+            .reasons
+            .contains(&DependencyRiskReason::InconsistentChangeEvidence));
+    }
+
+    #[test]
+    fn resource_bounds_and_control_characters_fail_closed() {
+        let mut too_many = base_input(Ecosystem::DartPub);
+        too_many.known_advisories = Some(
+            (0..=MAX_EVIDENCE_LIST_ITEMS)
+                .map(|index| format!("ADV-{index}"))
+                .collect(),
+        );
+        let envelope = classify_dependency_update(&too_many);
+        assert_eq!(envelope.classification, DependencyRiskLevel::Blocked);
+        assert!(envelope
+            .reasons
+            .contains(&DependencyRiskReason::EvidenceItemLimitExceeded));
+        assert!(!envelope.auto_merge_authorized);
+
+        let mut control = base_input(Ecosystem::MavenGradle);
+        control.lifecycle_hooks = Some(vec!["post\u{0000}install".to_owned()]);
+        let envelope = classify_dependency_update(&control);
+        assert_eq!(envelope.classification, DependencyRiskLevel::Blocked);
+        assert!(envelope
+            .reasons
+            .contains(&DependencyRiskReason::InvalidEvidence));
+    }
+
+    #[test]
+    fn exhaustive_enum_state_space_never_authorizes_merge() {
+        let ecosystems = [
+            Ecosystem::Cargo,
+            Ecosystem::NpmPnpm,
+            Ecosystem::GoModules,
+            Ecosystem::DartPub,
+            Ecosystem::MavenGradle,
+            Ecosystem::GitSubmodule,
+            Ecosystem::ZedPackage,
+        ];
+        let relationships = [
+            DependencyRelationship::Direct,
+            DependencyRelationship::Transitive,
+        ];
+        let scopes = [
+            DependencyScope::Runtime,
+            DependencyScope::Build,
+            DependencyScope::Dev,
+        ];
+        let deltas = [
+            SemverDelta::None,
+            SemverDelta::Patch,
+            SemverDelta::Minor,
+            SemverDelta::Major,
+            SemverDelta::Unknown,
+        ];
+        let criticalities = [
+            RepositoryCriticality::Low,
+            RepositoryCriticality::Medium,
+            RepositoryCriticality::High,
+            RepositoryCriticality::Critical,
+        ];
+
+        let mut visited = 0usize;
+        for ecosystem in ecosystems {
+            for relationship in relationships {
+                for scope in scopes {
+                    for delta in deltas {
+                        for criticality in criticalities {
+                            let mut input = base_input(ecosystem);
+                            input.relationship = Some(relationship);
+                            input.scope = Some(scope);
+                            input.semver_delta = Some(delta);
+                            input.repository_criticality = Some(criticality);
+                            if delta == SemverDelta::None {
+                                input.after_manifest_sha256 = input.before_manifest_sha256.clone();
+                                input.after_lockfile_sha256 = input.before_lockfile_sha256.clone();
+                            }
+
+                            let envelope = classify_dependency_update(&input);
+                            assert!(!envelope.auto_merge_authorized);
+                            assert_eq!(envelope.normalized_input_sha256.len(), 64);
+                            assert!(envelope.reasons.windows(2).all(|pair| pair[0] < pair[1]));
+                            visited += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(visited, 840);
     }
 
     #[derive(Debug, Deserialize)]
