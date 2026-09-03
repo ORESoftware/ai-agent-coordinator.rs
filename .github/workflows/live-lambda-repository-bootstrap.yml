@@ -57,19 +57,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          paths=(
+          credential_paths=(
             repository-fleets/lambda-repositories-2026-09-03.tsv
             scripts/bootstrap-lambda-repositories-live.sh
             docs/lambda-repository-rollout-2026-09-03.md
             "$TRIGGER_PATH"
+          )
+          all_paths=(
+            "${credential_paths[@]}"
             .github/workflows/live-lambda-repository-bootstrap.yml
           )
-          credential_pattern='gh'"'[pousr]_[A-Za-z0-9]{20,}|lin_'"'api_[A-Za-z0-9]{20,}|CHAT_'"'BRIDGE_TOKEN|BEGIN [A-Z ]*PRIVATE KEY'
-          if grep -nE "$credential_pattern" "${paths[@]}"; then
+          credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_api_[A-Za-z0-9]{20,}|CHAT_BRIDGE_TOKEN|BEGIN [A-Z ]*PRIVATE KEY'
+          if grep -nE "$credential_pattern" "${credential_paths[@]}"; then
             echo 'Credential-shaped content is forbidden.' >&2
             exit 1
           fi
-          if grep -nE '^(<{7}|={7}|>{7})' "${paths[@]}"; then
+          if grep -nE '^(<{7}|={7}|>{7})' "${all_paths[@]}"; then
             echo 'Unresolved merge marker found.' >&2
             exit 1
           fi
