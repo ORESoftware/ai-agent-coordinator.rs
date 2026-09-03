@@ -70,8 +70,8 @@ def flutter_files() -> dict[str, str]:
 
 
 def desktop_files() -> dict[str, str]:
-    cargo = '''[package]\nname = "hhaus-desktop-app"\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.85"\nlicense = "MIT"\ndescription = "Native Rust desktop application for H/HAUS"\n\n[dependencies]\nslint = { version = "1.13", default-features = false, features = ["compat-1-2", "std", "backend-winit", "renderer-femtovg"] }\n# Slint 1.13 reaches tinyvec through a no-default-feature path. Explicitly\n# unify the audited release with `std` so its heap-backed TinyVec code has\n# the standard `vec!` prelude available under current stable Rust.\ntinyvec = { version = "=1.13.0", features = ["std"] }\n\n[lints.rust]\nunsafe_code = "forbid"\n\n[lints.clippy]\nall = "deny"\npedantic = "deny"\nunwrap_used = "deny"\nexpect_used = "deny"\n'''
-    main = r'''#![forbid(unsafe_code)]
+    cargo = '''[package]\nname = "hhaus-desktop-app"\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.85"\nlicense = "MIT"\ndescription = "Native Rust desktop application for H/HAUS"\n\n[dependencies]\nslint = { version = "1.13", default-features = false, features = ["compat-1-2", "std", "backend-winit", "renderer-femtovg"] }\n# Slint 1.13 reaches tinyvec through a no-default-feature path. Explicitly\n# unify the audited release with `std` so its heap-backed TinyVec code has\n# the standard `vec!` prelude available under current stable Rust.\ntinyvec = { version = "=1.13.0", features = ["std"] }\n\n[lints.rust]\n# Slint's audited procedural macro emits a scoped `allow(unsafe_code)`. Use\n# `deny` rather than un-overridable `forbid` so handwritten unsafe code still\n# fails while the macro's internal generated implementation can compile.\nunsafe_code = "deny"\n\n[lints.clippy]\nall = "deny"\npedantic = "deny"\nunwrap_used = "deny"\nexpect_used = "deny"\n'''
+    main = r'''#![deny(unsafe_code)]
 
 slint::slint! {
     export component MainWindow inherits Window {
@@ -92,7 +92,7 @@ fn main() -> Result<(), slint::PlatformError> {
     MainWindow::new()?.run()
 }
 '''
-    platform = r'''#![forbid(unsafe_code)]
+    platform = r'''#![deny(unsafe_code)]
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Connectivity {
