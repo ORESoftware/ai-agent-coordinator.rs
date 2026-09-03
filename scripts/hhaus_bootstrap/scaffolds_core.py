@@ -127,7 +127,7 @@ pub const SEA_ORM_MEMBERSHIP_FIELDS: &[&str] = &[
     "created_at_epoch_ms",
 ];
 
-/// Verifies exact field-order parity between the Diesel and SeaORM projections.
+/// Verifies exact field-order parity between the Diesel and `SeaORM` projections.
 ///
 /// # Errors
 ///
