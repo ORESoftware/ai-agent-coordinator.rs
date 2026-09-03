@@ -24,12 +24,6 @@ required = [
 for token in required:
     if token not in source:
         raise SystemExit(f"missing merge-payload contract: {token}")
-for forbidden in [
-    "mergePullRequest(input:",
-]:
-    # The mutation itself is required; only the obsolete payload-level selection
-    # is forbidden below.
-    pass
 if "pullRequest{merged mergedAt} mergeCommit{oid}" in source:
     raise SystemExit("obsolete payload-level mergeCommit selection remains")
 if ".data.mergePullRequest.mergeCommit.oid" in source:
@@ -42,16 +36,44 @@ with tempfile.TemporaryDirectory(prefix="merge-payload-fix-") as directory:
     root = Path(directory)
     calls = root / "calls.jsonl"
     fake_gh = root / "gh-real"
+    pull_response = json.dumps(
+        {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "id": "PR_test",
+                        "headRefOid": EXPECTED_HEAD,
+                        "isDraft": False,
+                        "mergeable": "MERGEABLE",
+                        "state": "OPEN",
+                    }
+                }
+            }
+        }
+    )
+    merge_response = json.dumps(
+        {
+            "data": {
+                "mergePullRequest": {
+                    "pullRequest": {
+                        "merged": True,
+                        "mergedAt": "2026-09-03T00:00:00Z",
+                        "mergeCommit": {"oid": EXPECTED_MERGE},
+                    }
+                }
+            }
+        }
+    )
     fake_gh.write_text(
         "#!/usr/bin/env python3\n"
-        "import json, os, sys\n"
+        "import json, sys\n"
         "args = sys.argv[1:]\n"
         f"open({str(calls)!r}, 'a', encoding='utf-8').write(json.dumps(args) + '\\n')\n"
         "query = next((arg.split('=', 1)[1] for arg in args if arg.startswith('query=')), '')\n"
         "if 'mutation($pull:ID!' in query:\n"
-        f"    print(json.dumps({{'data': {{'mergePullRequest': {{'pullRequest': {{'merged': True, 'mergedAt': '2026-09-03T00:00:00Z', 'mergeCommit': {{'oid': {EXPECTED_MERGE!r}}}}}}}}}}}}))\n"
+        f"    print({merge_response!r})\n"
         "elif 'query($owner:String!' in query and 'pullRequest(number:$number)' in query:\n"
-        f"    print(json.dumps({{'data': {{'repository': {{'pullRequest': {{'id': 'PR_test', 'headRefOid': {EXPECTED_HEAD!r}, 'isDraft': False, 'mergeable': 'MERGEABLE', 'state': 'OPEN'}}}}}}}}))\n"
+        f"    print({pull_response!r})\n"
         "else:\n"
         "    raise SystemExit('unexpected GraphQL query: ' + query)\n",
         encoding="utf-8",
