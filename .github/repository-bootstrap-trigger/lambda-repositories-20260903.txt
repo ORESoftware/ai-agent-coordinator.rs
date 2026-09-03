@@ -1,4 +1,0 @@
-issue=183
-manifest_sha256=d5025256feb8834a258199052f1b261358a0ee8cecce4b266b91eab00d7e3df3
-armed=true
-one_time=true
