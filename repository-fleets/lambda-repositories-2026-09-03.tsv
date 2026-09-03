@@ -1,0 +1,11 @@
+organization	repository	lib_core_candidate	orm_core_candidate	description
+shared-auth	shared-auth-lambdas	shared-auth/shared-auth-lib	shared-auth/shared-auth-orm-core	Rust AWS Lambda entrypoints for shared authentication, provider reconciliation, and asynchronous auth operations.
+scintilla-run	scintilla-lambdas	scintilla-run/scintilla-lib-core	scintilla-run/scintilla-orm-core	Rust Lambda entrypoints and artifact contracts for the Scintilla polyglot function platform.
+fiducia-cloud	fiducia-lambdas	fiducia-cloud/fiducia-lib-core	fiducia-cloud/fiducia-orm-core	Rust Lambda entrypoints for infrequent and compute-heavy Fiducia operations.
+opto-sync	opto-sync-lambdas	opto-sync/opto-sync-lib-core	opto-sync/opto-sync-orm-core	Rust Lambda entrypoints for bounded Opto Sync reconciliation, export, and repair jobs.
+quaestor-ledger	quaestor-lambdas	quaestor-ledger/quaestor-lib-core	quaestor-ledger/quaestor-orm-core	Rust Lambda entrypoints for idempotent ledger reconciliation, export, and provider webhook processing.
+messaging-intel	msgint-lambdas	messaging-intel/msgint-lib-core	messaging-intel/msgint-orm-core	Rust Lambda entrypoints for independently governed Messaging Intel research workloads.
+3FA-app	3fa-lambdas	3FA-app/3fa-lib-core	3FA-app/3fa-orm-core	Rust Lambda entrypoints for bounded 3FA challenge, notification, and recovery operations.
+sonus-auris	sonus-auris-lambdas	sonus-auris/sonus-auris-lib-core	sonus-auris/sonus-auris-orm-core	Rust Lambda entrypoints for audio analysis, export, and background processing.
+zed-pkg	zed-lambdas	zed-pkg/zed-lib-core	zed-pkg/zed-orm-core	Rust Lambda entrypoints for Zed package indexing, graph export, and registry maintenance.
+canonical-cloud	canonical-lambdas	canonical-cloud/canonical-lib-core	canonical-cloud/canonical-orm-core	Rust Lambda entrypoints for Canonical Cloud background, rendering, and integration workloads.
