@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ai-agent-coordinator-artifact-recovery-state
+  namespace: ai-agent-coordinator
+  labels:
+    app.kubernetes.io/name: ai-agent-coordinator-artifact-recovery
+    app.kubernetes.io/part-of: oresoftware-agent-platform
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
