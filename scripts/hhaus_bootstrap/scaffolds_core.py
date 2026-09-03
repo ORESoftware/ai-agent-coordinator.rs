@@ -33,6 +33,11 @@ pub enum FailureMode {
 pub struct RateLimitSubject(String);
 
 impl RateLimitSubject {
+    /// Builds a tenant-scoped policy subject from a verified principal.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the verified subject or organization identifier is blank.
     pub fn from_authenticated(principal: &Principal) -> Result<Self, &'static str> {
         if principal.subject.trim().is_empty() || principal.organization_id.trim().is_empty() {
             return Err("authenticated rate-limit identity is incomplete");
@@ -40,6 +45,11 @@ impl RateLimitSubject {
         Ok(Self(format!("org:{}:sub:{}", principal.organization_id, principal.subject)))
     }
 
+    /// Builds an anonymous policy subject from an HMAC-SHA-256 digest.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error unless `digest` is exactly 64 hexadecimal characters.
     pub fn from_pseudonymous_edge_digest(digest: &str) -> Result<Self, &'static str> {
         if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err("edge identity must be a 32-byte lowercase hexadecimal digest");
@@ -47,6 +57,8 @@ impl RateLimitSubject {
         Ok(Self(format!("anon:{digest}")))
     }
 
+    /// Returns the opaque subject value suitable for policy services.
+    #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -115,6 +127,11 @@ pub const SEA_ORM_MEMBERSHIP_FIELDS: &[&str] = &[
     "created_at_epoch_ms",
 ];
 
+/// Verifies exact field-order parity between the Diesel and SeaORM projections.
+///
+/// # Errors
+///
+/// Returns an error when the independently declared projections diverge.
 pub fn assert_projection_parity() -> Result<(), &'static str> {
     if DIESEL_MEMBERSHIP_FIELDS == SEA_ORM_MEMBERSHIP_FIELDS {
         Ok(())
@@ -226,6 +243,12 @@ pub enum SyncEvent {
     RetryElapsed,
 }
 
+/// Applies one explicit synchronization-state transition.
+///
+/// # Errors
+///
+/// Returns an error for every event that is invalid in the current phase.
+#[allow(clippy::match_same_arms)]
 pub fn transition(phase: SyncPhase, event: SyncEvent) -> Result<SyncPhase, &'static str> {
     use SyncEvent::{LocalCommitted, LocalRead, PermanentFailure, Reconciled, RemotePulled, RemotePushed, RetryElapsed, RetryableFailure, Start};
     use SyncPhase::{BackingOff, CommittingLocal, FailedClosed, Idle, PullingRemote, PushingRemote, ReadingLocal, Reconciling};
