@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "ores.lambda-repository-rollout.v1",
+  "trackingIssue": 183,
+  "authorizedOperator": {
+    "login": "ORESoftware",
+    "id": 11139560
+  },
+  "visibility": "private",
+  "defaultBranch": "main",
+  "featureBranch": "feat/issue-183-rust-lambda-foundation",
+  "mergeMethod": "squash",
+  "requiredArchitectures": [
+    "x86_64",
+    "arm64"
+  ],
+  "repositoryCount": 10,
+  "repositories": [
+    {
+      "organization": "shared-auth",
+      "repository": "shared-auth-lambdas",
+      "libCoreCandidate": "shared-auth/shared-auth-lib",
+      "ormCoreCandidate": "shared-auth/shared-auth-orm-core",
+      "description": "Rust AWS Lambda entrypoints for shared authentication, provider reconciliation, and asynchronous auth operations."
+    },
+    {
+      "organization": "scintilla-run",
+      "repository": "scintilla-lambdas",
+      "libCoreCandidate": "scintilla-run/scintilla-lib-core",
+      "ormCoreCandidate": "scintilla-run/scintilla-orm-core",
+      "description": "Rust Lambda entrypoints and artifact contracts for the Scintilla polyglot function platform."
+    },
+    {
+      "organization": "fiducia-cloud",
+      "repository": "fiducia-lambdas",
+      "libCoreCandidate": "fiducia-cloud/fiducia-lib-core",
+      "ormCoreCandidate": "fiducia-cloud/fiducia-orm-core",
+      "description": "Rust Lambda entrypoints for infrequent and compute-heavy Fiducia operations."
+    },
+    {
+      "organization": "opto-sync",
+      "repository": "opto-sync-lambdas",
+      "libCoreCandidate": "opto-sync/opto-sync-lib-core",
+      "ormCoreCandidate": "opto-sync/opto-sync-orm-core",
+      "description": "Rust Lambda entrypoints for bounded Opto Sync reconciliation, export, and repair jobs."
+    },
+    {
+      "organization": "quaestor-ledger",
+      "repository": "quaestor-lambdas",
+      "libCoreCandidate": "quaestor-ledger/quaestor-lib-core",
+      "ormCoreCandidate": "quaestor-ledger/quaestor-orm-core",
+      "description": "Rust Lambda entrypoints for idempotent ledger reconciliation, export, and provider webhook processing."
+    },
+    {
+      "organization": "messaging-intel",
+      "repository": "msgint-lambdas",
+      "libCoreCandidate": "messaging-intel/msgint-lib-core",
+      "ormCoreCandidate": "messaging-intel/msgint-orm-core",
+      "description": "Rust Lambda entrypoints for independently governed Messaging Intel research workloads."
+    },
+    {
+      "organization": "3FA-app",
+      "repository": "3fa-lambdas",
+      "libCoreCandidate": "3FA-app/3fa-lib-core",
+      "ormCoreCandidate": "3FA-app/3fa-orm-core",
+      "description": "Rust Lambda entrypoints for bounded 3FA challenge, notification, and recovery operations."
+    },
+    {
+      "organization": "sonus-auris",
+      "repository": "sonus-auris-lambdas",
+      "libCoreCandidate": "sonus-auris/sonus-auris-lib-core",
+      "ormCoreCandidate": "sonus-auris/sonus-auris-orm-core",
+      "description": "Rust Lambda entrypoints for audio analysis, export, and background processing."
+    },
+    {
+      "organization": "zed-pkg",
+      "repository": "zed-lambdas",
+      "libCoreCandidate": "zed-pkg/zed-lib-core",
+      "ormCoreCandidate": "zed-pkg/zed-orm-core",
+      "description": "Rust Lambda entrypoints for Zed package indexing, graph export, and registry maintenance."
+    },
+    {
+      "organization": "canonical-cloud",
+      "repository": "canonical-lambdas",
+      "libCoreCandidate": "canonical-cloud/canonical-lib-core",
+      "ormCoreCandidate": "canonical-cloud/canonical-orm-core",
+      "description": "Rust Lambda entrypoints for Canonical Cloud background, rendering, and integration workloads."
+    }
+  ]
+}
