@@ -260,9 +260,11 @@ fn valid_name(value: &str) -> bool {
 }
 
 fn invalid_string_list(values: &Option<Vec<String>>) -> bool {
-    values
-        .as_ref()
-        .is_some_and(|values| values.iter().any(|value| value.is_empty() || value.len() > 512))
+    values.as_ref().is_some_and(|values| {
+        values
+            .iter()
+            .any(|value| value.is_empty() || value.len() > 512)
+    })
 }
 
 fn invalid_edges(values: &Option<Vec<DependencyEdge>>) -> bool {
@@ -442,7 +444,8 @@ pub fn classify_dependency_update(input: &DependencyRiskInput) -> DependencyRisk
         high = true;
     }
 
-    let graph_changed = has_values(&normalized.edge_additions) || has_values(&normalized.edge_removals);
+    let graph_changed =
+        has_values(&normalized.edge_additions) || has_values(&normalized.edge_removals);
     if graph_changed {
         reasons.insert(DependencyRiskReason::DependencyGraphChanged);
         medium = true;
@@ -570,7 +573,11 @@ mod tests {
             .as_mut()
             .expect("impacts")
             .reverse();
-        right.known_advisories.as_mut().expect("advisories").reverse();
+        right
+            .known_advisories
+            .as_mut()
+            .expect("advisories")
+            .reverse();
 
         let left = serde_json::to_vec(&classify_dependency_update(&left)).expect("left JSON");
         let right = serde_json::to_vec(&classify_dependency_update(&right)).expect("right JSON");
