@@ -98,7 +98,7 @@ pr_response="$(graphql \
   -F number="$number")"
 pr_id="$(jq -r '.data.repository.pullRequest.id // empty' <<<"$pr_response")"
 observed="$(jq -r '.data.repository.pullRequest.headRefOid // empty' <<<"$pr_response")"
-draft="$(jq -r '.data.repository.pullRequest.isDraft // true' <<<"$pr_response")"
+draft="$(jq -r 'if .data.repository.pullRequest == null then true else .data.repository.pullRequest.isDraft end' <<<"$pr_response")"
 mergeable="$(jq -r '.data.repository.pullRequest.mergeable // "UNKNOWN"' <<<"$pr_response")"
 state="$(jq -r '.data.repository.pullRequest.state // "UNKNOWN"' <<<"$pr_response")"
 
