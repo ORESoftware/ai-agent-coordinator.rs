@@ -5,6 +5,8 @@ on:
     paths:
       - "scripts/gh-graphql-rate-limit-fallback.sh"
       - "scripts/test-gh-graphql-rate-limit-fallback.py"
+      - "scripts/cargo-canonical-format-shim.sh"
+      - "scripts/test-cargo-canonical-format-shim.py"
       - ".github/repository-bootstrap-trigger/lambda-repositories-20260903-graphql-recovery.txt"
       - ".github/workflows/live-lambda-repository-bootstrap-graphql-recovery.yml"
   push:
@@ -12,6 +14,8 @@ on:
     paths:
       - "scripts/gh-graphql-rate-limit-fallback.sh"
       - "scripts/test-gh-graphql-rate-limit-fallback.py"
+      - "scripts/cargo-canonical-format-shim.sh"
+      - "scripts/test-cargo-canonical-format-shim.py"
       - ".github/repository-bootstrap-trigger/lambda-repositories-20260903-graphql-recovery.txt"
       - ".github/workflows/live-lambda-repository-bootstrap-graphql-recovery.yml"
   workflow_dispatch:
@@ -32,7 +36,7 @@ env:
 
 jobs:
   validate:
-    name: validate-graphql-recovery
+    name: validate-graphql-rustfmt-recovery
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -45,11 +49,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(cat "$TRIGGER_PATH")" = $'issue=183\nmanifest_sha256=d5025256feb8834a258199052f1b261358a0ee8cecce4b266b91eab00d7e3df3\nrecovery=graphql-rate-limit\narmed=true\none_time=true'
+          test "$(cat "$TRIGGER_PATH")" = $'issue=183\nmanifest_sha256=d5025256feb8834a258199052f1b261358a0ee8cecce4b266b91eab00d7e3df3\nrecovery=graphql-rate-limit-rustfmt-normalization\nattempt=3\narmed=true\none_time=true'
           test "$(sha256sum repository-fleets/lambda-repositories-2026-09-03.tsv | awk '{print $1}')" = "$EXPECTED_MANIFEST_SHA256"
           bash -n scripts/bootstrap-lambda-repositories-live.sh
           bash -n scripts/gh-graphql-rate-limit-fallback.sh
+          bash -n scripts/cargo-canonical-format-shim.sh
           python3 scripts/test-gh-graphql-rate-limit-fallback.py
+          python3 scripts/test-cargo-canonical-format-shim.py
           WORK_ROOT="$RUNNER_TEMP/lambda-plan" \
             bash scripts/bootstrap-lambda-repositories-live.sh validate
 
@@ -71,11 +77,13 @@ jobs:
           set -euo pipefail
           credential_paths=(
             scripts/gh-graphql-rate-limit-fallback.sh
+            scripts/cargo-canonical-format-shim.sh
             .github/repository-bootstrap-trigger/lambda-repositories-20260903-graphql-recovery.txt
           )
           all_paths=(
             "${credential_paths[@]}"
             scripts/test-gh-graphql-rate-limit-fallback.py
+            scripts/test-cargo-canonical-format-shim.py
             .github/workflows/live-lambda-repository-bootstrap-graphql-recovery.yml
           )
           credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_api_[A-Za-z0-9]{20,}|CHAT_BRIDGE_TOKEN|BEGIN [A-Z ]*PRIVATE KEY'
@@ -89,7 +97,7 @@ jobs:
           fi
 
   apply:
-    name: create-test-pr-merge-ten-repositories-via-graphql
+    name: resume-create-test-pr-merge-ten-repositories
     needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -104,10 +112,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(cat "$TRIGGER_PATH")" = $'issue=183\nmanifest_sha256=d5025256feb8834a258199052f1b261358a0ee8cecce4b266b91eab00d7e3df3\nrecovery=graphql-rate-limit\narmed=true\none_time=true'
+          test "$(cat "$TRIGGER_PATH")" = $'issue=183\nmanifest_sha256=d5025256feb8834a258199052f1b261358a0ee8cecce4b266b91eab00d7e3df3\nrecovery=graphql-rate-limit-rustfmt-normalization\nattempt=3\narmed=true\none_time=true'
           test "$(sha256sum repository-fleets/lambda-repositories-2026-09-03.tsv | awk '{print $1}')" = "$EXPECTED_MANIFEST_SHA256"
           bash -n scripts/gh-graphql-rate-limit-fallback.sh
+          bash -n scripts/cargo-canonical-format-shim.sh
           python3 scripts/test-gh-graphql-rate-limit-fallback.py
+          python3 scripts/test-cargo-canonical-format-shim.py
           WORK_ROOT="$RUNNER_TEMP/lambda-plan" \
             bash scripts/bootstrap-lambda-repositories-live.sh validate
 
@@ -138,7 +148,7 @@ jobs:
             --arg source_sha "$GITHUB_SHA" \
             --arg manifest "$EXPECTED_MANIFEST_SHA256" \
             --arg public_key_b64 "$public_key_b64" \
-            '$marker + "\n\nA run-bound public key is ready for the GraphQL recovery of the exact reviewed Lambda repository rollout.\n\n- run_id: `" + $run_id + "`\n- source_sha: `" + $source_sha + "`\n- manifest_sha256: `" + $manifest + "`\n- transport: `GraphQL plus Git`\n- public_key_b64: `" + $public_key_b64 + "`\n\nReply once with the matching ciphertext marker. The private key exists only in runner-temporary storage for this run."')"
+            '$marker + "\n\nA run-bound public key is ready for the idempotent GraphQL/Rustfmt recovery of the exact reviewed Lambda repository rollout.\n\n- run_id: `" + $run_id + "`\n- source_sha: `" + $source_sha + "`\n- manifest_sha256: `" + $manifest + "`\n- transport: `GraphQL plus Git`\n- formatting: `normalize, then fail-closed check`\n- public_key_b64: `" + $public_key_b64 + "`\n\nReply once with the matching ciphertext marker. The private key exists only in runner-temporary storage for this run."')"
           jq -n --arg body "$body" '{body:$body}' | \
             gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_ISSUE/comments" --input - >/dev/null
           printf 'key_id=%s\n' "$key_id" >> "$GITHUB_OUTPUT"
@@ -192,7 +202,7 @@ jobs:
           printf 'token_file=%s\n' "$token_file" >> "$GITHUB_OUTPUT"
           printf 'cipher_file=%s\n' "$cipher_file" >> "$GITHUB_OUTPUT"
 
-      - name: Create repositories, push tested branches, open PRs, and merge exact green heads
+      - name: Resume repositories, tested branches, PRs, and exact green merges
         shell: bash
         env:
           TOKEN_FILE: ${{ steps.credential.outputs.token_file }}
@@ -205,15 +215,21 @@ jobs:
           token="$(cat "$TOKEN_FILE")"
           echo "::add-mask::$token"
           real_gh="$(command -v gh)"
-          shim_dir="$RUNNER_TEMP/gh-graphql-fallback"
+          real_cargo="$(command -v cargo)"
+          shim_dir="$RUNNER_TEMP/lambda-bootstrap-command-shims"
           mkdir -p "$shim_dir"
           cat > "$shim_dir/gh" <<EOF
           #!/usr/bin/env bash
           exec bash "$GITHUB_WORKSPACE/scripts/gh-graphql-rate-limit-fallback.sh" "\$@"
           EOF
-          chmod 0755 "$shim_dir/gh"
+          cat > "$shim_dir/cargo" <<EOF
+          #!/usr/bin/env bash
+          exec bash "$GITHUB_WORKSPACE/scripts/cargo-canonical-format-shim.sh" "\$@"
+          EOF
+          chmod 0755 "$shim_dir/gh" "$shim_dir/cargo"
           PATH="$shim_dir:$PATH" \
             REAL_GH="$real_gh" \
+            REAL_CARGO="$real_cargo" \
             GH_TOKEN="$token" \
             bash scripts/bootstrap-lambda-repositories-live.sh apply
 
@@ -229,7 +245,7 @@ jobs:
           complete="$(jq -r .complete "$RECEIPT")"
           count="$(jq '[.repositories[] | select(.state == "merged" or .state == "already_complete")] | length' "$RECEIPT")"
           table="$(jq -r '.repositories[] | "| `" + .repository + "` | " + .state + " | " + (.pr_url // "") + " | `" + (.merge_sha // "") + "` |"' "$RECEIPT")"
-          body="$(printf '<!-- lambda-bootstrap-complete:%s -->\n\n## Ten-organization Lambda repository rollout\n\n- complete: `%s`\n- completed repositories: `%s`\n- source SHA: `%s`\n- manifest SHA-256: `%s`\n- transport: GraphQL plus Git\n\n| Repository | State | PR | Merge SHA |\n|---|---|---|---|\n%s\n' \
+          body="$(printf '<!-- lambda-bootstrap-complete:%s -->\n\n## Ten-organization Lambda repository rollout\n\n- complete: `%s`\n- completed repositories: `%s`\n- source SHA: `%s`\n- manifest SHA-256: `%s`\n- transport: GraphQL plus Git\n- formatting: normalize then exact-head check\n\n| Repository | State | PR | Merge SHA |\n|---|---|---|---|\n%s\n' \
             "$KEY_ID" "$complete" "$count" "$GITHUB_SHA" "$EXPECTED_MANIFEST_SHA256" "$table")"
           jq -n --arg body "$body" '{body:$body}' | \
             gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_ISSUE/comments" --input - >/dev/null
@@ -242,7 +258,7 @@ jobs:
           KEY_ID: ${{ steps.key.outputs.key_id }}
         run: |
           set -euo pipefail
-          body="<!-- lambda-bootstrap-failed:${KEY_ID} -->\n\nThe GraphQL recovery did not complete. Inspect workflow run ${GITHUB_RUN_ID}; no credential is included in this comment. Reconcile any created repository or open PR rather than recreating it."
+          body="<!-- lambda-bootstrap-failed:${KEY_ID} -->\n\nThe idempotent GraphQL/Rustfmt recovery did not complete. Inspect workflow run ${GITHUB_RUN_ID}; no credential is included in this comment. Reconcile existing repositories, branches, and PRs rather than recreating them."
           jq -n --arg body "$body" '{body:$body}' | \
             gh api --method POST "repos/$GITHUB_REPOSITORY/issues/$TRACKING_ISSUE/comments" --input - >/dev/null
 
@@ -250,7 +266,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: lambda-repository-graphql-recovery-${{ github.sha }}
+          name: lambda-repository-rustfmt-recovery-${{ github.sha }}
           path: ${{ runner.temp }}/lambda-rollout-receipt.json
           if-no-files-found: ignore
           retention-days: 30
