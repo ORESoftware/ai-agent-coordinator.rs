@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 SCRIPT_PATH = Path(__file__).with_name("bootstrap_hhaus_org_fleet_live.py")
-SPEC = importlib.util.spec_from_file_location("hhaus_bootstrap", SCRIPT_PATH)
+SPEC = importlib.util.spec_from_file_location("hhaus_bootstrap_cli", SCRIPT_PATH)
 if SPEC is None or SPEC.loader is None:
     raise RuntimeError("unable to import H/HAUS bootstrap module")
 bootstrap = importlib.util.module_from_spec(SPEC)
