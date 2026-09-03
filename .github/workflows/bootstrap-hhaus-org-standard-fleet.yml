@@ -1,0 +1,280 @@
+name: Bootstrap H/HAUS standard repository fleet
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/bootstrap-hhaus-org-standard-fleet.yml
+      - docs/hhaus-standard-fleet-bootstrap.md
+      - repository-fleets/hhaus-org-standard.json
+      - scripts/bootstrap_hhaus_org_fleet_live.py
+      - scripts/test_bootstrap_hhaus_org_fleet_live.py
+      - scripts/hhaus_bootstrap/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/bootstrap-hhaus-org-standard-fleet.yml
+      - docs/hhaus-standard-fleet-bootstrap.md
+      - repository-fleets/hhaus-org-standard.json
+      - scripts/bootstrap_hhaus_org_fleet_live.py
+      - scripts/test_bootstrap_hhaus_org_fleet_live.py
+      - scripts/hhaus_bootstrap/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-hhaus-org-standard-fleet-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  validate:
+    name: Validate sealed fleet and generated repositories
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out the reviewed coordinator revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow with the pinned actionlint image
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/bootstrap-hhaus-org-standard-fleet.yml
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.1"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install native compile dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libfontconfig1-dev \
+            libpq-dev \
+            libwayland-dev \
+            libx11-xcb-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev
+
+      - name: Compile and test the bootstrap control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/bootstrap_hhaus_org_fleet_live.py \
+            scripts/test_bootstrap_hhaus_org_fleet_live.py \
+            scripts/hhaus_bootstrap/*.py
+          python3 -m unittest -v scripts/test_bootstrap_hhaus_org_fleet_live.py
+
+      - name: Render and re-verify every repository
+        id: render
+        shell: bash
+        run: |
+          set -euo pipefail
+          render_root="$RUNNER_TEMP/hhaus-rendered"
+          result="$RUNNER_TEMP/hhaus-render-result.json"
+          HHAUS_BOOTSTRAP_MODE=render \
+          HHAUS_BOOTSTRAP_RENDER_ROOT="$render_root" \
+          HHAUS_BOOTSTRAP_RESULT_PATH="$result" \
+            python3 scripts/bootstrap_hhaus_org_fleet_live.py
+          python3 -m json.tool "$result" >/dev/null
+          while IFS= read -r verifier; do
+            python3 "$verifier"
+          done < <(find "$render_root" -mindepth 3 -maxdepth 3 -path '*/scripts/verify.py' -type f | sort)
+          python3 "$render_root/hhaus-interfaces/scripts/check_peer_authorities.py"
+          echo "root=$render_root" >> "$GITHUB_OUTPUT"
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+
+      - name: Compile the TypeSpec authority
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          cd "$RENDER_ROOT/hhaus-interfaces"
+          npm install --ignore-scripts --no-audit --no-fund
+          npx tsp compile typespec/main.tsp --output-dir "$RUNNER_TEMP/hhaus-typespec-output"
+
+      - name: Validate JavaScript worker adapters
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          while IFS= read -r module; do
+            node --check "$module"
+          done < <(find "$RENDER_ROOT" -type f -name '*.mjs' | sort)
+
+      - name: Format, lint, and test generated Rust foundations
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          manifests=(
+            "$RENDER_ROOT/hhaus-interfaces/generated/rust/Cargo.toml"
+            "$RENDER_ROOT/hhaus-lib-core/Cargo.toml"
+            "$RENDER_ROOT/hhaus-orm-core/Cargo.toml"
+            "$RENDER_ROOT/hhaus-clients/clients/rust/Cargo.toml"
+            "$RENDER_ROOT/hhaus-sync/Cargo.toml"
+            "$RENDER_ROOT/hhaus-desktop-app.rs/Cargo.toml"
+            "$RENDER_ROOT/hhaus-lambdas/Cargo.toml"
+          )
+          for manifest in "${manifests[@]}"; do
+            cargo generate-lockfile --manifest-path "$manifest"
+            cargo fmt --all --manifest-path "$manifest"
+            cargo fmt --all --manifest-path "$manifest" -- --check
+            cargo clippy --locked --manifest-path "$manifest" --all-targets --all-features -- -D warnings
+            cargo test --locked --manifest-path "$manifest" --all-features
+          done
+
+      - name: Upload deterministic validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hhaus-standard-fleet-validation-${{ github.run_id }}
+          path: |
+            ${{ steps.render.outputs.result }}
+            ${{ steps.render.outputs.root }}/render-ledger.json
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    name: Create repositories and squash-merge reviewed bootstrap PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out the exact reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Mint an H/HAUS-scoped repository administration token
+        id: token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: hhaus-org
+          permission-administration: write
+          permission-contents: write
+          permission-issues: write
+          permission-metadata: read
+          permission-pull-requests: write
+
+      - name: Publish the exact sealed repository fleet
+        id: publish
+        shell: bash
+        env:
+          HHAUS_REPOSITORY_ADMIN_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          plan="$RUNNER_TEMP/hhaus-plan.json"
+          HHAUS_BOOTSTRAP_MODE=plan \
+          HHAUS_BOOTSTRAP_RESULT_PATH="$plan" \
+            python3 scripts/bootstrap_hhaus_org_fleet_live.py >/dev/null
+          digest="$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1], encoding="utf-8"))["manifest_digest"])' "$plan")"
+          result_root="$RUNNER_TEMP/hhaus-publication"
+          mkdir -p "$result_root"
+          repositories=(
+            hhaus-interfaces
+            hhaus-lib-core
+            hhaus-orm-core
+            hhaus-clients
+            hhaus-sync
+            hhaus-flutter
+            hhaus-desktop-app.rs
+            hhaus-lambdas
+          )
+          for repository in "${repositories[@]}"; do
+            HHAUS_BOOTSTRAP_MODE=apply \
+            HHAUS_REPOSITORY_ADMIN_ENABLED=true \
+            HHAUS_REPOSITORY_ADMIN_ALLOWED_ORGS=hhaus-org \
+            HHAUS_BOOTSTRAP_REPOSITORY="$repository" \
+            HHAUS_BOOTSTRAP_CONFIRM_REPOSITORY="hhaus-org/$repository" \
+            HHAUS_BOOTSTRAP_CONFIRM_MANIFEST_SHA256="$digest" \
+            HHAUS_BOOTSTRAP_MERGE=true \
+            HHAUS_BOOTSTRAP_CONFIRM_MERGE="hhaus-org/$repository@$digest" \
+            HHAUS_BOOTSTRAP_RESULT_PATH="$result_root/$repository.json" \
+              python3 scripts/bootstrap_hhaus_org_fleet_live.py
+          done
+          ledger="$RUNNER_TEMP/hhaus-publication-ledger.json"
+          python3 - "$result_root" "$ledger" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          output = Path(sys.argv[2])
+          records = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(root.glob("*.json"))]
+          value = {"organization": "hhaus-org", "publications": records}
+          output.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+          echo "ledger=$ledger" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize repository publication
+        if: always()
+        shell: bash
+        env:
+          LEDGER: ${{ steps.publish.outputs.ledger }}
+        run: |
+          set -euo pipefail
+          if [[ ! -f "$LEDGER" ]]; then
+            echo '## H/HAUS repository publication did not produce a ledger' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 - "$LEDGER" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          print("## H/HAUS standard repository fleet")
+          print()
+          print("| Repository | Repository action | Publication | Pull request | Merge SHA |")
+          print("|---|---|---|---:|---|")
+          for record in value["publications"]:
+              pull = record.get("pull_request", "-")
+              merge = record.get("merge_sha") or "-"
+              print(
+                  f"| `{record['repository']}` | {record['repository_action']} | "
+                  f"{record['publication_action']} | {pull} | `{merge}` |"
+              )
+          PY
+
+      - name: Upload the publication ledger
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: hhaus-standard-fleet-publication-${{ github.run_id }}
+          path: ${{ steps.publish.outputs.ledger }}
+          retention-days: 30
+          if-no-files-found: warn
