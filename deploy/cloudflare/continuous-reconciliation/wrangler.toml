@@ -1,0 +1,14 @@
+name = "fiducia-continuous-reconciliation"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = false
+
+[triggers]
+crons = ["*/3 * * * *"]
+
+[vars]
+ACTIVATION_MODE = "disabled"
+COORDINATOR_URL = "https://coordinator.example.invalid"
+LOOKBACK_HOURS = "1200"
+OVERLAP_HOURS = "6"
+MAX_WORKERS = "3"

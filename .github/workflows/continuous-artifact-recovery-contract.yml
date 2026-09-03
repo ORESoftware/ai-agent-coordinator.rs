@@ -1,0 +1,132 @@
+name: Continuous artifact recovery contract
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/continuous-artifact-recovery-contract.yml'
+      - 'deploy/cloudflare/continuous-reconciliation/**'
+      - 'deploy/continuous-artifact-recovery/**'
+      - 'docs/continuous-artifact-recovery.md'
+      - 'tools/run_continuous_artifact_recovery.py'
+      - 'tools/run_continuous_artifact_recovery_pool.py'
+      - 'tools/run_continuous_artifact_recovery_worker.py'
+      - 'tests/test_continuous_artifact_recovery.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/continuous-artifact-recovery-contract.yml'
+      - 'deploy/cloudflare/continuous-reconciliation/**'
+      - 'deploy/continuous-artifact-recovery/**'
+      - 'docs/continuous-artifact-recovery.md'
+      - 'tools/run_continuous_artifact_recovery.py'
+      - 'tools/run_continuous_artifact_recovery_pool.py'
+      - 'tools/run_continuous_artifact_recovery_worker.py'
+      - 'tests/test_continuous_artifact_recovery.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: continuous-artifact-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  WORKER_IMAGE: ghcr.io/oresoftware/ai-agent-coordinator-artifact-recovery
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/continuous-artifact-recovery-contract.yml
+      - name: Compile Python entrypoints
+        run: |
+          python3 -m py_compile \
+            tools/run_continuous_artifact_recovery.py \
+            tools/run_continuous_artifact_recovery_pool.py \
+            tools/run_continuous_artifact_recovery_worker.py \
+            tests/test_continuous_artifact_recovery.py
+      - name: Run Python contract tests
+        run: python3 -m unittest -v tests/test_continuous_artifact_recovery.py
+      - name: Run Cloudflare scheduler tests
+        working-directory: deploy/cloudflare/continuous-reconciliation
+        run: node --test test/*.test.js
+      - name: Validate exact three-minute Cron Trigger and disabled source default
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          text = Path('deploy/cloudflare/continuous-reconciliation/wrangler.toml').read_text()
+          assert 'crons = ["*/3 * * * *"]' in text
+          assert 'ACTIVATION_MODE = "disabled"' in text
+          assert 'LOOKBACK_HOURS = "1200"' in text
+          assert 'MAX_WORKERS = "3"' in text
+          PY
+      - name: Reject credential-shaped committed values
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|lin_api_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' \
+            tools/run_continuous_artifact_recovery*.py \
+            deploy/cloudflare/continuous-reconciliation \
+            deploy/continuous-artifact-recovery \
+            docs/continuous-artifact-recovery.md \
+            tests/test_continuous_artifact_recovery.py; then
+            echo 'credential-shaped material is forbidden' >&2
+            exit 1
+          fi
+      - name: Build worker image
+        run: docker build --pull --tag "continuous-artifact-recovery:${GITHUB_SHA}" --file deploy/continuous-artifact-recovery/Dockerfile .
+      - name: Validate worker-count fail-closed boundary in image
+        run: |
+          docker run --rm \
+            --env ARTIFACT_RECOVERY_WORKER_COUNT=3 \
+            "continuous-artifact-recovery:${GITHUB_SHA}" --check-config
+          if docker run --rm \
+            --env ARTIFACT_RECOVERY_WORKER_COUNT=4 \
+            "continuous-artifact-recovery:${GITHUB_SHA}" --check-config; then
+            echo 'worker pool accepted more than three workers' >&2
+            exit 1
+          fi
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Log in to GHCR
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Publish immutable worker image
+        run: |
+          docker buildx create --name continuous-recovery-builder --driver docker-container --use
+          docker buildx inspect --bootstrap
+          docker buildx build \
+            --platform linux/amd64 \
+            --provenance=mode=max \
+            --sbom=true \
+            --push \
+            --file deploy/continuous-artifact-recovery/Dockerfile \
+            --tag "${WORKER_IMAGE}:sha-${GITHUB_SHA}" \
+            --tag "${WORKER_IMAGE}:main" \
+            .

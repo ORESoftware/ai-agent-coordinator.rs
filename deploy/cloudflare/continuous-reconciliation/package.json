@@ -1,0 +1,8 @@
+{
+  "name": "fiducia-continuous-reconciliation",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  }
+}
