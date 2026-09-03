@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+
 def clients_files(manifest: dict[str, Any]) -> dict[str, str]:
     files: dict[str, str] = {
         "language-targets.json": json.dumps(
@@ -69,7 +70,7 @@ def flutter_files() -> dict[str, str]:
 
 
 def desktop_files() -> dict[str, str]:
-    cargo = '''[package]\nname = "hhaus-desktop-app"\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.85"\nlicense = "MIT"\ndescription = "Native Rust desktop application for H/HAUS"\n\n[dependencies]\nslint = { version = "1.13", default-features = false, features = ["compat-1-2", "std", "backend-winit", "renderer-femtovg"] }\n\n[lints.rust]\nunsafe_code = "forbid"\n\n[lints.clippy]\nall = "deny"\npedantic = "deny"\nunwrap_used = "deny"\nexpect_used = "deny"\n'''
+    cargo = '''[package]\nname = "hhaus-desktop-app"\nversion = "0.1.0"\nedition = "2024"\nrust-version = "1.85"\nlicense = "MIT"\ndescription = "Native Rust desktop application for H/HAUS"\n\n[dependencies]\nslint = { version = "1.13", default-features = false, features = ["compat-1-2", "std", "backend-winit", "renderer-femtovg"] }\n# Slint 1.13 reaches tinyvec through a no-default-feature path. Explicitly\n# unify the audited release with `std` so its heap-backed TinyVec code has\n# the standard `vec!` prelude available under current stable Rust.\ntinyvec = { version = "=1.13.0", features = ["std"] }\n\n[lints.rust]\nunsafe_code = "forbid"\n\n[lints.clippy]\nall = "deny"\npedantic = "deny"\nunwrap_used = "deny"\nexpect_used = "deny"\n'''
     main = r'''#![forbid(unsafe_code)]
 
 slint::slint! {
