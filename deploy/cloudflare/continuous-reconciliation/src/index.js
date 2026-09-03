@@ -3,8 +3,12 @@ const MAX_WORKERS = 3;
 const RUN_KEY_PREFIX = "continuous-50-day-reconciliation";
 
 export function parseBoundedInt(value, name, minimum, maximum) {
-  const parsed = Number.parseInt(String(value), 10);
-  if (!Number.isInteger(parsed) || parsed < minimum || parsed > maximum) {
+  const raw = String(value);
+  if (!/^(?:0|[1-9]\d*)$/.test(raw)) {
+    throw new Error(`${name} must be a canonical non-negative integer`);
+  }
+  const parsed = Number(raw);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) {
     throw new Error(`${name} must be between ${minimum} and ${maximum}`);
   }
   return parsed;
