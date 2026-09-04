@@ -88,11 +88,14 @@ jobs:
       - name: Prove closure fails closed while source evidence is incomplete
         shell: bash
         run: |
-          set -uo pipefail
+          set -euo pipefail
           status=0
+          set +e
           python3 scripts/validate_prompt_execution_ledger.py \
             fixtures/prompt-execution-ledger-2026-09-03.json \
-            --mode closure --json > closure-report.json || status=$?
+            --mode closure --json > closure-report.json
+          status=$?
+          set -e
           test "$status" -eq 3
           python3 - <<'PY'
           import json
@@ -106,6 +109,9 @@ jobs:
           ]
           PY
 
-      - name: Require an unchanged tracked worktree
+      - name: Require a clean worktree
         shell: bash
-        run: git diff --exit-code
+        run: |
+          set -euo pipefail
+          rm -f planning-report.json closure-report.json
+          test -z "$(git status --porcelain)"
