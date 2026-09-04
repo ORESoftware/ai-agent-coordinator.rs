@@ -14,10 +14,11 @@ if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
 import prompt_execution_ledger as ledger
+from prompt_execution_ledger_validation import validate
 
 LedgerError = ledger.LedgerError
 load_ledger = ledger.load
-validate_ledger = ledger.validate
+validate_ledger = validate
 canonical_sha256 = ledger.digest
 
 
@@ -32,7 +33,7 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     args = parser().parse_args(argv)
     try:
-        report = ledger.validate(ledger.load(args.ledger), args.mode)
+        report = validate(ledger.load(args.ledger), args.mode)
     except (ledger.LedgerError, OSError) as exc:
         if args.json:
             print(
@@ -46,10 +47,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
         else:
-            print(
-                f"prompt execution ledger validation failed: {exc}",
-                file=sys.stderr,
-            )
+            print(f"prompt execution ledger validation failed: {exc}", file=sys.stderr)
         return 2
     if args.json:
         print(json.dumps(asdict(report), sort_keys=True))
