@@ -1,0 +1,151 @@
+{
+  "schema_version": "portfolio-briefing-lane-manifest/v1",
+  "briefing_id": "portfolio-briefing-2026-09-04",
+  "scheduled_window": {
+    "start": "2026-09-03T07:00:00-04:00",
+    "end": "2026-09-04T07:00:00-04:00",
+    "timezone": "America/New_York"
+  },
+  "policy_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "expected_lanes": [
+    "github",
+    "linear",
+    "google-chat",
+    "inbox",
+    "ci-health",
+    "dependency-risk",
+    "incidents",
+    "opportunities"
+  ],
+  "receipts": [
+    {
+      "lane_id": "github",
+      "status": "success",
+      "observed_at": "2026-09-03T12:00:00-04:00",
+      "producer_commit": "1111111111111111111111111111111111111111",
+      "schema_version": "github-lane/v1",
+      "source_cursor_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "result_sha256": "2111111111111111111111111111111111111111111111111111111111111111",
+      "result_bytes": 480,
+      "item_count": 8,
+      "operation_id": "3111111111111111111111111111111111111111111111111111111111111111",
+      "path_identity": "4111111111111111111111111111111111111111111111111111111111111111",
+      "retained_until": "2026-10-03T12:00:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "linear",
+      "status": "success",
+      "observed_at": "2026-09-03T12:05:00-04:00",
+      "producer_commit": "2222222222222222222222222222222222222222",
+      "schema_version": "linear-lane/v1",
+      "source_cursor_sha256": "1222222222222222222222222222222222222222222222222222222222222222",
+      "result_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "result_bytes": 512,
+      "item_count": 11,
+      "operation_id": "3222222222222222222222222222222222222222222222222222222222222222",
+      "path_identity": "4222222222222222222222222222222222222222222222222222222222222222",
+      "retained_until": "2026-10-03T12:05:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "google-chat",
+      "status": "success",
+      "observed_at": "2026-09-03T12:10:00-04:00",
+      "producer_commit": "3333333333333333333333333333333333333333",
+      "schema_version": "chat-lane/v1",
+      "source_cursor_sha256": "1333333333333333333333333333333333333333333333333333333333333333",
+      "result_sha256": "2333333333333333333333333333333333333333333333333333333333333333",
+      "result_bytes": 390,
+      "item_count": 6,
+      "operation_id": "3333333333333333333333333333333333333333333333333333333333333333",
+      "path_identity": "4333333333333333333333333333333333333333333333333333333333333333",
+      "retained_until": "2026-10-03T12:10:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "inbox",
+      "status": "no_results",
+      "observed_at": "2026-09-03T12:15:00-04:00",
+      "producer_commit": "4444444444444444444444444444444444444444",
+      "schema_version": "inbox-lane/v1",
+      "source_cursor_sha256": "1444444444444444444444444444444444444444444444444444444444444444",
+      "result_sha256": "2444444444444444444444444444444444444444444444444444444444444444",
+      "result_bytes": 2,
+      "item_count": 0,
+      "operation_id": "3444444444444444444444444444444444444444444444444444444444444444",
+      "path_identity": "4444444444444444444444444444444444444444444444444444444444444444",
+      "retained_until": "2026-10-03T12:15:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "ci-health",
+      "status": "success",
+      "observed_at": "2026-09-03T12:20:00-04:00",
+      "producer_commit": "5555555555555555555555555555555555555555",
+      "schema_version": "ci-health-lane/v1",
+      "source_cursor_sha256": "1555555555555555555555555555555555555555555555555555555555555555",
+      "result_sha256": "2555555555555555555555555555555555555555555555555555555555555555",
+      "result_bytes": 610,
+      "item_count": 9,
+      "operation_id": "3555555555555555555555555555555555555555555555555555555555555555",
+      "path_identity": "4555555555555555555555555555555555555555555555555555555555555555",
+      "retained_until": "2026-10-03T12:20:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "dependency-risk",
+      "status": "success",
+      "observed_at": "2026-09-03T12:25:00-04:00",
+      "producer_commit": "6666666666666666666666666666666666666666",
+      "schema_version": "dependency-risk-lane/v1",
+      "source_cursor_sha256": "1666666666666666666666666666666666666666666666666666666666666666",
+      "result_sha256": "2666666666666666666666666666666666666666666666666666666666666666",
+      "result_bytes": 330,
+      "item_count": 4,
+      "operation_id": "3666666666666666666666666666666666666666666666666666666666666666",
+      "path_identity": "4666666666666666666666666666666666666666666666666666666666666666",
+      "retained_until": "2026-10-03T12:25:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "incidents",
+      "status": "no_results",
+      "observed_at": "2026-09-03T12:30:00-04:00",
+      "producer_commit": "7777777777777777777777777777777777777777",
+      "schema_version": "incident-lane/v1",
+      "source_cursor_sha256": "1777777777777777777777777777777777777777777777777777777777777777",
+      "result_sha256": "2777777777777777777777777777777777777777777777777777777777777777",
+      "result_bytes": 2,
+      "item_count": 0,
+      "operation_id": "3777777777777777777777777777777777777777777777777777777777777777",
+      "path_identity": "4777777777777777777777777777777777777777777777777777777777777777",
+      "retained_until": "2026-10-03T12:30:00-04:00",
+      "reason_code": null
+    },
+    {
+      "lane_id": "opportunities",
+      "status": "success",
+      "observed_at": "2026-09-03T12:35:00-04:00",
+      "producer_commit": "8888888888888888888888888888888888888888",
+      "schema_version": "opportunity-lane/v1",
+      "source_cursor_sha256": "1888888888888888888888888888888888888888888888888888888888888888",
+      "result_sha256": "2888888888888888888888888888888888888888888888888888888888888888",
+      "result_bytes": 450,
+      "item_count": 7,
+      "operation_id": "3888888888888888888888888888888888888888888888888888888888888888",
+      "path_identity": "4888888888888888888888888888888888888888888888888888888888888888",
+      "retained_until": "2026-10-03T12:35:00-04:00",
+      "reason_code": null
+    }
+  ],
+  "safety": {
+    "contains_source_payloads": false,
+    "contains_credentials": false,
+    "delivery_authorized": false,
+    "notes": [
+      "The fixture contains normalized metadata and content-free digests only.",
+      "Lane validation cannot send or deliver a briefing."
+    ]
+  }
+}
