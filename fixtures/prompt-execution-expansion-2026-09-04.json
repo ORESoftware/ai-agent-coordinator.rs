@@ -1,0 +1,152 @@
+{
+  "schema_version": "prompt-execution-expansion/v1",
+  "expansion_id": "alex-alex-me-execution-expansion-2026-09-04",
+  "generated_at": "2026-09-04T12:30:00-04:00",
+  "base": {
+    "ledger_id": "alex-alex-me-execution-2026-09-03",
+    "ledger_sha256": "e2ea566eb781b3a7174be4ec2ab06f5c5cb6c4c2047375d9ca541264952117c1",
+    "workstream_count": 15,
+    "source_pr": "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/207"
+  },
+  "added_workstreams": [
+    {
+      "id": "dependency-risk-enforcement",
+      "title": "Finish deterministic dependency-risk enforcement and exact-head canaries",
+      "priority": "high",
+      "status": "active",
+      "linear_anchors": [
+        "DEN-3449"
+      ],
+      "github_anchors": [
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/208",
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/182"
+      ],
+      "acceptance_checks": [
+        "Keep classification deterministic and free of filesystem, network, process, clock, environment, or package-manager execution.",
+        "Bind immutable collection evidence, candidate head, advisory snapshot, and policy digest to one exact-head receipt.",
+        "Run isolated canaries for lifecycle hooks, native builds, binary downloads, new registries, checksum loss, and graph changes."
+      ],
+      "depends_on": [
+        "role-scoped-agent-identity",
+        "prod-test-topology"
+      ],
+      "safety_boundary": "The classifier cannot authorize merge or execute dependency code; autoMergeAuthorized remains false."
+    },
+    {
+      "id": "daily-briefing-failure-atomicity",
+      "title": "Preserve daily-briefing transactional failure atomicity and exactly-once delivery",
+      "priority": "high",
+      "status": "active",
+      "linear_anchors": [
+        "DEN-2466",
+        "DEN-2334",
+        "DEN-2333",
+        "DEN-824"
+      ],
+      "github_anchors": [
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/209"
+      ],
+      "acceptance_checks": [
+        "Convert every error-prone transition to validate-then-commit or transactional compare-and-swap behavior.",
+        "Prove no partial durable mutation under stale fencing, invalid receipts, storage failure, or destination failure.",
+        "Reconcile crash-before-send and crash-after-send-before-receipt without duplicate delivery."
+      ],
+      "depends_on": [
+        "role-scoped-agent-identity",
+        "artifact-reconciliation"
+      ],
+      "safety_boundary": "No live briefing or outbound message delivery is enabled; deterministic local adapters are required."
+    },
+    {
+      "id": "zed-package-quartet-e2e",
+      "title": "Clear Zed package-quartet and mixed-submodule clean-consumer blockers",
+      "priority": "high",
+      "status": "active",
+      "linear_anchors": [
+        "DEN-2060"
+      ],
+      "github_anchors": [
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/210",
+        "https://github.com/zed-pkg/zed-cli/issues/173"
+      ],
+      "acceptance_checks": [
+        "Resolve clients, library, interfaces, and CLI packages through immutable Zed metadata and lockfiles.",
+        "Prove deterministic install, restore, offline reuse, uninstall, downgrade, and recursive-submodule behavior.",
+        "Compile and execute clean Rust, TypeScript, Dart, Go, and native consumers with no local-path leakage."
+      ],
+      "depends_on": [
+        "zed-package-tranche",
+        "prod-test-topology"
+      ],
+      "safety_boundary": "Infrastructure repositories remain outside monorepo submodules and private registry data stays redacted."
+    },
+    {
+      "id": "fabrication-recovery-protocol",
+      "title": "Add resumable fabrication checkpoints, fenced recovery, and JetStream DLQ policy",
+      "priority": "urgent",
+      "status": "queued",
+      "linear_anchors": [
+        "DEN-2527",
+        "DEN-2528",
+        "DEN-2529",
+        "DEN-2525"
+      ],
+      "github_anchors": [
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/211"
+      ],
+      "acceptance_checks": [
+        "Persist stage checkpoints, provider task IDs, and artifact references before polling or advancement.",
+        "ACK JetStream only after PostgreSQL commit and reject every stale fencing-token write.",
+        "Pass destructive crash, redelivery, lease-expiry, database-failure, duplicate-delivery, and DLQ recovery tests."
+      ],
+      "depends_on": [
+        "lifecycle-shutdown-contract",
+        "prod-test-topology",
+        "role-scoped-agent-identity"
+      ],
+      "safety_boundary": "No production worker or provider call is activated; destructive scenarios run only in isolated test infrastructure."
+    },
+    {
+      "id": "portfolio-release-certification",
+      "title": "Build the live capability catalog and immutable portfolio release gate",
+      "priority": "urgent",
+      "status": "queued",
+      "linear_anchors": [
+        "DEN-2354",
+        "DEN-2362",
+        "DEN-2371",
+        "DEN-2353"
+      ],
+      "github_anchors": [
+        "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/212"
+      ],
+      "acceptance_checks": [
+        "Map every production capability to exact implementation heads, independent tests, maturity, and blockers.",
+        "Freeze one manifest spanning services, interfaces, SDKs, packages, migrations, configuration, topology, and artifacts.",
+        "Execute L4 independent and L5 destructive, security, scale, and recovery lanes in dependency order.",
+        "Publish a go, hold, or stop decision that fails closed on mutable references, stale evidence, missing lanes, or excess flake."
+      ],
+      "depends_on": [
+        "dependency-risk-enforcement",
+        "daily-briefing-failure-atomicity",
+        "zed-package-quartet-e2e",
+        "fabrication-recovery-protocol",
+        "prod-test-topology",
+        "cross-language-client-parity",
+        "shared-auth-consumer-rollout"
+      ],
+      "safety_boundary": "Certification is read-only and cannot deploy, migrate data, rotate keys, or enroll real users."
+    }
+  ],
+  "safety": {
+    "contains_raw_messages": false,
+    "contains_credentials": false,
+    "live_mutations_authorized": false,
+    "merge_authorized": false,
+    "notes": [
+      "The expansion references only public issue and pull-request identifiers, Linear identifiers, bounded acceptance criteria, and safety boundaries.",
+      "The five added workstreams supplement the fifteen-workstream base ledger without changing its source-completeness claim.",
+      "Every repository mutation still requires its own exact-head checks, review policy, and repository instructions."
+    ]
+  }
+}
