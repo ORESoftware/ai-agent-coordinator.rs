@@ -1,0 +1,160 @@
+name: Digest provenance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/digest-provenance.yml'
+      - 'docs/digest-provenance.md'
+      - 'fixtures/opportunity-digest-v1.json'
+      - 'fixtures/research-digest-v1.json'
+      - 'scripts/digest_provenance.py'
+      - 'scripts/test_digest_provenance.py'
+      - 'scripts/validate_digest_provenance.py'
+  pull_request:
+    paths:
+      - '.github/workflows/digest-provenance.yml'
+      - 'docs/digest-provenance.md'
+      - 'fixtures/opportunity-digest-v1.json'
+      - 'fixtures/research-digest-v1.json'
+      - 'scripts/digest_provenance.py'
+      - 'scripts/test_digest_provenance.py'
+      - 'scripts/validate_digest_provenance.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/digest-provenance.yml
+
+      - name: Compile validators and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/digest_provenance.py \
+            scripts/validate_digest_provenance.py \
+            scripts/test_digest_provenance.py
+
+      - name: Run adversarial unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_digest_provenance.py
+
+      - name: Verify opportunity and research fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_digest_provenance.py \
+            fixtures/opportunity-digest-v1.json \
+            --expect-kind opportunity --json > opportunity-report.json
+          python3 scripts/validate_digest_provenance.py \
+            fixtures/research-digest-v1.json \
+            --expect-kind research --json > research-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          opportunity = json.loads(
+              Path('opportunity-report.json').read_text(encoding='utf-8')
+          )
+          research = json.loads(
+              Path('research-report.json').read_text(encoding='utf-8')
+          )
+          assert opportunity['valid'] is True
+          assert opportunity['digest_kind'] == 'opportunity'
+          assert opportunity['item_count'] == 4
+          assert opportunity['company_count'] == 2
+          assert opportunity['fiducia_company_count'] == 1
+          assert re.fullmatch(r'[0-9a-f]{64}', opportunity['digest_sha256'])
+          assert research['valid'] is True
+          assert research['digest_kind'] == 'research'
+          assert research['item_count'] == 3
+          assert re.fullmatch(r'[0-9a-f]{64}', research['digest_sha256'])
+          PY
+
+      - name: Prove unofficial jobs and withdrawn research fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          opportunity = json.loads(
+              Path('fixtures/opportunity-digest-v1.json').read_text(encoding='utf-8')
+          )
+          opportunity['items'][0]['source_kind'] = 'job_aggregator'
+          Path('invalid-opportunity.json').write_text(
+              json.dumps(opportunity, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          research = json.loads(
+              Path('fixtures/research-digest-v1.json').read_text(encoding='utf-8')
+          )
+          research['items'][0]['status'] = 'withdrawn'
+          Path('invalid-research.json').write_text(
+              json.dumps(research, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+          opportunity_status=0
+          research_status=0
+          set +e
+          python3 scripts/validate_digest_provenance.py \
+            invalid-opportunity.json --expect-kind opportunity --json \
+            > invalid-opportunity-report.json
+          opportunity_status=$?
+          python3 scripts/validate_digest_provenance.py \
+            invalid-research.json --expect-kind research --json \
+            > invalid-research-report.json
+          research_status=$?
+          set -e
+          test "$opportunity_status" -eq 3
+          test "$research_status" -eq 3
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          opportunity = json.loads(
+              Path('invalid-opportunity-report.json').read_text(encoding='utf-8')
+          )
+          research = json.loads(
+              Path('invalid-research-report.json').read_text(encoding='utf-8')
+          )
+          assert opportunity['valid'] is False
+          assert any('official first-party source' in error for error in opportunity['errors'])
+          assert research['valid'] is False
+          assert any('status must be active' in error for error in research['errors'])
+          PY
+
+      - name: Require a clean tracked worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            opportunity-report.json research-report.json \
+            invalid-opportunity.json invalid-research.json \
+            invalid-opportunity-report.json invalid-research-report.json
+          test -z "$(git status --porcelain)"
