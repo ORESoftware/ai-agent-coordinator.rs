@@ -1,0 +1,853 @@
+{
+  "schema_version": "fabrication-recovery-fixture/v1",
+  "scenarios": [
+    {
+      "id": "normal-complete-and-ack",
+      "initial": {
+        "job_id": "fabrication-job-001",
+        "message_id": "fabrication.message.001",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 2,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": "5555555555555555555555555555555555555555555555555555555555555555"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "complete",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "final_artifact_digest": "6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "completed",
+      "expected_acked": true
+    },
+    {
+      "id": "crash-resume-from-checkpoint",
+      "initial": {
+        "job_id": "fabrication-job-002",
+        "message_id": "fabrication.message.002",
+        "max_deliveries": 4
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 10,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 10,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 11,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "delivery_count": 2
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 11,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "sequence": 2,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": "5555555555555555555555555555555555555555555555555555555555555555"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "complete",
+            "fence": 11,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "final_artifact_digest": "6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "completed",
+      "expected_acked": true
+    },
+    {
+      "id": "stale-writer-rejected-after-takeover",
+      "initial": {
+        "job_id": "fabrication-job-003",
+        "message_id": "fabrication.message.003",
+        "max_deliveries": 4
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 2,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "delivery_count": 2
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 2,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "stale or non-owning"
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 2,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "sequence": 2,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "running",
+      "expected_acked": false
+    },
+    {
+      "id": "duplicate-checkpoint-is-idempotent",
+      "initial": {
+        "job_id": "fabrication-job-004",
+        "message_id": "fabrication.message.004",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": false,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "running",
+      "expected_acked": false
+    },
+    {
+      "id": "conflicting-checkpoint-is-atomic",
+      "initial": {
+        "job_id": "fabrication-job-005",
+        "message_id": "fabrication.message.005",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "conflicts with durable data"
+        }
+      ],
+      "expected_final_phase": "running",
+      "expected_acked": false
+    },
+    {
+      "id": "checkpoint-skip-is-atomic",
+      "initial": {
+        "job_id": "fabrication-job-006",
+        "message_id": "fabrication.message.006",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 2,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "advance by exactly one"
+        }
+      ],
+      "expected_final_phase": "running",
+      "expected_acked": false
+    },
+    {
+      "id": "retryable-failure-resumes",
+      "initial": {
+        "job_id": "fabrication-job-007",
+        "message_id": "fabrication.message.007",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "fail",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "failure_code": "provider_timeout",
+            "retryable": true
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 2,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "delivery_count": 2
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 2,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "sequence": 2,
+            "checkpoint_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+            "provider_task_digest": "3333333333333333333333333333333333333333333333333333333333333333",
+            "artifact_ref_digest": "5555555555555555555555555555555555555555555555555555555555555555"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "complete",
+            "fence": 2,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "final_artifact_digest": "6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "completed",
+      "expected_acked": true
+    },
+    {
+      "id": "nonretryable-failure-enters-dlq",
+      "initial": {
+        "job_id": "fabrication-job-008",
+        "message_id": "fabrication.message.008",
+        "max_deliveries": 5
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "fail",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "failure_code": "invalid_provider_result",
+            "retryable": false
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "dead_letter",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "dlq_digest": "8888888888888888888888888888888888888888888888888888888888888888"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "dead-lettered",
+      "expected_acked": true
+    },
+    {
+      "id": "max-delivery-retryable-failure-enters-dlq",
+      "initial": {
+        "job_id": "fabrication-job-009",
+        "message_id": "fabrication.message.009",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 9,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 3
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "fail",
+            "fence": 9,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "failure_code": "transient_provider_failure",
+            "retryable": true
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "dead_letter",
+            "fence": 9,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "dlq_digest": "8888888888888888888888888888888888888888888888888888888888888888"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "dead-lettered",
+      "expected_acked": true
+    },
+    {
+      "id": "early-dlq-is-rejected",
+      "initial": {
+        "job_id": "fabrication-job-010",
+        "message_id": "fabrication.message.010",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "fail",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "failure_code": "transient_provider_failure",
+            "retryable": true
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "dead_letter",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "dlq_digest": "8888888888888888888888888888888888888888888888888888888888888888"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "before max deliveries"
+        }
+      ],
+      "expected_final_phase": "failed",
+      "expected_acked": false
+    },
+    {
+      "id": "ack-before-terminal-is-rejected",
+      "initial": {
+        "job_id": "fabrication-job-011",
+        "message_id": "fabrication.message.011",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "9999999999999999999999999999999999999999999999999999999999999999"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "terminal digest requires"
+        }
+      ],
+      "expected_final_phase": "running",
+      "expected_acked": false
+    },
+    {
+      "id": "wrong-terminal-digest-is-rejected",
+      "initial": {
+        "job_id": "fabrication-job-012",
+        "message_id": "fabrication.message.012",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "complete",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "final_artifact_digest": "6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "9999999999999999999999999999999999999999999999999999999999999999"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "does not match"
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": false,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "completed",
+      "expected_acked": true
+    },
+    {
+      "id": "terminal-job-cannot-be-reclaimed",
+      "initial": {
+        "job_id": "fabrication-job-013",
+        "message_id": "fabrication.message.013",
+        "max_deliveries": 3
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "delivery_count": 1
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "checkpoint",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "sequence": 1,
+            "checkpoint_digest": "2222222222222222222222222222222222222222222222222222222222222222",
+            "provider_task_digest": null,
+            "artifact_ref_digest": null
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "complete",
+            "fence": 1,
+            "worker_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+            "final_artifact_digest": "6666666666666666666666666666666666666666666666666666666666666666"
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 2,
+            "worker_digest": "7777777777777777777777777777777777777777777777777777777777777777",
+            "delivery_count": 2
+          },
+          "terminal_digest_from_state": false,
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "terminal job cannot be reclaimed"
+        },
+        {
+          "command": {
+            "kind": "ack",
+            "terminal_digest": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "terminal_digest_from_state": true,
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "completed",
+      "expected_acked": true
+    }
+  ]
+}
