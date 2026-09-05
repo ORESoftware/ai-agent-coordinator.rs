@@ -1,0 +1,119 @@
+name: Portfolio release manifest
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/portfolio-release-manifest.yml'
+      - 'docs/portfolio-release-manifest.md'
+      - 'fixtures/portfolio-release-manifest-*.json'
+      - 'scripts/portfolio_release_manifest.py'
+      - 'scripts/test_portfolio_release_manifest.py'
+  pull_request:
+    paths:
+      - '.github/workflows/portfolio-release-manifest.yml'
+      - 'docs/portfolio-release-manifest.md'
+      - 'fixtures/portfolio-release-manifest-*.json'
+      - 'scripts/portfolio_release_manifest.py'
+      - 'scripts/test_portfolio_release_manifest.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/portfolio-release-manifest.yml
+
+      - name: Compile validator and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/portfolio_release_manifest.py \
+            scripts/test_portfolio_release_manifest.py
+
+      - name: Run adversarial and reachable-closure tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_portfolio_release_manifest.py
+
+      - name: Verify the checked-in planning receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/portfolio_release_manifest.py \
+            fixtures/portfolio-release-manifest-2026-09-04.json \
+            --mode planning --json > planning-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          report = json.loads(Path("planning-report.json").read_text(encoding="utf-8"))
+          assert report["valid"] is True
+          assert report["closure_ready"] is False
+          assert report["repository_count"] == 5
+          assert report["capability_count"] == 5
+          assert report["artifact_count"] == 5
+          assert report["lane_count"] == 8
+          assert re.fullmatch(r"[0-9a-f]{64}", report["manifest_sha256"])
+          assert report["errors"] == []
+          assert report["warnings"]
+          PY
+
+      - name: Prove the planning fixture fails closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          status=0
+          set +e
+          python3 scripts/portfolio_release_manifest.py \
+            fixtures/portfolio-release-manifest-2026-09-04.json \
+            --mode closure --json > closure-report.json
+          status=$?
+          set -e
+          test "$status" -eq 3
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path("closure-report.json").read_text(encoding="utf-8"))
+          assert report["valid"] is False
+          assert report["closure_ready"] is False
+          assert any(
+              error == "closure: catalog_complete must be true"
+              for error in report["errors"]
+          )
+          assert any(
+              error == "closure: decision must be approved go"
+              for error in report["errors"]
+          )
+          PY
+
+      - name: Require a clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f planning-report.json closure-report.json
+          test -z "$(git status --porcelain)"
