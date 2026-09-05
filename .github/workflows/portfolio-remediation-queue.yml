@@ -1,0 +1,126 @@
+name: Portfolio remediation queue
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/portfolio-remediation-queue.yml'
+      - 'docs/portfolio-remediation-queue.md'
+      - 'docs/twenty-workstream-execution-2026-09-04.md'
+      - 'fixtures/portfolio-remediation-queue-v1.json'
+      - 'scripts/portfolio_remediation_queue.py'
+      - 'scripts/test_portfolio_remediation_queue.py'
+      - 'scripts/validate_portfolio_remediation_queue.py'
+  pull_request:
+    paths:
+      - '.github/workflows/portfolio-remediation-queue.yml'
+      - 'docs/portfolio-remediation-queue.md'
+      - 'docs/twenty-workstream-execution-2026-09-04.md'
+      - 'fixtures/portfolio-remediation-queue-v1.json'
+      - 'scripts/portfolio_remediation_queue.py'
+      - 'scripts/test_portfolio_remediation_queue.py'
+      - 'scripts/validate_portfolio_remediation_queue.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/portfolio-remediation-queue.yml
+
+      - name: Compile validator and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/portfolio_remediation_queue.py \
+            scripts/validate_portfolio_remediation_queue.py \
+            scripts/test_portfolio_remediation_queue.py
+
+      - name: Run adversarial unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_portfolio_remediation_queue.py
+
+      - name: Verify the synthetic remediation queue
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_portfolio_remediation_queue.py \
+            fixtures/portfolio-remediation-queue-v1.json \
+            --json > queue-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          report = json.loads(Path('queue-report.json').read_text(encoding='utf-8'))
+          assert report['valid'] is True
+          assert report['repository_count'] == 5
+          assert report['finding_count'] == 7
+          assert report['actionable_count'] == 5
+          assert report['blocked_count'] == 1
+          assert report['noop_count'] == 2
+          assert re.fullmatch(r'[0-9a-f]{64}', report['queue_sha256'])
+          PY
+
+      - name: Prove apply authority and duplicate tracking fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path('fixtures/portfolio-remediation-queue-v1.json')
+          queue = json.loads(source.read_text(encoding='utf-8'))
+          queue['findings'][0]['remediation']['apply_authorized'] = True
+          queue['findings'][1]['linear_anchor'] = queue['findings'][0]['linear_anchor']
+          Path('invalid-queue.json').write_text(
+              json.dumps(queue, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+          status=0
+          set +e
+          python3 scripts/validate_portfolio_remediation_queue.py \
+            invalid-queue.json --json > invalid-report.json
+          status=$?
+          set -e
+          test "$status" -eq 3
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('invalid-report.json').read_text(encoding='utf-8'))
+          assert report['valid'] is False
+          assert any('apply_authorized must be false' in error for error in report['errors'])
+          assert any('shared by non-duplicate findings' in error for error in report['errors'])
+          PY
+
+      - name: Require a clean tracked worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f queue-report.json invalid-queue.json invalid-report.json
+          test -z "$(git status --porcelain)"
