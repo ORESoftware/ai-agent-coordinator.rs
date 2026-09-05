@@ -18,6 +18,7 @@ use crate::daily_portfolio_delivery::{
     DeliveryState, DeliveryStateError, DeliveryStatus, DestinationReceipt, LeaseToken,
     MutationOutcome, PlanOutcome, PlanSpec, RunMode, ScheduledBaseline,
 };
+use crate::db::is_serialization_failure;
 
 const MAX_LEASE_SECONDS: i64 = 3_600;
 const MAX_IDENTIFIER_BYTES: usize = 256;
@@ -565,13 +566,6 @@ impl DailyPortfolioDeliveryStore {
         transaction.commit().await?;
         Ok(MutationOutcome::Applied)
     }
-}
-
-fn is_serialization_failure(error: &anyhow::Error) -> bool {
-    error.chain().any(|cause| {
-        let message = cause.to_string().to_ascii_lowercase();
-        message.contains("could not serialize access") || message.contains("sqlstate 40001")
-    })
 }
 
 async fn serializable(connection: &DatabaseConnection) -> Result<DatabaseTransaction> {

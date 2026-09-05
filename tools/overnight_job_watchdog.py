@@ -162,6 +162,7 @@ def load_catalog(path: str) -> list[dict[str, Any]]:
             ("terminal_artifact_prefix", 160),
             ("report_artifact_prefix", 160),
             ("terminal_receipt_file", 160),
+            ("terminal_receipt_schema", 160),
             ("report_ledger_file", 160),
             ("report_markdown_file", 160),
         ):
@@ -454,7 +455,7 @@ def validate_evidence(
     report_artifact_name: str,
 ) -> dict[str, Any]:
     receipt = _read_json(terminal_receipt, "terminal receipt")
-    if receipt.get("schema_version") != "recent_chat_reconciliation_receipt.v1":
+    if receipt.get("schema_version") != entry["terminal_receipt_schema"]:
         raise WatchdogError("unsupported terminal receipt schema")
     supplied = _digest(receipt.get("receipt_sha256"), "receipt.receipt_sha256")
     unsigned = dict(receipt)
@@ -725,6 +726,12 @@ def _fixture_receipt() -> dict[str, Any]:
 
 def emit_fixtures(args: argparse.Namespace) -> int:
     entry = select_entry(load_catalog(args.catalog), args.job_id)
+    if entry["terminal_receipt_schema"] != "recent_chat_reconciliation_receipt.v1":
+        # _fixture_receipt models one job's receipt shape. Refuse rather than
+        # emit a fixture that would not survive validate_evidence.
+        raise WatchdogError(
+            f"no fixture receipt is modelled for job {entry['id']!r}"
+        )
     run_id, attempt = 42, 1
     terminal_name = f"{entry['terminal_artifact_prefix']}{run_id}-{attempt}"
     report_name = f"{entry['report_artifact_prefix']}{run_id}-{attempt}"

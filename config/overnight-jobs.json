@@ -14,6 +14,24 @@
       "terminal_artifact_prefix": "recent-chat-reconciliation-terminal-",
       "report_artifact_prefix": "recent-chat-reconciliation-report-",
       "terminal_receipt_file": "recent-chat-reconciliation-terminal.json",
+      "terminal_receipt_schema": "recent_chat_reconciliation_receipt.v1",
+      "report_ledger_file": "run-ledger.json",
+      "report_markdown_file": "report.md"
+    },
+    {
+      "id": "nightly-artifact-recovery",
+      "workflow": "nightly-artifact-recovery.yml",
+      "branch": "main",
+      "timezone": "America/New_York",
+      "local_time": "00:37",
+      "max_dispatch_delay_minutes": 240,
+      "settlement_minutes": 310,
+      "execution_job": "enqueue-and-verify",
+      "run_key_prefix": "artifact-recovery",
+      "terminal_artifact_prefix": "artifact-recovery-terminal-",
+      "report_artifact_prefix": "nightly-artifact-recovery-report-",
+      "terminal_receipt_file": "artifact-recovery-terminal-receipt.json",
+      "terminal_receipt_schema": "artifact_recovery_schedule_receipt.v1",
       "report_ledger_file": "run-ledger.json",
       "report_markdown_file": "report.md"
     }
