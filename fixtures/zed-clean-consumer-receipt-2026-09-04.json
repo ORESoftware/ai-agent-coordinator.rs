@@ -1,0 +1,289 @@
+{
+  "schema_version": "zed-clean-consumer-receipt/v1",
+  "receipt_id": "zed-package-quartet-candidate-2026-09-04",
+  "generated_at": "2026-09-04T13:15:00-04:00",
+  "packages": [
+    {
+      "id": "quartet-clients",
+      "role": "clients",
+      "version": "0.2.0",
+      "repository": "https://github.com/zed-pkg/zed-clients",
+      "commit": "1111111111111111111111111111111111111111",
+      "manifest_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "lock_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "artifact_sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+      "registry": "zed",
+      "status": "verified"
+    },
+    {
+      "id": "quartet-library",
+      "role": "library",
+      "version": "0.2.0",
+      "repository": "https://github.com/zed-pkg/zed-lib",
+      "commit": null,
+      "manifest_sha256": null,
+      "lock_sha256": null,
+      "artifact_sha256": null,
+      "registry": "zed",
+      "status": "planned"
+    },
+    {
+      "id": "quartet-interfaces",
+      "role": "interfaces",
+      "version": "0.2.0",
+      "repository": "https://github.com/zed-pkg/zed-interfaces",
+      "commit": null,
+      "manifest_sha256": null,
+      "lock_sha256": null,
+      "artifact_sha256": null,
+      "registry": "zed",
+      "status": "planned"
+    },
+    {
+      "id": "quartet-cli",
+      "role": "cli",
+      "version": "0.2.0",
+      "repository": "https://github.com/zed-pkg/zed-cli",
+      "commit": null,
+      "manifest_sha256": null,
+      "lock_sha256": null,
+      "artifact_sha256": null,
+      "registry": "zed",
+      "status": "blocked"
+    }
+  ],
+  "submodules": [
+    {
+      "id": "protocol-fixtures",
+      "path": ".vendor/protocol-fixtures",
+      "repository": "https://github.com/zed-pkg-test/protocol-fixtures",
+      "commit": null,
+      "recursive": true,
+      "role": "test",
+      "status": "planned"
+    },
+    {
+      "id": "native-helper",
+      "path": ".vendor/native-helper",
+      "repository": "https://github.com/zed-pkg-test/native-helper",
+      "commit": null,
+      "recursive": true,
+      "role": "tooling",
+      "status": "planned"
+    }
+  ],
+  "consumers": [
+    {
+      "id": "rust-clean-consumer",
+      "language": "rust",
+      "status": "planned",
+      "clean_checkout": true,
+      "local_path_dependencies": false,
+      "monorepo_leakage": false,
+      "compiled": false,
+      "executed": false,
+      "package_ids": [
+        "quartet-clients",
+        "quartet-library",
+        "quartet-interfaces",
+        "quartet-cli"
+      ],
+      "submodule_ids": [
+        "protocol-fixtures",
+        "native-helper"
+      ],
+      "evidence_sha256": null
+    },
+    {
+      "id": "typescript-clean-consumer",
+      "language": "typescript",
+      "status": "planned",
+      "clean_checkout": true,
+      "local_path_dependencies": false,
+      "monorepo_leakage": false,
+      "compiled": false,
+      "executed": false,
+      "package_ids": [
+        "quartet-clients",
+        "quartet-library",
+        "quartet-interfaces",
+        "quartet-cli"
+      ],
+      "submodule_ids": [
+        "protocol-fixtures"
+      ],
+      "evidence_sha256": null
+    },
+    {
+      "id": "dart-clean-consumer",
+      "language": "dart",
+      "status": "planned",
+      "clean_checkout": true,
+      "local_path_dependencies": false,
+      "monorepo_leakage": false,
+      "compiled": false,
+      "executed": false,
+      "package_ids": [
+        "quartet-clients",
+        "quartet-library",
+        "quartet-interfaces",
+        "quartet-cli"
+      ],
+      "submodule_ids": [
+        "protocol-fixtures"
+      ],
+      "evidence_sha256": null
+    },
+    {
+      "id": "go-clean-consumer",
+      "language": "go",
+      "status": "planned",
+      "clean_checkout": true,
+      "local_path_dependencies": false,
+      "monorepo_leakage": false,
+      "compiled": false,
+      "executed": false,
+      "package_ids": [
+        "quartet-clients",
+        "quartet-library",
+        "quartet-interfaces",
+        "quartet-cli"
+      ],
+      "submodule_ids": [
+        "protocol-fixtures"
+      ],
+      "evidence_sha256": null
+    },
+    {
+      "id": "native-clean-consumer",
+      "language": "native",
+      "status": "blocked",
+      "clean_checkout": true,
+      "local_path_dependencies": false,
+      "monorepo_leakage": false,
+      "compiled": false,
+      "executed": false,
+      "package_ids": [
+        "quartet-clients",
+        "quartet-library",
+        "quartet-interfaces",
+        "quartet-cli"
+      ],
+      "submodule_ids": [
+        "native-helper"
+      ],
+      "evidence_sha256": null
+    }
+  ],
+  "operations": [
+    {
+      "id": "clean-install",
+      "kind": "install",
+      "status": "planned",
+      "offline": false,
+      "concurrent": false,
+      "evidence_sha256": null,
+      "blockers": [
+        "quartet-not-fully-published"
+      ]
+    },
+    {
+      "id": "locked-restore",
+      "kind": "restore",
+      "status": "planned",
+      "offline": false,
+      "concurrent": false,
+      "evidence_sha256": null,
+      "blockers": [
+        "lockfile-byte-identity-not-certified"
+      ]
+    },
+    {
+      "id": "offline-cache-reuse",
+      "kind": "offline-reuse",
+      "status": "planned",
+      "offline": true,
+      "concurrent": false,
+      "evidence_sha256": null,
+      "blockers": [
+        "offline-cache-proof-missing"
+      ]
+    },
+    {
+      "id": "clean-uninstall",
+      "kind": "uninstall",
+      "status": "planned",
+      "offline": false,
+      "concurrent": false,
+      "evidence_sha256": null,
+      "blockers": [
+        "recursive-submodule-cleanup-unverified"
+      ]
+    },
+    {
+      "id": "version-downgrade",
+      "kind": "downgrade",
+      "status": "planned",
+      "offline": false,
+      "concurrent": false,
+      "evidence_sha256": null,
+      "blockers": [
+        "previous-version-fixture-not-frozen"
+      ]
+    },
+    {
+      "id": "contention-install",
+      "kind": "concurrent-install",
+      "status": "planned",
+      "offline": false,
+      "concurrent": true,
+      "evidence_sha256": null,
+      "blockers": [
+        "cross-process-contention-not-certified"
+      ]
+    }
+  ],
+  "graph_edges": [
+    {
+      "from": "quartet-cli",
+      "to": "quartet-clients",
+      "kind": "package-dependency"
+    },
+    {
+      "from": "quartet-clients",
+      "to": "quartet-library",
+      "kind": "package-dependency"
+    },
+    {
+      "from": "quartet-library",
+      "to": "quartet-interfaces",
+      "kind": "package-dependency"
+    },
+    {
+      "from": "quartet-cli",
+      "to": "protocol-fixtures",
+      "kind": "git-submodule"
+    },
+    {
+      "from": "quartet-library",
+      "to": "native-helper",
+      "kind": "git-submodule"
+    }
+  ],
+  "blockers": [
+    "quartet-release-incomplete",
+    "clean-consumer-execution-incomplete",
+    "mixed-submodule-operations-incomplete"
+  ],
+  "safety": {
+    "contains_credentials": false,
+    "production_registry_mutation_authorized": false,
+    "repository_creation_authorized": false,
+    "merge_authorized": false,
+    "notes": [
+      "The receipt contains only public repository coordinates, immutable identifiers, bounded statuses, and content-free digests.",
+      "Infrastructure repositories are forbidden from the declared submodule graph.",
+      "A language counts only after its clean consumer compiles and executes without local-path or monorepo leakage."
+    ]
+  }
+}
