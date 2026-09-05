@@ -1,0 +1,670 @@
+{
+  "schema_version": "daily-briefing-atomicity-fixture/v1",
+  "scenarios": [
+    {
+      "id": "normal-delivery",
+      "initial": {
+        "run_id": "briefing-2026-09-04",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-normal-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 1,
+            "attempt_id": "attempt-normal-001",
+            "receipt_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "delivered"
+    },
+    {
+      "id": "idempotent-retries",
+      "initial": {
+        "run_id": "briefing-2026-09-05",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 7,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 7,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": false,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 7,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 7,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": false,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 7,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-idempotent-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 7,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-idempotent-001"
+          },
+          "expect_ok": true,
+          "expect_changed": false,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 7,
+            "attempt_id": "attempt-idempotent-001",
+            "receipt_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 7,
+            "attempt_id": "attempt-idempotent-001",
+            "receipt_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "expect_ok": true,
+          "expect_changed": false,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "delivered"
+    },
+    {
+      "id": "stale-fence-is-atomic",
+      "initial": {
+        "run_id": "briefing-2026-09-06",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 5,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 4,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "stale or future fence"
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 5,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "composed"
+    },
+    {
+      "id": "ambiguous-send-positive-reconciliation",
+      "initial": {
+        "run_id": "briefing-2026-09-07",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-ambiguous-positive"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "mark_ambiguous",
+            "fence": 1,
+            "attempt_id": "attempt-ambiguous-positive"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "takeover",
+            "fence": 2,
+            "owner_digest": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 2,
+            "attempt_id": "attempt-ambiguous-positive",
+            "receipt_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "delivered"
+    },
+    {
+      "id": "ambiguous-send-absence-and-retry",
+      "initial": {
+        "run_id": "briefing-2026-09-08",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-old-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "mark_ambiguous",
+            "fence": 1,
+            "attempt_id": "attempt-old-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "takeover",
+            "fence": 2,
+            "owner_digest": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "prove_absent",
+            "fence": 2,
+            "attempt_id": "attempt-old-001",
+            "reconciliation_digest": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 2,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-new-002"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 2,
+            "attempt_id": "attempt-new-002",
+            "receipt_digest": "3333333333333333333333333333333333333333333333333333333333333333"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "delivered"
+    },
+    {
+      "id": "takeover-inflight-becomes-ambiguous",
+      "initial": {
+        "run_id": "briefing-2026-09-09",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-inflight-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "takeover",
+            "fence": 2,
+            "owner_digest": "1111111111111111111111111111111111111111111111111111111111111111"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "ambiguous"
+    },
+    {
+      "id": "conflicting-attempt-is-atomic",
+      "initial": {
+        "run_id": "briefing-2026-09-10",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-first-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-conflict-002"
+          },
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "another delivery attempt"
+        }
+      ],
+      "expected_final_phase": "delivery_started"
+    },
+    {
+      "id": "wrong-receipt-attempt-is-atomic",
+      "initial": {
+        "run_id": "briefing-2026-09-11",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-receipt-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 1,
+            "attempt_id": "attempt-wrong-999",
+            "receipt_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "receipt does not match"
+        },
+        {
+          "command": {
+            "kind": "record_receipt",
+            "fence": 1,
+            "attempt_id": "attempt-receipt-001",
+            "receipt_digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "delivered"
+    },
+    {
+      "id": "conflicting-composition-is-atomic",
+      "initial": {
+        "run_id": "briefing-2026-09-12",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "4444444444444444444444444444444444444444444444444444444444444444"
+          },
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "composition conflicts"
+        }
+      ],
+      "expected_final_phase": "composed"
+    },
+    {
+      "id": "reconciled-attempt-cannot-be-reused",
+      "initial": {
+        "run_id": "briefing-2026-09-13",
+        "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "steps": [
+        {
+          "command": {
+            "kind": "claim",
+            "fence": 1,
+            "owner_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "compose",
+            "fence": 1,
+            "input_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "composition_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-reconciled-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "mark_ambiguous",
+            "fence": 1,
+            "attempt_id": "attempt-reconciled-001"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "prove_absent",
+            "fence": 1,
+            "attempt_id": "attempt-reconciled-001",
+            "reconciliation_digest": "2222222222222222222222222222222222222222222222222222222222222222"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-reconciled-001"
+          },
+          "expect_ok": false,
+          "expect_changed": false,
+          "error_contains": "cannot be reused"
+        },
+        {
+          "command": {
+            "kind": "begin_delivery",
+            "fence": 1,
+            "destination_digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+            "attempt_id": "attempt-reconciled-002"
+          },
+          "expect_ok": true,
+          "expect_changed": true,
+          "error_contains": null
+        }
+      ],
+      "expected_final_phase": "delivery_started"
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+name: Daily briefing atomicity model
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/daily-briefing-atomicity-model.yml'
+      - 'docs/daily-briefing-atomicity-model.md'
+      - 'fixtures/daily-briefing-atomicity-v1.json'
+      - 'scripts/daily_briefing_atomicity_model.py'
+      - 'scripts/test_daily_briefing_atomicity_model.py'
+  pull_request:
+    paths:
+      - '.github/workflows/daily-briefing-atomicity-model.yml'
+      - 'docs/daily-briefing-atomicity-model.md'
+      - 'fixtures/daily-briefing-atomicity-v1.json'
+      - 'scripts/daily_briefing_atomicity_model.py'
+      - 'scripts/test_daily_briefing_atomicity_model.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/daily-briefing-atomicity-model.yml
+
+      - name: Compile model and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/daily_briefing_atomicity_model.py \
+            scripts/test_daily_briefing_atomicity_model.py
+
+      - name: Run transition and fixture tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_daily_briefing_atomicity_model.py
+
+      - name: Execute deterministic recovery scenarios
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/daily_briefing_atomicity_model.py \
+            fixtures/daily-briefing-atomicity-v1.json \
+            --json > atomicity-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          report = json.loads(Path("atomicity-report.json").read_text(encoding="utf-8"))
+          assert report["valid"] is True
+          assert report["model_version"] == "daily-briefing-atomicity/v1"
+          assert report["fixture_version"] == "daily-briefing-atomicity-fixture/v1"
+          assert report["scenario_count"] == 10
+          assert re.fullmatch(r"[0-9a-f]{64}", report["receipt_sha256"])
+          assert all(
+              re.fullmatch(r"[0-9a-f]{64}", scenario["final_state_sha256"])
+              for scenario in report["scenarios"]
+          )
+          PY
+
+      - name: Require a clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f atomicity-report.json
+          test -z "$(git status --porcelain)"
