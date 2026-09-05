@@ -1,0 +1,100 @@
+name: Fabrication recovery protocol
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fabrication-recovery-protocol.yml'
+      - 'docs/fabrication-recovery-protocol.md'
+      - 'fixtures/fabrication-recovery-protocol-v1.json'
+      - 'scripts/fabrication_recovery_protocol.py'
+      - 'scripts/test_fabrication_recovery_protocol.py'
+  pull_request:
+    paths:
+      - '.github/workflows/fabrication-recovery-protocol.yml'
+      - 'docs/fabrication-recovery-protocol.md'
+      - 'fixtures/fabrication-recovery-protocol-v1.json'
+      - 'scripts/fabrication_recovery_protocol.py'
+      - 'scripts/test_fabrication_recovery_protocol.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/fabrication-recovery-protocol.yml
+
+      - name: Compile model and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/fabrication_recovery_protocol.py \
+            scripts/test_fabrication_recovery_protocol.py
+
+      - name: Run invariant tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_fabrication_recovery_protocol.py
+
+      - name: Execute deterministic crash and recovery traces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/fabrication_recovery_protocol.py \
+            fixtures/fabrication-recovery-protocol-v1.json \
+            --json > recovery-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          report = json.loads(Path("recovery-report.json").read_text(encoding="utf-8"))
+          assert report["valid"] is True
+          assert report["model_version"] == "fabrication-recovery-protocol/v1"
+          assert report["fixture_version"] == "fabrication-recovery-fixture/v1"
+          assert report["scenario_count"] == 13
+          assert re.fullmatch(r"[0-9a-f]{64}", report["receipt_sha256"])
+          assert all(
+              re.fullmatch(r"[0-9a-f]{64}", scenario["final_state_sha256"])
+              for scenario in report["scenarios"]
+          )
+          terminal = [
+              scenario
+              for scenario in report["scenarios"]
+              if scenario["final_phase"] in {"completed", "dead-lettered"}
+          ]
+          assert terminal
+          assert all(
+              re.fullmatch(r"[0-9a-f]{64}", scenario["terminal_digest"])
+              for scenario in terminal
+          )
+          PY
+
+      - name: Require a clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f recovery-report.json
+          test -z "$(git status --porcelain)"
