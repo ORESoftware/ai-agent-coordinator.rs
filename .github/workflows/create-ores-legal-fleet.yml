@@ -1,0 +1,112 @@
+name: Create and verify ores-legal repository fleet
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/create-ores-legal-fleet.yml
+      - ores-legal-bootstrap/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/create-ores-legal-fleet.yml
+      - ores-legal-bootstrap/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-legal-repository-creation
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Test sealed ores-legal creation contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+
+      - name: Validate workflow with the repository-pinned actionlint image
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/create-ores-legal-fleet.yml
+
+      - name: Test exact scope, failure recovery, idempotency, and redaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check ores-legal-bootstrap/bootstrap.mjs
+          node --check ores-legal-bootstrap/run.mjs
+          node --check ores-legal-bootstrap/bootstrap.test.mjs
+          node --test ores-legal-bootstrap/bootstrap.test.mjs
+          node ores-legal-bootstrap/run.mjs
+
+  create:
+    name: Create exact private fleet and record verified repository receipts
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out exact reviewed commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+
+      - name: Require protected GitHub App configuration
+        shell: bash
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_ID" || -z "$PRIVATE_KEY" ]]; then
+            echo '::error::Protected environment requires PORTFOLIO_GITHUB_APP_ID and PORTFOLIO_GITHUB_APP_PRIVATE_KEY; no credential fallback is allowed.'
+            exit 1
+          fi
+
+      - name: Mint an ores-legal-scoped installation credential
+        id: token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ores-legal
+          permission-administration: write
+          permission-contents: write
+          permission-issues: write
+          permission-metadata: read
+
+      - name: Create, reconcile, and verify all sixteen repositories
+        shell: bash
+        env:
+          ORES_LEGAL_MODE: apply
+          ORES_LEGAL_CREATE_ENABLED: "true"
+          ORES_LEGAL_CONFIRM: ores-legal@e1b7a228afa5df1ead8972c4afc24e5e510bdfd12ab4239818461cac998f865c
+          ORES_LEGAL_ADMIN_TOKEN: ${{ steps.token.outputs.token }}
+          ORES_LEGAL_RECEIPT_PATH: ${{ runner.temp }}/ores-legal-receipt.json
+        run: node ores-legal-bootstrap/run.mjs
+
+      - name: Preserve complete or partial non-secret receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ores-legal-creation-receipt-${{ github.run_id }}
+          path: ${{ runner.temp }}/ores-legal-receipt.json
+          retention-days: 30
+          if-no-files-found: warn
