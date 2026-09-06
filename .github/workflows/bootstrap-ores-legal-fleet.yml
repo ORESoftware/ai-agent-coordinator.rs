@@ -1,0 +1,313 @@
+name: Bootstrap ores-legal signing platform fleet
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/bootstrap-ores-legal-fleet.yml
+      - docs/ores-legal-fleet-bootstrap.md
+      - repository-fleets/ores-legal.json
+      - scripts/bootstrap_ores_legal_fleet_live.py
+      - scripts/test_bootstrap_ores_legal_fleet_live.py
+      - scripts/ores_legal_bootstrap/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/bootstrap-ores-legal-fleet.yml
+      - docs/ores-legal-fleet-bootstrap.md
+      - repository-fleets/ores-legal.json
+      - scripts/bootstrap_ores_legal_fleet_live.py
+      - scripts/test_bootstrap_ores_legal_fleet_live.py
+      - scripts/ores_legal_bootstrap/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-ores-legal-fleet-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  validate:
+    name: Validate sealed signing fleet
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the reviewed coordinator revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow with pinned actionlint
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/bootstrap-ores-legal-fleet.yml
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22.23.1"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+
+      - name: Install native compile dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            libfontconfig1-dev \
+            libpq-dev \
+            libwayland-dev \
+            libx11-xcb-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev
+
+      - name: Compile and test the bootstrap control plane
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -W error -m py_compile \
+            scripts/bootstrap_ores_legal_fleet_live.py \
+            scripts/test_bootstrap_ores_legal_fleet_live.py \
+            scripts/ores_legal_bootstrap/*.py
+          python3 -W error -m unittest -v scripts/test_bootstrap_ores_legal_fleet_live.py
+
+      - name: Render and re-verify all repositories
+        id: render
+        shell: bash
+        run: |
+          set -euo pipefail
+          render_root="$RUNNER_TEMP/ores-legal-rendered"
+          result="$RUNNER_TEMP/ores-legal-render-result.json"
+          digest="$(python3 -c 'import sys; sys.path.insert(0,"scripts"); from ores_legal_bootstrap.core import load_manifest, manifest_digest; print(manifest_digest(load_manifest()))')"
+          plan="$RUNNER_TEMP/ores-legal-plan.json"
+          python3 scripts/bootstrap_ores_legal_fleet_live.py plan \
+            --manifest-sha256 "$digest" \
+            --result "$plan"
+          python3 scripts/bootstrap_ores_legal_fleet_live.py render \
+            --manifest-sha256 "$digest" \
+            --output "$render_root" \
+            --result "$result"
+          python3 -m json.tool "$plan" >/dev/null
+          python3 -m json.tool "$result" >/dev/null
+          while IFS= read -r verifier; do
+            python3 "$verifier"
+          done < <(find "$render_root" -mindepth 3 -maxdepth 3 -path '*/scripts/verify.py' -type f | sort)
+          python3 "$render_root/ores-legal-interfaces/scripts/check_peer_authorities.py"
+          echo "root=$render_root" >> "$GITHUB_OUTPUT"
+          echo "result=$result" >> "$GITHUB_OUTPUT"
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+
+      - name: Validate generated JSON and JavaScript
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          python3 - "$RENDER_ROOT" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          for path in sorted(root.rglob("*.json")):
+              json.loads(path.read_text(encoding="utf-8"))
+          print(f"validated JSON under {root}")
+          PY
+          while IFS= read -r module; do
+            node --check "$module"
+          done < <(find "$RENDER_ROOT" -type f -name '*.mjs' | sort)
+
+      - name: Compile TypeSpec peer authority
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          cd "$RENDER_ROOT/ores-legal-interfaces"
+          npm install --ignore-scripts --no-audit --no-fund
+          npx tsp compile typespec/main.tsp --output-dir "$RUNNER_TEMP/ores-legal-typespec-output"
+
+      - name: Compile TypeScript SDK foundation
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          cd "$RENDER_ROOT/ores-legal-clients"
+          npm install --ignore-scripts --no-audit --no-fund
+          npm run check
+
+      - name: Build Astro organization site
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          cd "$RENDER_ROOT/ores-legal.github.io"
+          npm install --ignore-scripts --no-audit --no-fund
+          npm run build
+
+      - name: Format, lint, and test Rust foundations
+        shell: bash
+        env:
+          RENDER_ROOT: ${{ steps.render.outputs.root }}
+        run: |
+          set -euo pipefail
+          mapfile -t manifests < <(find "$RENDER_ROOT" -name Cargo.toml -type f | sort)
+          if [[ "${#manifests[@]}" -lt 9 ]]; then
+            echo "expected at least nine Rust manifests, found ${#manifests[@]}" >&2
+            exit 1
+          fi
+          for manifest in "${manifests[@]}"; do
+            cargo generate-lockfile --manifest-path "$manifest"
+            cargo fmt --all --manifest-path "$manifest" -- --check
+            cargo clippy --locked --manifest-path "$manifest" --all-targets --all-features -- -D warnings
+            cargo test --locked --manifest-path "$manifest" --all-features
+          done
+
+      - name: Upload deterministic validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ores-legal-fleet-validation-${{ github.run_id }}
+          path: |
+            ${{ steps.render.outputs.plan }}
+            ${{ steps.render.outputs.result }}
+            ${{ steps.render.outputs.root }}/render-ledger.json
+          retention-days: 30
+          if-no-files-found: error
+
+  publish:
+    name: Create ores-legal repositories and merge bootstrap PRs
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out the exact reviewed revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+
+      - name: Verify GitHub App publication credentials
+        shell: bash
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ -n "$APP_ID" ]] || { echo '::error::missing PORTFOLIO_GITHUB_APP_ID'; exit 1; }
+          [[ -n "$PRIVATE_KEY" ]] || { echo '::error::missing PORTFOLIO_GITHUB_APP_PRIVATE_KEY'; exit 1; }
+
+      - name: Mint an ores-legal-scoped repository administration token
+        id: token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ores-legal
+          permission-administration: write
+          permission-contents: write
+          permission-issues: write
+          permission-metadata: read
+          permission-pull-requests: write
+
+      - name: Publish the exact sealed repository fleet
+        id: publish
+        shell: bash
+        env:
+          ORES_LEGAL_REPOSITORY_ADMIN_TOKEN: ${{ steps.token.outputs.token }}
+        run: |
+          set -euo pipefail
+          digest="$(python3 -c 'import sys; sys.path.insert(0,"scripts"); from ores_legal_bootstrap.core import load_manifest, manifest_digest; print(manifest_digest(load_manifest()))')"
+          result_root="$RUNNER_TEMP/ores-legal-publication"
+          mkdir -p "$result_root"
+          mapfile -t repositories < <(python3 -c 'import json; value=json.load(open("repository-fleets/ores-legal.json", encoding="utf-8")); print("\n".join(row["name"] for row in value["repositories"]))')
+          for repository in "${repositories[@]}"; do
+            ORES_LEGAL_REPOSITORY_ADMIN_ENABLED=true \
+            ORES_LEGAL_ALLOWED_ORGANIZATION=ores-legal \
+            ORES_LEGAL_ALLOWED_REPOSITORY="$repository" \
+            ORES_LEGAL_BOOTSTRAP_ORGANIZATION=ores-legal \
+            ORES_LEGAL_BOOTSTRAP_REPOSITORY="$repository" \
+            ORES_LEGAL_MANIFEST_SHA256="$digest" \
+              python3 scripts/bootstrap_ores_legal_fleet_live.py apply \
+                --manifest-sha256 "$digest" \
+                --organization ores-legal \
+                --repository "$repository" \
+                --confirmation merge-validated-den-319-ores-legal-fleet \
+                --result "$result_root/$repository.json"
+          done
+          ledger="$RUNNER_TEMP/ores-legal-publication-ledger.json"
+          python3 - "$result_root" "$ledger" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          output = Path(sys.argv[2])
+          records = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(root.glob("*.json"))]
+          output.write_text(
+              json.dumps({"organization": "ores-legal", "publications": records}, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          echo "ledger=$ledger" >> "$GITHUB_OUTPUT"
+
+      - name: Summarize publication
+        if: always()
+        shell: bash
+        env:
+          LEDGER: ${{ steps.publish.outputs.ledger }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$LEDGER" || ! -f "$LEDGER" ]]; then
+            echo '## ores-legal publication did not produce a ledger' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          python3 - "$LEDGER" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json
+          import sys
+
+          value = json.load(open(sys.argv[1], encoding="utf-8"))
+          print("## ores-legal signing platform fleet")
+          print()
+          print("| Repository | Action | Pull request | Merge SHA |")
+          print("|---|---|---:|---|")
+          for record in value["publications"]:
+              result = record["result"]
+              pull = result.get("pull_request_number") or "-"
+              merge = result.get("merge_sha") or "-"
+              print(f"| `{result['repository']}` | {result['action']} | {pull} | `{merge}` |")
+          PY
+
+      - name: Upload publication ledger
+        if: always() && steps.publish.outputs.ledger != ''
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ores-legal-fleet-publication-${{ github.run_id }}
+          path: ${{ steps.publish.outputs.ledger }}
+          retention-days: 30
+          if-no-files-found: warn
