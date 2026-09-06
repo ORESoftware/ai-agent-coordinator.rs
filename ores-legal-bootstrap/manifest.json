@@ -1,0 +1,22 @@
+{
+  "organization": "ores-legal",
+  "visibility": "private",
+  "repositories": [
+    {"name":"ores-legal-interfaces","purpose":"Independent TypeSpec and JSON Schema signing contracts; 16 language targets"},
+    {"name":"ores-legal-clients","purpose":"Public and internal signing clients with cross-language conformance"},
+    {"name":"ores-legal-monorepo","purpose":"Deployable applications pinned as real git submodules under apps/"},
+    {"name":"ores-legal-infra","purpose":"Neon and Supabase infrastructure contracts and tenant-isolated storage"},
+    {"name":"ores-legal-desktop-app.rs","purpose":"Native Rust desktop document preparation and signing application"},
+    {"name":"ores-legal-flutter","purpose":"Flutter signing clients for mobile, web, iOS, Android and desktop"},
+    {"name":"ores-legal-lambdas","purpose":"Provider-neutral signing workers and multi-architecture OCI images"},
+    {"name":"ores-legal-api-server.rs","purpose":"Rust authenticated document, envelope and signing write API"},
+    {"name":"ores-legal-admin-api-server.rs","purpose":"Rust tenant-scoped administrative signing write API"},
+    {"name":"ores-legal-web-server.rs","purpose":"Rust MASH, Leptos and Dioxus document-signing web components"},
+    {"name":"ores-legal-admin-web-server.rs","purpose":"Rust administrator and organization-owner web application"},
+    {"name":"ores-legal-docs","purpose":"Signing architecture, reviewed agreement templates and parity evidence"},
+    {"name":"ores-legal-mcp-server.rs","purpose":"Permission-scoped Rust MCP signing tools with explicit write consent"},
+    {"name":"ores-legal-lib-core","purpose":"Shared signing state machine, validation and runtime configuration"},
+    {"name":"ores-legal-orm-core","purpose":"Private Diesel and SeaORM persistence, tenant guards and audit outbox"},
+    {"name":"ores-legal-pub-lib-core","purpose":"Client-safe public signing types and reusable SDK components"}
+  ]
+}
