@@ -1,0 +1,73 @@
+{
+  "schema": "ores.hhaus-intake-private-graph/v1",
+  "linearIssue": "DEN-313",
+  "repositories": [
+    {
+      "repository": "hacker-house-medellin/hhm-api-server.rs",
+      "branch": "feat/intake-dual-persistence",
+      "inputHead": "2a08ae163a7b1f73023eebf44d4dfa608abc2369",
+      "containerSecretOwners": [
+        "hacker-house-medellin",
+        "shared-auth"
+      ],
+      "statusContexts": {
+        "rust": "central-private-graph/rust",
+        "container": "central-private-graph/container"
+      }
+    },
+    {
+      "repository": "hacker-house-medellin/hhm-web-server.rs",
+      "branch": "feat/intake-user-forms",
+      "inputHead": "86bd2a127ad73783193945bfe3f78580679daa3f",
+      "containerSecretOwners": [
+        "hacker-house-medellin"
+      ],
+      "statusContexts": {
+        "rust": "central-private-graph/rust",
+        "container": "central-private-graph/container"
+      }
+    }
+  ],
+  "credentialModel": {
+    "issuer": "PORTFOLIO_GITHUB_APP",
+    "environment": "nightly-org-maintenance",
+    "longLivedPatAllowed": false,
+    "persistCheckoutCredentials": false,
+    "tokenScopes": {
+      "hacker-house-medellin": [
+        "contents:write",
+        "metadata:read",
+        "statuses:write"
+      ],
+      "shared-auth": [
+        "contents:read",
+        "metadata:read"
+      ]
+    }
+  },
+  "requiredCommands": [
+    "cargo generate-lockfile",
+    "cargo fmt --all",
+    "cargo fmt --all -- --check",
+    "cargo check --locked --all-targets --all-features",
+    "cargo clippy --locked --all-targets --all-features -- -D warnings",
+    "cargo test --locked --all-targets --all-features",
+    "docker build"
+  ],
+  "mutationBoundary": {
+    "allowedPaths": [
+      "Cargo.lock",
+      "Cargo.toml",
+      "Dockerfile",
+      "src/**/*.rs"
+    ],
+    "generatedRepairPaths": [
+      "Cargo.lock",
+      "src/**/*.rs"
+    ],
+    "forcePushAllowed": false,
+    "mergeAllowed": false,
+    "publishAllowed": false,
+    "deployAllowed": false
+  }
+}
