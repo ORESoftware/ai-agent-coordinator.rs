@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -21,6 +22,15 @@ DEFAULT_STABLE_RUNTIME_SECONDS = 120
 DEFAULT_SHUTDOWN_GRACE_SECONDS = 30
 DEFAULT_KILL_GRACE_SECONDS = 5
 
+_CANONICAL_UNSIGNED_DECIMAL = re.compile(
+    r"(?:0|[1-9][0-9]*)\Z",
+    flags=re.ASCII,
+)
+_WORKER_ID_PREFIX = re.compile(
+    r"[A-Za-z0-9](?:[A-Za-z0-9._-]{0,95})\Z",
+    flags=re.ASCII,
+)
+
 
 class PoolError(RuntimeError):
     pass
@@ -36,10 +46,11 @@ def _bounded_int(
 ) -> int:
     if raw is None:
         return default
-    try:
-        value = int(raw)
-    except (TypeError, ValueError) as exc:
-        raise PoolError(f"{name} must be an integer") from exc
+    if _CANONICAL_UNSIGNED_DECIMAL.fullmatch(raw) is None:
+        raise PoolError(
+            f"{name} must be an integer encoded as canonical unsigned decimal text"
+        )
+    value = int(raw, 10)
     if not minimum <= value <= maximum:
         raise PoolError(f"{name} must be between {minimum} and {maximum}")
     return value
@@ -53,6 +64,17 @@ def worker_count(raw: str | None) -> int:
         minimum=1,
         maximum=MAX_WORKERS,
     )
+
+
+def worker_id_prefix(raw: str | None) -> str:
+    value = "continuous-recovery" if raw is None else raw
+    if _WORKER_ID_PREFIX.fullmatch(value) is None:
+        raise PoolError(
+            "ARTIFACT_RECOVERY_WORKER_ID_PREFIX must be 1..96 ASCII "
+            "letters, digits, dots, underscores, or hyphens and start "
+            "with an alphanumeric character"
+        )
+    return value
 
 
 class RestartBudget:
@@ -98,13 +120,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         args = build_parser().parse_args(argv)
         count = worker_count(os.getenv("ARTIFACT_RECOVERY_WORKER_COUNT"))
-        prefix = os.getenv(
-            "ARTIFACT_RECOVERY_WORKER_ID_PREFIX", "continuous-recovery"
-        ).strip()
-        if not prefix or len(prefix) > 96:
-            raise PoolError(
-                "ARTIFACT_RECOVERY_WORKER_ID_PREFIX has an invalid length"
-            )
+        prefix = worker_id_prefix(
+            os.getenv("ARTIFACT_RECOVERY_WORKER_ID_PREFIX")
+        )
 
         max_restarts = _bounded_int(
             os.getenv("ARTIFACT_RECOVERY_MAX_RESTARTS"),
