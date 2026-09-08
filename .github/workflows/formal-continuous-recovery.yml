@@ -1,0 +1,128 @@
+name: Formal continuous recovery supervisor
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/formal-continuous-recovery.yml"
+      - "formal/ContinuousRecoverySupervisor.cfg"
+      - "formal/ContinuousRecoverySupervisor.tla"
+      - "formal/continuous_recovery_supervisor.py"
+      - "tests/test_continuous_recovery_formal.py"
+      - "tools/run_continuous_artifact_recovery_pool.py"
+      - "docs/formal-continuous-recovery.md"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/formal-continuous-recovery.yml"
+      - "formal/ContinuousRecoverySupervisor.cfg"
+      - "formal/ContinuousRecoverySupervisor.tla"
+      - "formal/continuous_recovery_supervisor.py"
+      - "tests/test_continuous_recovery_formal.py"
+      - "tools/run_continuous_artifact_recovery_pool.py"
+      - "docs/formal-continuous-recovery.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: formal-continuous-recovery-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  bounded-model:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.12"
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/formal-continuous-recovery.yml
+      - name: Compile production, model, and refinement tests
+        run: |
+          python3 -m py_compile \
+            tools/run_continuous_artifact_recovery_pool.py \
+            formal/continuous_recovery_supervisor.py \
+            tests/test_continuous_recovery_formal.py
+      - name: Explore the bounded state space and refine production
+        run: |
+          python3 formal/continuous_recovery_supervisor.py \
+            --depth 10 \
+            --receipt "$RUNNER_TEMP/continuous-recovery-formal-receipt.json"
+      - name: Run fail-closed production and model contracts
+        run: python3 -m unittest -v tests/test_continuous_recovery_formal.py
+      - name: Validate receipt, bounds, and TLA peer-spec surface
+        env:
+          RECEIPT: ${{ runner.temp }}/continuous-recovery-formal-receipt.json
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = json.loads(Path(os.environ["RECEIPT"]).read_text())
+          assert receipt["schema_version"] == (
+              "ores.formal.continuous-recovery-supervisor.v1"
+          )
+          assert receipt["bounds"]["workers"] == [1, 2, 3]
+          assert receipt["bounds"]["maximum_sequence_depth"] == 10
+          assert [item["states"] for item in receipt["exploration"]] == [
+              80,
+              834,
+              4644,
+          ]
+          assert [item["transitions"] for item in receipt["exploration"]] == [
+              101,
+              1416,
+              9382,
+          ]
+          assert all(
+              item["clean_shutdown_witness"]
+              and item["budget_exhaustion_witness"]
+              and item["kill_timeout_witness"]
+              for item in receipt["exploration"]
+          )
+          assert receipt["refinement"]["configuration_vectors"] >= 20
+          assert receipt["refinement"]["restart_budget_vectors"] >= 30
+
+          spec = Path(
+              "formal/ContinuousRecoverySupervisor.tla"
+          ).read_text(encoding="utf-8")
+          for token in (
+              "Crash(i)",
+              "StableExit(i)",
+              "BackoffElapsed(i)",
+              "WindowElapsed(i)",
+              "StopRequested",
+              "ChildExited(i)",
+              "TerminateGraceExpired",
+              "KillGraceExpired",
+              "NoRespawnAfterStop",
+              "Safety",
+          ):
+              assert token in spec, token
+          PY
+      - name: Reject credential-shaped formal evidence
+        run: |
+          if grep -RInE \
+            '(ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|lin_api_[A-Za-z0-9]{20,}|-----BEGIN [A-Z ]*PRIVATE KEY-----)' \
+            formal/ContinuousRecoverySupervisor.cfg \
+            formal/ContinuousRecoverySupervisor.tla \
+            formal/continuous_recovery_supervisor.py \
+            tests/test_continuous_recovery_formal.py \
+            docs/formal-continuous-recovery.md; then
+            echo "credential-shaped material is forbidden" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: continuous-recovery-formal-receipt
+          path: ${{ runner.temp }}/continuous-recovery-formal-receipt.json
+          if-no-files-found: error
+          retention-days: 30
