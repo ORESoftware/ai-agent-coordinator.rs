@@ -186,14 +186,23 @@ jobs:
           EOF
           }
 
+          assert_absent() {
+            needle="$1"
+            file="$2"
+            if grep -F "$needle" "$file"; then
+              echo "forbidden value leaked: $needle" >&2
+              exit 1
+            fi
+          }
+
           ok="$RUNNER_TEMP/encrypted-ok"
           make_fixture "$ok"
           : > "$ok/env/enc/dev.env.enc"
           target/debug/oresc --no-json audit env --path "$ok" > "$RUNNER_TEMP/encrypted-ok.txt"
           grep -F 'status=passed command=audit env' "$RUNNER_TEMP/encrypted-ok.txt"
           grep -F 'environment-encrypted-contract-ready' "$RUNNER_TEMP/encrypted-ok.txt"
-          ! grep -F 'SENSITIVE_SUCCESS' "$RUNNER_TEMP/encrypted-ok.txt"
-          ! grep -F 'PROVIDER_SECRET_DIAGNOSTIC' "$RUNNER_TEMP/encrypted-ok.txt"
+          assert_absent 'SENSITIVE_SUCCESS' "$RUNNER_TEMP/encrypted-ok.txt"
+          assert_absent 'PROVIDER_SECRET_DIAGNOSTIC' "$RUNNER_TEMP/encrypted-ok.txt"
           test ! -e "$ok/.env"
           test ! -e "$ok/env/dec"
 
@@ -206,8 +215,8 @@ jobs:
           set -e
           test "$duplicate_status" -eq 2
           grep -F 'environment-encrypted-key-duplicate' "$RUNNER_TEMP/encrypted-duplicate.txt"
-          ! grep -F 'SENSITIVE_ONE' "$RUNNER_TEMP/encrypted-duplicate.txt"
-          ! grep -F 'SENSITIVE_TWO' "$RUNNER_TEMP/encrypted-duplicate.txt"
+          assert_absent 'SENSITIVE_ONE' "$RUNNER_TEMP/encrypted-duplicate.txt"
+          assert_absent 'SENSITIVE_TWO' "$RUNNER_TEMP/encrypted-duplicate.txt"
 
           undeclared="$RUNNER_TEMP/undeclared"
           make_fixture "$undeclared"
@@ -218,7 +227,7 @@ jobs:
           set -e
           test "$undeclared_status" -eq 2
           grep -F 'environment-encrypted-key-undeclared' "$RUNNER_TEMP/encrypted-undeclared.txt"
-          ! grep -F 'SENSITIVE_GHOST' "$RUNNER_TEMP/encrypted-undeclared.txt"
+          assert_absent 'SENSITIVE_GHOST' "$RUNNER_TEMP/encrypted-undeclared.txt"
 
           drift="$RUNNER_TEMP/drift"
           make_fixture "$drift"
@@ -230,9 +239,9 @@ jobs:
           set -e
           test "$drift_status" -eq 2
           grep -F 'environment-encrypted-keyset-drift' "$RUNNER_TEMP/encrypted-drift.txt"
-          ! grep -F 'SENSITIVE_DEV' "$RUNNER_TEMP/encrypted-drift.txt"
-          ! grep -F 'SENSITIVE_PROD' "$RUNNER_TEMP/encrypted-drift.txt"
-          ! grep -F 'SENSITIVE_BETA' "$RUNNER_TEMP/encrypted-drift.txt"
+          assert_absent 'SENSITIVE_DEV' "$RUNNER_TEMP/encrypted-drift.txt"
+          assert_absent 'SENSITIVE_PROD' "$RUNNER_TEMP/encrypted-drift.txt"
+          assert_absent 'SENSITIVE_BETA' "$RUNNER_TEMP/encrypted-drift.txt"
 
       - name: Admit real TJSV contract and reject real drift
         working-directory: ores-cli
