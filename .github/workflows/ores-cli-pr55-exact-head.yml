@@ -1,0 +1,271 @@
+name: Ores CLI PR55 exact-head encrypted-env acceptance
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr55-exact-head-probe
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr55-exact-head-acceptance
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_SHA: 16e7bc491132fc27884e7ea4a914f2b5dfa560f5
+  TJSV_SHA: 8bf7ebda4e35c0d11b5b5e5f865867bee4fc3085
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: nightly-org-maintenance
+
+    steps:
+      - name: Check out probe control
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          path: control
+
+      - name: Validate probe workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: control/.github/workflows/ores-cli-pr55-exact-head.yml
+
+      - name: Mint least-privilege ORESoftware read token
+        id: ores-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-cli
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact private ores-cli head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: ${{ env.ORES_CLI_SHA }}
+          token: ${{ steps.ores-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: ores-cli
+
+      - name: Check out exact canonical validator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/typespec-json-schema-validator
+          ref: ${{ env.TJSV_SHA }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: tjsv
+
+      - name: Verify immutable source identities
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          test "$(git -C tjsv rev-parse HEAD)" = "$TJSV_SHA"
+          git -C ores-cli diff --check
+          git -C tjsv diff --check
+
+      - name: Install Node 22.23.1
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.23.1
+          package-manager-cache: false
+
+      - name: Install canonical validator from committed lockfile
+        working-directory: tjsv
+        run: npm ci
+
+      - name: Expose exact TJSV executable
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/bin"
+          cat > "$RUNNER_TEMP/bin/tjsv" <<EOF
+          #!/usr/bin/env bash
+          set -euo pipefail
+          exec node "$GITHUB_WORKSPACE/tjsv/bin/typespec-json-schema-validator.mjs" "\$@"
+          EOF
+          chmod 0700 "$RUNNER_TEMP/bin/tjsv"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/bin/tjsv" --version
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Verify shell integration assets
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          bash -n post-install.sh
+          bash -n reconcile-selected-orgs.sh
+          bash -n tests/post_install.sh
+          bash -n tests/reconcile_selected_orgs.sh
+          bash tests/post_install.sh
+          bash tests/reconcile_selected_orgs.sh
+
+      - name: Verify complete Rust application
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --format-version=1 >/dev/null
+          cargo fmt --all --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-targets --all-features
+          cargo build --locked --bins
+
+      - name: Exercise both CLI entry points
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          target/debug/ores-cli --no-json doctor > "$RUNNER_TEMP/ores-cli-doctor.txt"
+          target/debug/oresc --no-json doctor > "$RUNNER_TEMP/oresc-doctor.txt"
+          grep -F 'status=passed command=doctor' "$RUNNER_TEMP/ores-cli-doctor.txt"
+          grep -F 'status=passed command=doctor' "$RUNNER_TEMP/oresc-doctor.txt"
+
+      - name: Exercise encrypted environment audit without plaintext leakage
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+
+          cat > "$RUNNER_TEMP/bin/sops" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          if [[ "${1:-}" == "--version" ]]; then
+            echo 'sops 99.0.0-test'
+            exit 0
+          fi
+          last="${!#}"
+          printf 'PROVIDER_SECRET_DIAGNOSTIC\n' >&2
+          case "$last" in
+            *duplicate*/dev.env.enc)
+              printf 'ALPHA=SENSITIVE_ONE\nALPHA=SENSITIVE_TWO\n'
+              ;;
+            *undeclared*/dev.env.enc)
+              printf 'GHOST=SENSITIVE_GHOST\n'
+              ;;
+            *drift*/dev.env.enc)
+              printf 'ALPHA=SENSITIVE_DEV\n'
+              ;;
+            *drift*/prod.env.enc)
+              printf 'ALPHA=SENSITIVE_PROD\nBETA=SENSITIVE_BETA\n'
+              ;;
+            *)
+              printf 'ALPHA=SENSITIVE_SUCCESS\n'
+              ;;
+          esac
+          EOF
+          chmod 0700 "$RUNNER_TEMP/bin/sops"
+
+          make_fixture() {
+            root="$1"
+            mkdir -p "$root/env/enc"
+            cat > "$root/runtime.toml" <<'EOF'
+          [[env]]
+          name = "alpha"
+          key = "ALPHA"
+          kind = "string"
+          required = false
+          secret = true
+
+          [[env]]
+          name = "beta"
+          key = "BETA"
+          kind = "string"
+          required = false
+          secret = true
+          EOF
+          }
+
+          ok="$RUNNER_TEMP/encrypted-ok"
+          make_fixture "$ok"
+          : > "$ok/env/enc/dev.env.enc"
+          target/debug/oresc --no-json audit env --path "$ok" > "$RUNNER_TEMP/encrypted-ok.txt"
+          grep -F 'status=passed command=audit env' "$RUNNER_TEMP/encrypted-ok.txt"
+          grep -F 'environment-encrypted-contract-ready' "$RUNNER_TEMP/encrypted-ok.txt"
+          ! grep -F 'SENSITIVE_SUCCESS' "$RUNNER_TEMP/encrypted-ok.txt"
+          ! grep -F 'PROVIDER_SECRET_DIAGNOSTIC' "$RUNNER_TEMP/encrypted-ok.txt"
+          test ! -e "$ok/.env"
+          test ! -e "$ok/env/dec"
+
+          duplicate="$RUNNER_TEMP/duplicate"
+          make_fixture "$duplicate"
+          : > "$duplicate/env/enc/dev.env.enc"
+          set +e
+          target/debug/oresc --no-json audit env --path "$duplicate" > "$RUNNER_TEMP/encrypted-duplicate.txt"
+          duplicate_status=$?
+          set -e
+          test "$duplicate_status" -eq 2
+          grep -F 'environment-encrypted-key-duplicate' "$RUNNER_TEMP/encrypted-duplicate.txt"
+          ! grep -F 'SENSITIVE_ONE' "$RUNNER_TEMP/encrypted-duplicate.txt"
+          ! grep -F 'SENSITIVE_TWO' "$RUNNER_TEMP/encrypted-duplicate.txt"
+
+          undeclared="$RUNNER_TEMP/undeclared"
+          make_fixture "$undeclared"
+          : > "$undeclared/env/enc/dev.env.enc"
+          set +e
+          target/debug/oresc --no-json audit env --path "$undeclared" > "$RUNNER_TEMP/encrypted-undeclared.txt"
+          undeclared_status=$?
+          set -e
+          test "$undeclared_status" -eq 2
+          grep -F 'environment-encrypted-key-undeclared' "$RUNNER_TEMP/encrypted-undeclared.txt"
+          ! grep -F 'SENSITIVE_GHOST' "$RUNNER_TEMP/encrypted-undeclared.txt"
+
+          drift="$RUNNER_TEMP/drift"
+          make_fixture "$drift"
+          : > "$drift/env/enc/dev.env.enc"
+          : > "$drift/env/enc/prod.env.enc"
+          set +e
+          target/debug/oresc --no-json audit env --path "$drift" > "$RUNNER_TEMP/encrypted-drift.txt"
+          drift_status=$?
+          set -e
+          test "$drift_status" -eq 2
+          grep -F 'environment-encrypted-keyset-drift' "$RUNNER_TEMP/encrypted-drift.txt"
+          ! grep -F 'SENSITIVE_DEV' "$RUNNER_TEMP/encrypted-drift.txt"
+          ! grep -F 'SENSITIVE_PROD' "$RUNNER_TEMP/encrypted-drift.txt"
+          ! grep -F 'SENSITIVE_BETA' "$RUNNER_TEMP/encrypted-drift.txt"
+
+      - name: Admit real TJSV contract and reject real drift
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          pass_dir=$(mktemp -d "$RUNNER_TEMP/ores-cli-pass.XXXXXXXX")
+          target/debug/oresc --no-json audit contract \
+            --typespec "$GITHUB_WORKSPACE/tjsv/test/fixtures/pass/main.tsp" \
+            --schema "$GITHUB_WORKSPACE/tjsv/test/fixtures/pass/authored.schema.json" \
+            --report "$pass_dir/parity.json" \
+            --validator "$RUNNER_TEMP/bin/tjsv" \
+            > "$pass_dir/result.txt"
+          grep -F 'contract-parity-passed' "$pass_dir/result.txt"
+          grep -F 'status=passed command=audit contract' "$pass_dir/result.txt"
+
+          drift_dir=$(mktemp -d "$RUNNER_TEMP/ores-cli-tjsv-drift.XXXXXXXX")
+          set +e
+          target/debug/ores-cli --no-json audit contract \
+            --typespec "$GITHUB_WORKSPACE/tjsv/test/fixtures/drift/main.tsp" \
+            --schema "$GITHUB_WORKSPACE/tjsv/test/fixtures/drift/authored.schema.json" \
+            --report "$drift_dir/parity.json" \
+            --validator "$RUNNER_TEMP/bin/tjsv" \
+            > "$drift_dir/result.txt"
+          tjsv_status=$?
+          set -e
+          test "$tjsv_status" -eq 2
+          grep -F 'contract-parity-stopped-for-evaluation' "$drift_dir/result.txt"
+          grep -F 'status=stopped_for_evaluation command=audit contract' "$drift_dir/result.txt"
+
+      - name: Run repository, environment, and package self-audits
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          target/debug/oresc audit repo --path . --profile rust-cli > "$RUNNER_TEMP/repository-audit.jsonl"
+          target/debug/oresc audit env --path . > "$RUNNER_TEMP/environment-audit.jsonl"
+          target/debug/oresc audit package --path . > "$RUNNER_TEMP/package-audit.jsonl"
