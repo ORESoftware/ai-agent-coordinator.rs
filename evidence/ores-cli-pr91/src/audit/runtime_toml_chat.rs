@@ -330,9 +330,7 @@ fn require_pattern_string(
         .get(field)
         .and_then(Value::as_str)
         .is_some_and(|value| {
-            value.len() >= rule.min
-                && value.len() <= rule.max
-                && (rule.predicate)(value)
+            value.len() >= rule.min && value.len() <= rule.max && (rule.predicate)(value)
         })
     {
         push_error(
@@ -472,7 +470,7 @@ shared_auth_issuer_binding = "shared_auth_issuer"
         let report = audit(
             &SERVER_SHAPED
                 .replace("version = 1", "version = 2\nextra = true")
-                .replace("mode = \"server\"", "mode = \"peer\"")
+                .replace("mode = \"server\"", "mode = \"peer\")
                 .replace("argv-over-env", "env-over-argv")
                 .replace("kind = \"url\"", "kind = \"bytes\""),
         );
