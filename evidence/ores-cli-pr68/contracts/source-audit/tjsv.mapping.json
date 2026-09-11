@@ -1,0 +1,17 @@
+{
+  "schema": "ores.typespec-json-schema-validator.mapping/v1",
+  "declarations": [
+    {"typespec": "Ores.Cli.SourceAudit.V1.SourceLanguage", "generated": "SourceLanguage", "authored": "SourceLanguage"},
+    {"typespec": "Ores.Cli.SourceAudit.V1.RegexEventKind", "generated": "RegexEventKind", "authored": "RegexEventKind"},
+    {"typespec": "Ores.Cli.SourceAudit.V1.AstEventKind", "generated": "AstEventKind", "authored": "AstEventKind"},
+    {"typespec": "Ores.Cli.SourceAudit.V1.RegexEvent", "generated": "RegexEvent", "authored": "RegexEvent"},
+    {"typespec": "Ores.Cli.SourceAudit.V1.AstEvent", "generated": "AstEvent", "authored": "AstEvent"},
+    {"typespec": "Ores.Cli.SourceAudit.V1.SourceFileEvidence", "generated": "SourceFileEvidence", "authored": "SourceFileEvidence"},
+    {"typespec": "Ores.Cli.SourceAudit.V1.CodeConfigAuditReceipt", "generated": "CodeConfigAuditReceipt", "authored": "CodeConfigAuditReceipt"}
+  ],
+  "ignore": {
+    "typespec": [],
+    "generated": [],
+    "authored": []
+  }
+}
