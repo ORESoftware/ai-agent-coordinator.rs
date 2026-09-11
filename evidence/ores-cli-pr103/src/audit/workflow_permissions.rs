@@ -341,10 +341,12 @@ mod tests {
             "ci.yml",
             "name: CI\non: push\njobs:\n  test:\n    permissions:\n      contents: read\n",
         )]);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| { finding.code == "workflow-permissions-top-level-missing" }));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| { finding.code == "workflow-permissions-top-level-missing" })
+        );
     }
 
     #[test]
@@ -353,10 +355,12 @@ mod tests {
             "ci.yml",
             "name: CI\non: push\npermissions: read-all\njobs:\n  release:\n    permissions: \"write-all\"\n",
         )]);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| { finding.code == "workflow-permissions-write-all" }));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| { finding.code == "workflow-permissions-write-all" })
+        );
     }
 
     #[test]
@@ -365,10 +369,12 @@ mod tests {
             "ci.yml",
             "name: CI\non: push\npermissions: ${{ matrix.permissions }}\njobs: {}\n",
         )]);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| { finding.code == "workflow-permissions-dynamic" }));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| { finding.code == "workflow-permissions-dynamic" })
+        );
     }
 
     #[test]
@@ -377,10 +383,12 @@ mod tests {
             "ci.yml",
             "name: CI\non: push\n# permissions: read-all\njobs: {}\n",
         )]);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| { finding.code == "workflow-permissions-top-level-missing" }));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| { finding.code == "workflow-permissions-top-level-missing" })
+        );
     }
 
     #[test]
@@ -389,9 +397,11 @@ mod tests {
             "ci.yml",
             "permissions: read-all\nname: CI\npermissions: {}\njobs: {}\n",
         )]);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| { finding.code == "workflow-permissions-top-level-duplicate" }));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| { finding.code == "workflow-permissions-top-level-duplicate" })
+        );
     }
 }
