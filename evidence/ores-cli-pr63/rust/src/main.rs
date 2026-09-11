@@ -194,10 +194,8 @@ fn inspect_file(root: &Path, file: &Path) -> Result<FileReceipt, String> {
 fn regex_lane(source: &str) -> Result<Vec<Event>, String> {
     let config = Regex::new(r#"[\"']([^\"'\n]*\.toml)[\"']"#)
         .map_err(|_| "config regex did not compile".to_owned())?;
-    let env = Regex::new(
-        r"\b(?:std::env::(?:var|var_os)|env::(?:var|var_os)|env!|option_env!)\b",
-    )
-    .map_err(|_| "env regex did not compile".to_owned())?;
+    let env = Regex::new(r"\b(?:std::env::(?:var|var_os)|env::(?:var|var_os)|env!|option_env!)\b")
+        .map_err(|_| "env regex did not compile".to_owned())?;
     let toml = Regex::new(r"\btoml::(?:from_str|from_slice|de::from_str)\b")
         .map_err(|_| "TOML regex did not compile".to_owned())?;
 
@@ -245,11 +243,7 @@ fn top_level_imports(items: &[Item]) -> BTreeMap<String, String> {
     aliases
 }
 
-fn collect_use_tree(
-    aliases: &mut BTreeMap<String, String>,
-    prefix: Vec<String>,
-    tree: &UseTree,
-) {
+fn collect_use_tree(aliases: &mut BTreeMap<String, String>, prefix: Vec<String>, tree: &UseTree) {
     match tree {
         UseTree::Path(path) => {
             let mut next = prefix;
@@ -337,11 +331,10 @@ impl<'ast> Visit<'ast> for ConfigVisitor {
             }
             if matches!(
                 function_name.as_str(),
-                "std::fs::read_to_string"
-                    | "std::fs::read"
-                    | "fs::read_to_string"
-                    | "fs::read"
-            ) && first.as_deref().is_some_and(|value| value.ends_with(".toml"))
+                "std::fs::read_to_string" | "std::fs::read" | "fs::read_to_string" | "fs::read"
+            ) && first
+                .as_deref()
+                .is_some_and(|value| value.ends_with(".toml"))
             {
                 self.push("config-read", first, node.span());
             }
@@ -436,9 +429,7 @@ fn load() {
 "#;
         let events = events(source)
             .into_iter()
-            .filter(|event| {
-                event.kind == "env-read" && event.value.as_deref() == Some("REDIS_URL")
-            })
+            .filter(|event| event.kind == "env-read" && event.value.as_deref() == Some("REDIS_URL"))
             .collect::<Vec<_>>();
 
         assert_eq!(events.len(), 2);
@@ -465,12 +456,10 @@ fn load() {
 "#;
         let events = events(source);
         assert!(events.iter().any(|event| {
-            event.kind == "env-read"
-                && event.value.as_deref() == Some("ALIAS_REDIS_URL")
+            event.kind == "env-read" && event.value.as_deref() == Some("ALIAS_REDIS_URL")
         }));
         assert!(events.iter().any(|event| {
-            event.kind == "config-read"
-                && event.value.as_deref() == Some(".ores-chat.toml")
+            event.kind == "config-read" && event.value.as_deref() == Some(".ores-chat.toml")
         }));
         assert!(events.iter().any(|event| event.kind == "toml-parse"));
     }
