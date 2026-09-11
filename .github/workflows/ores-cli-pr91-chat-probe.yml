@@ -39,8 +39,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           source='evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs'
-          test "$(git hash-object "$source")" = "85fbd2077600f10fc80a5b6f4333d8d65042a2ad"
-          test "$(sha256sum "$source" | cut -d' ' -f1)" = "daf6daf1eadaedee2b3debe3fe3a5ae85b84eeb443a648ebbdc8b5a8d74108ab"
+          test "$(git hash-object "$source")" = "b5f139617d0db709c80fe5b24a4534e8e9ba2e28"
+          test "$(sha256sum "$source" | cut -d' ' -f1)" = "4018911a955617d1f4cfbf21b09f596e51ac2a43f89c7dfab4015c2fb1ad602a"
           git diff --check
           status=0
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-pr91 || status=$?

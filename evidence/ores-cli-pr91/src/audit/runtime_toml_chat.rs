@@ -143,20 +143,24 @@ fn audit_env(value: Option<&Value>, report: &mut CommandReport) {
         require_pattern_string(
             table,
             "name",
-            1,
-            64,
-            is_logical_name,
-            "chat-env-name",
+            PatternStringRule {
+                min: 1,
+                max: 64,
+                predicate: is_logical_name,
+                code: "chat-env-name",
+            },
             &target,
             report,
         );
         require_pattern_string(
             table,
             "key",
-            1,
-            128,
-            is_env_key,
-            "chat-env-key",
+            PatternStringRule {
+                min: 1,
+                max: 128,
+                predicate: is_env_key,
+                code: "chat-env-key",
+            },
             &target,
             report,
         );
@@ -307,24 +311,33 @@ fn require_bounded_string(
     }
 }
 
-fn require_pattern_string(
-    table: &toml::map::Map<String, Value>,
-    field: &str,
+#[derive(Clone, Copy)]
+struct PatternStringRule {
     min: usize,
     max: usize,
     predicate: fn(&str) -> bool,
-    code: &str,
+    code: &'static str,
+}
+
+fn require_pattern_string(
+    table: &toml::map::Map<String, Value>,
+    field: &str,
+    rule: PatternStringRule,
     target: &str,
     report: &mut CommandReport,
 ) {
     if !table
         .get(field)
         .and_then(Value::as_str)
-        .is_some_and(|value| value.len() >= min && value.len() <= max && predicate(value))
+        .is_some_and(|value| {
+            value.len() >= rule.min
+                && value.len() <= rule.max
+                && (rule.predicate)(value)
+        })
     {
         push_error(
             report,
-            code,
+            rule.code,
             "string does not satisfy the shared peer-authority pattern/bounds",
             &format!("{target}.{field}"),
         );
