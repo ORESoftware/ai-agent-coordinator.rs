@@ -44,7 +44,12 @@ pub(super) fn augment_infra_policy_audit(
                 "provider-policy",
                 &mut report,
             ) {
-                reject_embedded_credential_material(&source, &relative, "provider-policy", &mut report);
+                reject_embedded_credential_material(
+                    &source,
+                    &relative,
+                    "provider-policy",
+                    &mut report,
+                );
             }
         }
     }
@@ -402,10 +407,12 @@ mod tests {
         .unwrap();
         let report = audit(root.path());
         assert_eq!(report.exit_code(), 2);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "infra-deferred-migration-authority-missing"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "infra-deferred-migration-authority-missing")
+        );
         assert!(report.findings.iter().any(|finding| {
             finding.code == "infra-deferred-migration-startup-ddl-policy-missing"
         }));
@@ -421,10 +428,12 @@ mod tests {
         fs::write(path, source).unwrap();
         let report = audit(root.path());
         assert_eq!(report.exit_code(), 2);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "infra-deferred-migration-policy-database-url"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "infra-deferred-migration-policy-database-url")
+        );
     }
 
     #[test]
@@ -432,16 +441,19 @@ mod tests {
         let root = tempdir().unwrap();
         write_provider_tree(root.path(), true);
         fs::write(
-            root.path().join("neon/auth/migrations/202609110001_policy.sql"),
+            root.path()
+                .join("neon/auth/migrations/202609110001_policy.sql"),
             "-- postgres://example.invalid/db\nselect 1;\n",
         )
         .unwrap();
         let report = audit(root.path());
         assert_eq!(report.exit_code(), 2);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "infra-migration-sql-database-url"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "infra-migration-sql-database-url")
+        );
     }
 
     #[test]
@@ -449,16 +461,19 @@ mod tests {
         let root = tempdir().unwrap();
         write_provider_tree(root.path(), true);
         fs::write(
-            root.path().join("supabase/admin/migrations/202609110001_policy.sql"),
+            root.path()
+                .join("supabase/admin/migrations/202609110001_policy.sql"),
             "-- runtime must not read DATABASE_URL\nselect 1;\n",
         )
         .unwrap();
         let report = audit(root.path());
         assert_eq!(report.exit_code(), 2);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "infra-migration-generic-database-url"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "infra-migration-generic-database-url")
+        );
     }
 
     #[test]
@@ -472,9 +487,11 @@ mod tests {
         .unwrap();
         let report = audit(root.path());
         assert_eq!(report.exit_code(), 2);
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "infra-provider-policy-private-key"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "infra-provider-policy-private-key")
+        );
     }
 }
