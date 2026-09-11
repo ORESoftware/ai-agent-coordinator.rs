@@ -1,0 +1,76 @@
+name: ores-cli DEN-2843 exact-source infra-policy probe
+
+on:
+  pull_request:
+    paths:
+      - "evidence/ores-cli-den-2843/**"
+      - ".github/workflows/ores-cli-den-2843-infra-policy-probe.yml"
+  push:
+    branches:
+      - DEN-2843-ores-cli-infra-policy-probe
+    paths:
+      - "evidence/ores-cli-den-2843/**"
+      - ".github/workflows/ores-cli-den-2843-infra-policy-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-den-2843-infra-policy-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify revision, production blob, and clean conflict state
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git hash-object evidence/ores-cli-den-2843/src/audit/infra_policy.rs)" = "ec6e766a236b03f75694f892209b58737dfd59ba"
+          git diff --check
+          status=0
+          git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-den-2843 || status=$?
+          test "$status" -eq 1
+
+      - name: Install tested Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: "1.88.0"
+          components: rustfmt, clippy
+
+      - name: Verify formatting
+        run: cargo fmt --manifest-path evidence/ores-cli-den-2843/Cargo.toml --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --manifest-path evidence/ores-cli-den-2843/Cargo.toml --all-targets
+
+      - name: Run exact-source tests
+        run: cargo test --manifest-path evidence/ores-cli-den-2843/Cargo.toml --all-targets
+
+      - name: Reject Clippy warnings
+        run: cargo clippy --manifest-path evidence/ores-cli-den-2843/Cargo.toml --all-targets -- -D warnings
+
+      - name: Record certification boundary
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          - source: ORESoftware/ores-cli#100 exact head e7436ee2de4328a55f71321adec2fe316d645756
+          - exact infra policy blob: ec6e766a236b03f75694f892209b58737dfd59ba
+          - source mutation: none
+          - provider/database/cloud writes: none
+          - credentials: none
+          - scope: compile/test/lint the exact production infra-policy module in isolation
+          EOF
