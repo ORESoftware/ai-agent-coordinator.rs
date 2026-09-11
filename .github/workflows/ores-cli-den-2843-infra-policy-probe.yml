@@ -23,7 +23,11 @@ concurrency:
 jobs:
   exact-source:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
+    env:
+      TJSV_REVISION: 4740f1367a7906813dcd420a77d0c9ede26943fb
+      CONTRACT_ROOT: evidence/ores-cli-den-2843/contracts/infra-gitops
+      EVIDENCE_ROOT: evidence/ores-cli-den-2843/.typespec-json-schema-validator/infra-gitops
     steps:
       - name: Check out exact head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -31,7 +35,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Verify revision, production blob, and clean conflict state
+      - name: Verify revision, production blobs, and clean conflict state
         shell: bash
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -39,6 +43,8 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           test "$(git hash-object evidence/ores-cli-den-2843/src/audit/infra_policy.rs)" = "be4f90f192ae816fe0f5b134644c7d47a0bf199b"
+          test "$(git hash-object "$CONTRACT_ROOT/main.tsp")" = "e428237547ceb588d788f0bff597478174519f58"
+          test "$(git hash-object "$CONTRACT_ROOT/authored.schema.json")" = "fd6f1b60b2a2cb22c1ce75801bdef21d5ad05b8c"
           git diff --check
           status=0
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-den-2843 || status=$?
@@ -62,6 +68,99 @@ jobs:
       - name: Reject Clippy warnings
         run: cargo clippy --manifest-path evidence/ores-cli-den-2843/Cargo.toml --all-targets -- -D warnings
 
+      - name: Check out TJSV at reviewed immutable revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/typespec-json-schema-validator
+          ref: ${{ env.TJSV_REVISION }}
+          path: public-tjsv
+          persist-credentials: false
+
+      - name: Set up pinned Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22.16.0
+          cache: npm
+          cache-dependency-path: public-tjsv/package-lock.json
+
+      - name: Install immutable TJSV toolchain
+        working-directory: public-tjsv
+        run: npm ci
+
+      - name: Run positive infra peer-authority parity and Contract IR admission
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$EVIDENCE_ROOT"
+          node public-tjsv/bin/typespec-json-schema-validator.mjs check \
+            --typespec="$CONTRACT_ROOT/main.tsp" \
+            --schema="$CONTRACT_ROOT/authored.schema.json" \
+            --report="$EVIDENCE_ROOT/report.json" \
+            --sarif="$EVIDENCE_ROOT/report.sarif" \
+            --contract-ir="$EVIDENCE_ROOT/contract-ir.json" \
+            --output-dir="$EVIDENCE_ROOT/generated" \
+            --max-probes=64 \
+            --quiet
+
+      - name: Require zero-drift TJSV evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('node:fs');
+          const root = process.env.EVIDENCE_ROOT;
+          const report = JSON.parse(fs.readFileSync(`${root}/report.json`, 'utf8'));
+          const ir = JSON.parse(fs.readFileSync(`${root}/contract-ir.json`, 'utf8'));
+          if (report.status !== 'passed' || report.zeroUnexplainedFindings !== true) throw new Error('infra parity did not pass');
+          if (!Array.isArray(report.findings) || report.findings.length !== 0) throw new Error('unexpected parity findings');
+          if (report.authorities?.precedence !== 'none') throw new Error('peer-authority precedence drift');
+          if (report.authorities?.typespec?.generatedJsonSchemaRole !== 'comparison-evidence-only') throw new Error('generated witness promoted');
+          if (report.coverage?.differentialInstanceValidation !== true) throw new Error('differential validation missing');
+          if (!(report.differential?.summary?.probesEvaluated > 0)) throw new Error('no differential probes executed');
+          if (report.differential.summary.divergences !== 0 || report.differential.summary.refusals !== 0) throw new Error('differential mismatch');
+          if (ir.status !== 'passed' || ir.admissible !== true || ir.editableAuthority !== false) throw new Error('Contract IR not admissible');
+          if (ir.admission?.receipt?.runId !== report.runId) throw new Error('Contract IR receipt binding mismatch');
+          NODE
+
+      - name: Prove schema drift fails closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          drift_dir="$(mktemp -d)"
+          trap 'rm -rf "$drift_dir"' EXIT
+          cp "$CONTRACT_ROOT/authored.schema.json" "$drift_dir/authored.schema.json"
+          python3 - "$drift_dir/authored.schema.json" <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path(sys.argv[1])
+          document = json.loads(path.read_text())
+          document['$defs']['InfraGitOpsContract']['properties']['promotionPolicy']['type'] = 'integer'
+          path.write_text(json.dumps(document, indent=2) + '\n')
+          PY
+          set +e
+          node public-tjsv/bin/typespec-json-schema-validator.mjs check \
+            --typespec="$CONTRACT_ROOT/main.tsp" \
+            --schema="$drift_dir/authored.schema.json" \
+            --report="$EVIDENCE_ROOT/drift-report.json" \
+            --contract-ir="$EVIDENCE_ROOT/drift-contract-ir.json" \
+            --output-dir="$EVIDENCE_ROOT/drift-generated" \
+            --max-probes=64 \
+            --quiet
+          status=$?
+          set -e
+          test "$status" -eq 2
+          node <<'NODE'
+          const fs = require('node:fs');
+          const root = process.env.EVIDENCE_ROOT;
+          const report = JSON.parse(fs.readFileSync(`${root}/drift-report.json`, 'utf8'));
+          const ir = JSON.parse(fs.readFileSync(`${root}/drift-contract-ir.json`, 'utf8'));
+          if (report.status !== 'stopped_for_evaluation') throw new Error('drift did not stop evaluation');
+          if (!Array.isArray(report.findings) || report.findings.length === 0) throw new Error('drift emitted no finding');
+          if (ir.admissible !== false) throw new Error('drift produced admissible Contract IR');
+          NODE
+
+      - name: Require unchanged peer authorities
+        run: git diff --exit-code -- "$CONTRACT_ROOT"
+
       - name: Record certification boundary
         if: ${{ !cancelled() }}
         shell: bash
@@ -69,8 +168,20 @@ jobs:
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
           - source: ORESoftware/ores-cli#128 exact head 9e7c07b7c7984f0068023c016efbb444257529a7
           - exact infra policy blob: be4f90f192ae816fe0f5b134644c7d47a0bf199b
+          - exact TypeSpec blob: e428237547ceb588d788f0bff597478174519f58
+          - exact authored JSON Schema blob: fd6f1b60b2a2cb22c1ce75801bdef21d5ad05b8c
+          - TJSV revision: 4740f1367a7906813dcd420a77d0c9ede26943fb
           - source mutation: none
           - provider/database/cloud writes: none
           - credentials: none
-          - scope: compile/test/lint the exact production infra-policy module in isolation
           EOF
+
+      - name: Retain bounded TJSV evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: ores-cli-den-2843-tjsv-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/ores-cli-den-2843/.typespec-json-schema-validator/infra-gitops
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30
