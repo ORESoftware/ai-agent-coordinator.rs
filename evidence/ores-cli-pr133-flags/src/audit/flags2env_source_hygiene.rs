@@ -42,7 +42,10 @@ pub(crate) fn audit_flags2env_source_hygiene(root: &Path, report: &mut CommandRe
                 continue;
             }
         };
-        if !entry.file_type().is_file() || entry.file_type().is_symlink() || !is_manifest(entry.path()) {
+        if !entry.file_type().is_file()
+            || entry.file_type().is_symlink()
+            || !is_manifest(entry.path())
+        {
             continue;
         }
         scanned += 1;
@@ -124,8 +127,14 @@ pub(crate) fn audit_flags2env_source_hygiene(root: &Path, report: &mut CommandRe
     }
 
     report.insert_metadata("flags2envSourceManifestCount", json!(scanned));
-    report.insert_metadata("flags2envCanonicalGitReferenceCount", json!(canonical_git_refs));
-    report.insert_metadata("flags2envImmutableGitReferenceCount", json!(immutable_git_refs));
+    report.insert_metadata(
+        "flags2envCanonicalGitReferenceCount",
+        json!(canonical_git_refs),
+    );
+    report.insert_metadata(
+        "flags2envImmutableGitReferenceCount",
+        json!(immutable_git_refs),
+    );
     report.insert_metadata("flags2envRetiredSourceReferenceCount", json!(retired_hits));
 }
 
