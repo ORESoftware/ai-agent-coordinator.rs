@@ -8,7 +8,12 @@ use crate::model::{CommandReport, Finding};
 
 const CONFIG: &str = ".indiebuild.toml";
 const SCHEMA_VERSION: &str = "gha-indie-worker.indiebuild/v1";
-const ROOT_KEYS: &[&str] = &["schema_version", "repository_role", "default_target", "targets"];
+const ROOT_KEYS: &[&str] = &[
+    "schema_version",
+    "repository_role",
+    "default_target",
+    "targets",
+];
 const TARGET_KEYS: &[&str] = &[
     "name",
     "role",
