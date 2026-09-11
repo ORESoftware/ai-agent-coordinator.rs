@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(git hash-object evidence/ores-cli-pr106/src/audit/runtime_toml_otel.rs)" = "eb3fae33e287da4e069e8c2a2e013b48e6e9b5c8"
+          test "$(git hash-object evidence/ores-cli-pr106/src/audit/runtime_toml_otel.rs)" = "03f6f150d7c0d721348e050ee0f7593da2b91bfb"
           git diff --check
           status=0
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-pr106 || status=$?
