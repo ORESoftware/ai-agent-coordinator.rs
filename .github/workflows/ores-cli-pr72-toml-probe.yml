@@ -25,7 +25,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git hash-object evidence/ores-cli-pr72/src/model.rs)" = "fbaeb6bab206db0275f62ecf3076e48da1a3c756"
-          test "$(git hash-object evidence/ores-cli-pr72/src/audit/runtime_toml_rate_limit.rs)" = "ae9c8d6ca02fe819659585469a94b3d840e35bfb"
+          test "$(git hash-object evidence/ores-cli-pr72/src/audit/runtime_toml_rate_limit.rs)" = "54ccab67bd4de5933b4687709bab90075012e9ff"
       - name: Generate evidence-only dependency lock
         working-directory: evidence/ores-cli-pr72
         run: cargo generate-lockfile
