@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ORES_CLI_SHA: 75c257b4a19d947107d598c1a7765f85f739cde1
+  ORES_CLI_SHA: 64202fc6a3b1a840cbc68869f1fd727938e03dd6
 
 jobs:
   adapter-snapshot:
@@ -126,7 +126,6 @@ jobs:
           private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
           owner: ORESoftware
           repositories: ores-cli
-          skip-token-revoke: true
           permission-contents: read
           permission-metadata: read
 
