@@ -216,11 +216,7 @@ fn audit_sidecars(value: Option<&Value>, report: &mut CommandReport) {
     }
 }
 
-fn audit_bind_ip(
-    table: &toml::map::Map<String, Value>,
-    target: &str,
-    report: &mut CommandReport,
-) {
+fn audit_bind_ip(table: &toml::map::Map<String, Value>, target: &str, report: &mut CommandReport) {
     let Some(bind_ip) = table.get("bindIp").and_then(Value::as_str) else {
         push_error(
             report,
@@ -407,7 +403,9 @@ fn safe_repository_relative_path(value: &str) -> bool {
     }
     let path = Path::new(value);
     !path.is_absolute()
-        && path.components().all(|component| matches!(component, Component::Normal(_)))
+        && path
+            .components()
+            .all(|component| matches!(component, Component::Normal(_)))
 }
 
 fn valid_portable_id(value: &str) -> bool {
@@ -540,26 +538,54 @@ runtimeKeys = ["WORKER_BATCH_SIZE", "TOKEN_BUCKET_POLICY"]
         let report = audit(
             &OWNER_EXAMPLE
                 .replace("ores.sidecar-config.v1", "ores.sidecar-config.v2")
-                .replace(
-                    "bindPort = 7410",
-                    "bindPort = 0\nplaintextToken = \"nope\"",
-                ),
+                .replace("bindPort = 7410", "bindPort = 0\nplaintextToken = \"nope\""),
         );
-        assert!(report.findings.iter().any(|finding| finding.code == "sidecar-protocol"));
-        assert!(report.findings.iter().any(|finding| finding.code == "sidecar-unknown-field"));
-        assert!(report.findings.iter().any(|finding| finding.code == "sidecar-listener-port"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "sidecar-protocol")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "sidecar-unknown-field")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "sidecar-listener-port")
+        );
     }
 
     #[test]
     fn runtime_update_policy_requires_exact_cache_and_repository_owned_lru_file() {
-        let report = audit_without_lru(&OWNER_EXAMPLE.replace("cache = \"runtime-env\"", "cache = \"other\""));
-        assert!(report.findings.iter().any(|finding| finding.code == "sidecar-runtime-cache"));
-        assert!(report.findings.iter().any(|finding| finding.code == "sidecar-lru-config-missing"));
+        let report = audit_without_lru(
+            &OWNER_EXAMPLE.replace("cache = \"runtime-env\"", "cache = \"other\""),
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "sidecar-runtime-cache")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "sidecar-lru-config-missing")
+        );
     }
 
     #[test]
     fn lru_config_path_rejects_parent_traversal_and_platform_specific_forms() {
-        for unsafe_path in ["../.ores-lru.toml", "config\\.ores-lru.toml", "C:/tmp/.ores-lru.toml"] {
+        for unsafe_path in [
+            "../.ores-lru.toml",
+            "config\\.ores-lru.toml",
+            "C:/tmp/.ores-lru.toml",
+        ] {
             let report = audit(&OWNER_EXAMPLE.replace(".ores-lru.toml", unsafe_path));
             assert!(
                 report
