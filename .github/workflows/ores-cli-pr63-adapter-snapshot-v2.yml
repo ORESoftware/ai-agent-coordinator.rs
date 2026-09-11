@@ -1,0 +1,101 @@
+name: Ores CLI PR63 adapter snapshot v2
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr63-ast-probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr63-adapter-snapshot-v2
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_SHA: fa560cb74fc001518e83f1a375360bac869341e0
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out immutable evidence snapshot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Verify evidence tree cleanliness
+        run: git diff --check
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.23.2'
+          cache: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Go alias-aware AST regression
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -d evidence/ores-cli-pr63/go/main.go evidence/ores-cli-pr63/go-fixture/config.go)"
+          go vet evidence/ores-cli-pr63/go/main.go
+          mkdir -p "$RUNNER_TEMP/evidence"
+          go run evidence/ores-cli-pr63/go/main.go \
+            --root evidence/ores-cli-pr63/go-fixture \
+            --format json > "$RUNNER_TEMP/evidence/go.json"
+          jq -e '
+            .language == "go" and
+            .files[0].syntaxValid == true and
+            ([.files[0].regexHits[] | select(.kind == "env-api")] | length) == 0 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-lru.toml")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/go.json" >/dev/null
+
+      - name: Rust exact-span AST regression
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path evidence/ores-cli-pr63/rust/Cargo.toml -- --check
+          cargo test --manifest-path evidence/ores-cli-pr63/rust/Cargo.toml
+          cargo clippy --manifest-path evidence/ores-cli-pr63/rust/Cargo.toml --all-targets -- -D warnings
+
+      - name: TypeScript destructuring AST regression
+        run: |
+          set -euo pipefail
+          node --check evidence/ores-cli-pr63/typescript/index.mjs
+          npm install --prefix evidence/ores-cli-pr63/typescript --ignore-scripts --no-audit --no-fund
+          node evidence/ores-cli-pr63/typescript/index.mjs \
+            --root evidence/ores-cli-pr63/typescript-fixture \
+            --format json > "$RUNNER_TEMP/evidence/typescript.json"
+          jq -e '
+            .language == "typescript" and
+            .parser == "ts-morph" and
+            .files[0].syntaxValid == true and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "API_KEY")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "DATABASE_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "rest")] | length) == 0 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-rl.toml")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "toml-parse")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/typescript.json" >/dev/null
+
+      - name: Upload receipts and generated lockfiles
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ores-cli-pr63-adapter-snapshot-${{ env.ORES_CLI_SHA }}
+          path: |
+            evidence/ores-cli-pr63/rust/Cargo.lock
+            evidence/ores-cli-pr63/typescript/package-lock.json
+            ${{ runner.temp }}/evidence
+          if-no-files-found: warn
+          retention-days: 30
