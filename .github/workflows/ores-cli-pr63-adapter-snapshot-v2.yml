@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ORES_CLI_SHA: fa560cb74fc001518e83f1a375360bac869341e0
+  ORES_CLI_SHA: 75c257b4a19d947107d598c1a7765f85f739cde1
 
 jobs:
   verify:
