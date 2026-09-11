@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ORES_CLI_SHA: 64202fc6a3b1a840cbc68869f1fd727938e03dd6
+  ORES_CLI_SHA: d9ec855d87163e990c1f6fbd64c8ec9a96f32904
 
 jobs:
   adapter-snapshot:
