@@ -1,0 +1,68 @@
+name: Materialize Chat raw-delimiter repair
+
+on:
+  push:
+    branches:
+      - DEN-390-chat-raw-delimiter-materializer
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Install Rust 1.88
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: "1.88.0"
+          components: rustfmt, clippy
+      - name: Widen only the test raw-string delimiter
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs')
+          text = p.read_text()
+          start = 'const SERVER_SHAPED: &str = r#"\n'
+          end = 'shared_auth_issuer_binding = "shared_auth_issuer"\n"#;\n'
+          assert text.count(start) == 1, text.count(start)
+          assert text.count(end) == 1, text.count(end)
+          text = text.replace(start, 'const SERVER_SHAPED: &str = r##"\n', 1)
+          text = text.replace(end, 'shared_auth_issuer_binding = "shared_auth_issuer"\n"##;\n', 1)
+          p.write_text(text)
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs"
+      - name: Canonical rustfmt
+        run: cargo fmt --manifest-path evidence/ores-cli-pr91/Cargo.toml --all
+      - name: Compile
+        run: cargo check --manifest-path evidence/ores-cli-pr91/Cargo.toml --all-targets
+      - name: Test
+        run: cargo test --manifest-path evidence/ores-cli-pr91/Cargo.toml
+      - name: Clippy
+        run: cargo clippy --manifest-path evidence/ores-cli-pr91/Cargo.toml --all-targets -- -D warnings
+      - name: Materialize exact repaired source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/chat-repair"
+          cp evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs "$RUNNER_TEMP/chat-repair/runtime_toml_chat.rs"
+          git hash-object "$RUNNER_TEMP/chat-repair/runtime_toml_chat.rs" > "$RUNNER_TEMP/chat-repair/GIT_BLOB"
+          sha256sum "$RUNNER_TEMP/chat-repair/runtime_toml_chat.rs" > "$RUNNER_TEMP/chat-repair/SHA256SUMS"
+          git diff --binary -- evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs > "$RUNNER_TEMP/chat-repair/repair.patch"
+      - name: Upload repaired source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ores-cli-chat-repair-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/chat-repair
+          if-no-files-found: error
+          retention-days: 7
