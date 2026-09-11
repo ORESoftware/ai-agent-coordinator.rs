@@ -1,0 +1,216 @@
+name: Ores CLI PR63 external AST acceptance
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr63-ast-probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr63-ast-acceptance
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_SHA: 5a77938b6e3bf270787449d9ee2f8e76836153c7
+
+jobs:
+  adapters:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out probe control
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          path: control
+
+      - name: Mint least-privilege ores-cli read token
+        id: ores-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-cli
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact PR63 candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: ${{ env.ORES_CLI_SHA }}
+          token: ${{ steps.ores-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: ores-cli
+
+      - name: Verify immutable candidate identity
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          git -C ores-cli diff --check
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.23.2'
+          cache: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d
+        with:
+          sdk: '3.12.2'
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Verify Go AST adapter including aliased stdlib imports
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -d tools/ast/go/main.go tools/ast/fixtures/go/config.go)"
+          go vet tools/ast/go/main.go
+          mkdir -p "$RUNNER_TEMP/evidence"
+          go run tools/ast/go/main.go --root tools/ast/fixtures/go --format json > "$RUNNER_TEMP/evidence/go.json"
+          jq -e '
+            .language == "go" and
+            .files[0].syntaxValid == true and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-lru.toml")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/go.json" >/dev/null
+          grep -F 'import operatingSystem "os"' tools/ast/fixtures/go/config.go
+
+      - name: Verify Rust AST adapter exact source spans
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path tools/ast/rust/Cargo.toml -- --check
+          cargo test --manifest-path tools/ast/rust/Cargo.toml
+          cargo clippy --manifest-path tools/ast/rust/Cargo.toml --all-targets -- -D warnings
+          cargo run --quiet --manifest-path tools/ast/rust/Cargo.toml -- --root tools/ast/fixtures/rust --format json > "$RUNNER_TEMP/evidence/rust.json"
+          jq -e '
+            .language == "rust" and
+            .files[0].syntaxValid == true and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-lru.toml")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/rust.json" >/dev/null
+
+      - name: Verify TypeScript ts-morph adapter
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          node --check tools/ast/typescript/index.mjs
+          npm install --prefix tools/ast/typescript --ignore-scripts --no-audit --no-fund
+          node tools/ast/typescript/index.mjs --root tools/ast/fixtures/typescript --format json > "$RUNNER_TEMP/evidence/typescript.json"
+          jq -e '
+            .language == "typescript" and
+            .parser == "ts-morph" and
+            .files[0].syntaxValid == true and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/typescript.json" >/dev/null
+
+      - name: Verify Gleam structural adapter
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path tools/ast/gleam/Cargo.toml -- --check
+          cargo clippy --manifest-path tools/ast/gleam/Cargo.toml --all-targets -- -D warnings
+          cargo run --quiet --manifest-path tools/ast/gleam/Cargo.toml -- --root tools/ast/fixtures/gleam --format json > "$RUNNER_TEMP/evidence/gleam.json"
+          jq -e '.language == "gleam" and .files[0].syntaxValid == true' "$RUNNER_TEMP/evidence/gleam.json" >/dev/null
+
+      - name: Verify Dart analyzer adapter
+        working-directory: ores-cli/tools/ast/dart
+        run: |
+          set -euo pipefail
+          dart pub get
+          dart format --output=none --set-exit-if-changed .
+          dart analyze --fatal-infos --fatal-warnings
+          dart run bin/ores_ast_dart.dart --root ../fixtures/dart --format json > "$RUNNER_TEMP/evidence/dart.json"
+          jq -e '.language == "dart" and .files[0].syntaxValid == true' "$RUNNER_TEMP/evidence/dart.json" >/dev/null
+
+      - name: Verify root Rust integration still compiles and tests
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --format-version=1 >/dev/null
+          cargo fmt --all --check
+          cargo clippy --locked --all-targets --all-features -- -D warnings
+          cargo test --locked --all-targets --all-features
+
+      - name: Retain generated helper lockfiles and receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ores-cli-pr63-ast-evidence-${{ env.ORES_CLI_SHA }}
+          path: |
+            ores-cli/tools/ast/rust/Cargo.lock
+            ores-cli/tools/ast/gleam/Cargo.lock
+            ores-cli/tools/ast/typescript/package-lock.json
+            ores-cli/tools/ast/dart/pubspec.lock
+            ${{ runner.temp }}/evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: nightly-org-maintenance
+    steps:
+      - name: Mint least-privilege ores-cli read token
+        id: ores-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-cli
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact PR63 candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: ${{ env.ORES_CLI_SHA }}
+          token: ${{ steps.ores-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: ores-cli
+
+      - name: Compare independent source-audit authorities with exact TJSV
+        uses: ORESoftware/typespec-json-schema-validator@5bab34e08856c47af3600adf40a4aa860fa71c01
+        with:
+          typespec: ores-cli/contracts/source-audit/main.tsp
+          schema: ores-cli/contracts/source-audit/authored.schema.json
+          mapping: ores-cli/contracts/source-audit/tjsv.mapping.json
+          instances: ores-cli/contracts/source-audit/instances
+          report: .typespec-json-schema-validator/source-audit.report.json
+          sarif: .typespec-json-schema-validator/source-audit.sarif
+          contract_ir: .typespec-json-schema-validator/source-audit.contract-ir.json
+          output_dir: .typespec-json-schema-validator/source-audit-generated
+          int64_strategy: number
+          quiet: 'false'
+
+      - name: Require fail-closed differential admission
+        run: |
+          set -euo pipefail
+          jq -e '
+            .status == "passed" and
+            .zeroUnexplainedFindings == true and
+            .authorities.precedence == "none" and
+            .differential.disabled != true and
+            .differential.summary.divergences == 0 and
+            .differential.summary.refusals == 0
+          ' .typespec-json-schema-validator/source-audit.report.json >/dev/null
