@@ -84,7 +84,13 @@ pub(super) fn augment_rate_limit_runtime_toml_audit(
 
     let issues_before = report.issue_count();
     audit_closed_keys(root, ROOT_KEYS, "root", &mut report);
-    require_string_eq(root, "schemaVersion", SCHEMA_VERSION, "rate-limit-schema-version", &mut report);
+    require_string_eq(
+        root,
+        "schemaVersion",
+        SCHEMA_VERSION,
+        "rate-limit-schema-version",
+        &mut report,
+    );
     require_enum(root, "layout", LAYOUTS, "root", &mut report);
     match root.get("defaultPolicyId").and_then(Value::as_str) {
         Some(value) if valid_policy_id(value) => {}
@@ -116,12 +122,21 @@ pub(super) fn augment_rate_limit_runtime_toml_audit(
 fn audit_client(value: Option<&Value>, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        push_error(report, "rate-limit-client-shape", "client must be a table", "client");
+        push_error(
+            report,
+            "rate-limit-client-shape",
+            "client must be a table",
+            "client",
+        );
         return;
     };
     audit_closed_keys(table, &["root", "exposePolicyMetadata"], "client", report);
     require_bounded_string(table, "root", 255, "client", report);
-    if table.get("exposePolicyMetadata").and_then(Value::as_bool).is_none() {
+    if table
+        .get("exposePolicyMetadata")
+        .and_then(Value::as_bool)
+        .is_none()
+    {
         push_error(
             report,
             "rate-limit-client-boolean",
@@ -134,12 +149,23 @@ fn audit_client(value: Option<&Value>, report: &mut CommandReport) {
 fn audit_server(value: Option<&Value>, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        push_error(report, "rate-limit-server-shape", "server must be a table", "server");
+        push_error(
+            report,
+            "rate-limit-server-shape",
+            "server must be a table",
+            "server",
+        );
         return;
     };
     audit_closed_keys(
         table,
-        &["root", "backend", "enforcementLayer", "redisUrlEnv", "keyHmacEnv"],
+        &[
+            "root",
+            "backend",
+            "enforcementLayer",
+            "redisUrlEnv",
+            "keyHmacEnv",
+        ],
         "server",
         report,
     );
@@ -148,7 +174,13 @@ fn audit_server(value: Option<&Value>, report: &mut CommandReport) {
     require_enum(
         table,
         "enforcementLayer",
-        &["edge", "load-balancer", "service", "authentication", "data-store"],
+        &[
+            "edge",
+            "load-balancer",
+            "service",
+            "authentication",
+            "data-store",
+        ],
         "server",
         report,
     );
@@ -161,17 +193,32 @@ fn audit_server(value: Option<&Value>, report: &mut CommandReport) {
 fn audit_env(value: Option<&Value>, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(entries) = value.as_array() else {
-        push_error(report, "rate-limit-env-shape", "env must be an array", "env");
+        push_error(
+            report,
+            "rate-limit-env-shape",
+            "env must be an array",
+            "env",
+        );
         return;
     };
     if entries.is_empty() || entries.len() > 128 {
-        push_error(report, "rate-limit-env-count", "env must contain 1..=128 declarations", "env");
+        push_error(
+            report,
+            "rate-limit-env-count",
+            "env must contain 1..=128 declarations",
+            "env",
+        );
     }
     let mut seen = BTreeSet::new();
     for (index, entry) in entries.iter().enumerate() {
         let target = format!("env[{index}]");
         let Some(table) = entry.as_table() else {
-            push_error(report, "rate-limit-env-entry-shape", "environment declaration must be a table", &target);
+            push_error(
+                report,
+                "rate-limit-env-entry-shape",
+                "environment declaration must be a table",
+                &target,
+            );
             continue;
         };
         audit_closed_keys(table, ENV_KEYS, &target, report);
@@ -210,17 +257,32 @@ fn audit_env(value: Option<&Value>, report: &mut CommandReport) {
 
 fn audit_policies(value: Option<&Value>, report: &mut CommandReport) {
     let Some(entries) = value.and_then(Value::as_array) else {
-        push_error(report, "rate-limit-policies-shape", "policies must be an array", "policies");
+        push_error(
+            report,
+            "rate-limit-policies-shape",
+            "policies must be an array",
+            "policies",
+        );
         return;
     };
     if entries.is_empty() || entries.len() > 256 {
-        push_error(report, "rate-limit-policy-count", "policies must contain 1..=256 entries", "policies");
+        push_error(
+            report,
+            "rate-limit-policy-count",
+            "policies must contain 1..=256 entries",
+            "policies",
+        );
     }
     let mut seen = BTreeSet::new();
     for (index, entry) in entries.iter().enumerate() {
         let target = format!("policies[{index}]");
         let Some(table) = entry.as_table() else {
-            push_error(report, "rate-limit-policy-shape", "policy entry must be a table", &target);
+            push_error(
+                report,
+                "rate-limit-policy-shape",
+                "policy entry must be a table",
+                &target,
+            );
             continue;
         };
         audit_closed_keys(table, POLICY_KEYS, &target, report);
@@ -242,8 +304,17 @@ fn audit_policies(value: Option<&Value>, report: &mut CommandReport) {
                 &target,
             ),
         }
-        if table.get("clientVisible").and_then(Value::as_bool).is_none() {
-            push_error(report, "rate-limit-policy-client-visible", "clientVisible must be boolean", &target);
+        if table
+            .get("clientVisible")
+            .and_then(Value::as_bool)
+            .is_none()
+        {
+            push_error(
+                report,
+                "rate-limit-policy-client-visible",
+                "clientVisible must be boolean",
+                &target,
+            );
         }
         for (field, allowed) in [
             ("algorithm", ALGORITHMS),
@@ -306,7 +377,12 @@ fn require_string_eq(
     report: &mut CommandReport,
 ) {
     if table.get(field).and_then(Value::as_str) != Some(expected) {
-        push_error(report, code, "string value does not match the peer-authority constant", field);
+        push_error(
+            report,
+            code,
+            "string value does not match the peer-authority constant",
+            field,
+        );
     }
 }
 
@@ -382,7 +458,9 @@ fn valid_env_key(value: &str) -> bool {
         return false;
     }
     let mut bytes = value.bytes();
-    let Some(first) = bytes.next() else { return false };
+    let Some(first) = bytes.next() else {
+        return false;
+    };
     (first.is_ascii_uppercase() || first == b'_')
         && bytes.all(|byte| byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_')
 }
@@ -397,9 +475,7 @@ fn valid_policy_id(value: &str) -> bool {
         && valid_edge(*bytes.last().expect("nonempty policy id"))
         && bytes.iter().all(|byte| {
             let byte = *byte;
-            byte.is_ascii_lowercase()
-                || byte.is_ascii_digit()
-                || matches!(byte, b'.' | b'_' | b'-')
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'_' | b'-')
         })
 }
 
@@ -518,9 +594,24 @@ policyVersion = 1
                 .replace("capacity = 100", "capacity = 0\nplaintextSecret = \"nope\"")
                 .replace("keyVersion = \"v1\"", "keyVersion = \"v0\""),
         );
-        assert!(report.findings.iter().any(|finding| finding.code == "rate-limit-unknown-field"));
-        assert!(report.findings.iter().any(|finding| finding.code == "rate-limit-integer-range"));
-        assert!(report.findings.iter().any(|finding| finding.code == "rate-limit-key-version"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "rate-limit-unknown-field")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "rate-limit-integer-range")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "rate-limit-key-version")
+        );
     }
 
     #[test]
