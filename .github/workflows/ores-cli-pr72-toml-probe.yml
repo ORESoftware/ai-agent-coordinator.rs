@@ -1,0 +1,58 @@
+name: Ores CLI PR72 exact TOML probe
+
+on:
+  pull_request:
+    paths:
+      - "evidence/ores-cli-pr72/**"
+      - ".github/workflows/ores-cli-pr72-toml-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  exact-source-rust:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: 1.88.0
+          components: rustfmt, clippy
+      - name: Prove private-source content identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object evidence/ores-cli-pr72/src/model.rs)" = "fbaeb6bab206db0275f62ecf3076e48da1a3c756"
+          test "$(git hash-object evidence/ores-cli-pr72/src/audit/runtime_toml_rate_limit.rs)" = "ae9c8d6ca02fe819659585469a94b3d840e35bfb"
+      - name: Generate evidence-only dependency lock
+        working-directory: evidence/ores-cli-pr72
+        run: cargo generate-lockfile
+      - name: Format
+        working-directory: evidence/ores-cli-pr72
+        run: cargo fmt --check
+      - name: Check all targets
+        working-directory: evidence/ores-cli-pr72
+        run: cargo check --locked --all-targets
+      - name: Test exact module fixtures
+        working-directory: evidence/ores-cli-pr72
+        run: cargo test --locked --all-targets
+      - name: Clippy all targets
+        working-directory: evidence/ores-cli-pr72
+        run: cargo clippy --locked --all-targets -- -D warnings
+      - name: Capture dependency evidence
+        working-directory: evidence/ores-cli-pr72
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo tree --locked > dependency-tree.txt
+          sha256sum Cargo.lock dependency-tree.txt > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ores-cli-pr72-dependency-evidence
+          path: |
+            evidence/ores-cli-pr72/Cargo.lock
+            evidence/ores-cli-pr72/dependency-tree.txt
+            evidence/ores-cli-pr72/SHA256SUMS
+          if-no-files-found: error
