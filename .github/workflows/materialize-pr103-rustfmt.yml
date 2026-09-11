@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - DEN-390-pr103-format-artifact
+  pull_request:
+    branches:
+      - DEN-390-ores-cli-pr103-workflow-permissions-probe
+    paths:
+      - ".github/workflows/materialize-pr103-rustfmt.yml"
+      - "evidence/ores-cli-pr103/**"
 
 permissions:
   contents: read
@@ -20,7 +26,7 @@ jobs:
       - name: Check out exact formatter head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
           show-progress: false
       - name: Install exact Rust formatter
@@ -31,11 +37,12 @@ jobs:
       - name: Materialize canonical format
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse HEAD)" = "$expected"
           cargo fmt --manifest-path evidence/ores-cli-pr103/Cargo.toml --all
           git diff --check
           actual="$(git diff --name-only | sort)"
-          allowed=$'evidence/ores-cli-pr103/src/audit/workflow_permissions.rs'
+          allowed='evidence/ores-cli-pr103/src/audit/workflow_permissions.rs'
           test "$actual" = "$allowed" || {
             printf 'unexpected formatter drift:\n%s\n' "$actual" >&2
             exit 1
