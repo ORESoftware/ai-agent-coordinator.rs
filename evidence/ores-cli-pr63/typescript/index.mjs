@@ -15,7 +15,12 @@ const SKIP = new Set([
 ]);
 const EXTENSIONS = new Set(['.ts', '.tsx', '.mts', '.cts']);
 const ENV_ROOTS = new Set(['process.env', 'Bun.env']);
+const ENV_GETTERS = new Set(['Deno.env.get']);
 const ENV_KEY = /^[A-Z_][A-Z0-9_]*$/;
+const FS_MODULES = new Set(['fs', 'node:fs', 'fs/promises', 'node:fs/promises']);
+const PROCESS_MODULES = new Set(['process', 'node:process']);
+const FILE_READER_EXPORTS = new Set(['readFileSync', 'readFile', 'readTextFile', 'open', 'openSync']);
+const TOML_PARSE_EXPORTS = new Set(['parse', 'parseString', 'decode', 'parseToml']);
 
 function fail(message) {
   process.stderr.write(`${message}\n`);
@@ -125,26 +130,106 @@ function bindingKey(element) {
   return undefined;
 }
 
+function localImportName(namedImport) {
+  return namedImport.getAliasNode()?.getText() ?? namedImport.getName();
+}
+
+function isTomlModule(moduleName) {
+  return moduleName.toLowerCase().includes('toml');
+}
+
+function buildBindings(sourceFile) {
+  const envRoots = new Set(ENV_ROOTS);
+  const envGetters = new Set(ENV_GETTERS);
+  const fileReaders = new Set(['Bun.file', 'Deno.readTextFile']);
+  const tomlParsers = new Set(['TOML.parse', 'TOML.parseString', 'TOML.decode', 'toml.parse', 'toml.parseString', 'toml.decode', 'parseToml']);
+
+  for (const declaration of sourceFile.getImportDeclarations()) {
+    const moduleName = declaration.getModuleSpecifierValue();
+    const namespaceImport = declaration.getNamespaceImport()?.getText();
+    const defaultImport = declaration.getDefaultImport()?.getText();
+
+    if (FS_MODULES.has(moduleName)) {
+      for (const rootName of [namespaceImport, defaultImport].filter(Boolean)) {
+        for (const api of FILE_READER_EXPORTS) fileReaders.add(`${rootName}.${api}`);
+        fileReaders.add(`${rootName}.promises.readFile`);
+        fileReaders.add(`${rootName}.promises.open`);
+      }
+    }
+
+    if (isTomlModule(moduleName)) {
+      for (const rootName of [namespaceImport, defaultImport].filter(Boolean)) {
+        for (const api of TOML_PARSE_EXPORTS) tomlParsers.add(`${rootName}.${api}`);
+      }
+    }
+
+    for (const namedImport of declaration.getNamedImports()) {
+      const imported = namedImport.getName();
+      const local = localImportName(namedImport);
+      if (PROCESS_MODULES.has(moduleName) && imported === 'env') envRoots.add(local);
+      if (FS_MODULES.has(moduleName) && FILE_READER_EXPORTS.has(imported)) fileReaders.add(local);
+      if (FS_MODULES.has(moduleName) && imported === 'promises') {
+        fileReaders.add(`${local}.readFile`);
+        fileReaders.add(`${local}.open`);
+      }
+      if (isTomlModule(moduleName) && TOML_PARSE_EXPORTS.has(imported)) tomlParsers.add(local);
+    }
+  }
+
+  const variables = sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration);
+  for (let pass = 0; pass < 8; pass += 1) {
+    let changed = false;
+    for (const variable of variables) {
+      const initializer = variable.getInitializer();
+      const name = variable.getNameNode();
+      if (!initializer || !Node.isIdentifier(name)) continue;
+      const local = name.getText();
+      const target = initializer.getText();
+      if (envRoots.has(target) && !envRoots.has(local)) {
+        envRoots.add(local);
+        changed = true;
+      }
+      if (envGetters.has(target) && !envGetters.has(local)) {
+        envGetters.add(local);
+        changed = true;
+      }
+      if (fileReaders.has(target) && !fileReaders.has(local)) {
+        fileReaders.add(local);
+        changed = true;
+      }
+      if (tomlParsers.has(target) && !tomlParsers.has(local)) {
+        tomlParsers.add(local);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+
+  return { envRoots, envGetters, fileReaders, tomlParsers };
+}
+
 function astLane(sourceFile) {
   const events = [];
+  const { envRoots, envGetters, fileReaders, tomlParsers } = buildBindings(sourceFile);
 
   for (const access of sourceFile.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    const text = access.getText();
-    const match = /^process\.env\.([A-Z_][A-Z0-9_]*)$/.exec(text)
-      ?? /^Bun\.env\.([A-Z_][A-Z0-9_]*)$/.exec(text);
-    if (match) events.push(event('env-read', match[1], sourceFile, access));
+    const target = access.getExpression().getText();
+    const key = access.getName();
+    if (envRoots.has(target) && ENV_KEY.test(key)) {
+      events.push(event('env-read', key, sourceFile, access));
+    }
   }
 
   for (const access of sourceFile.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
     const target = access.getExpression().getText();
-    if (!ENV_ROOTS.has(target)) continue;
+    if (!envRoots.has(target)) continue;
     const value = stringArgument(access.getArgumentExpression());
     events.push(event('env-read', value, sourceFile, access));
   }
 
   for (const variable of sourceFile.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
     const initializer = variable.getInitializer();
-    if (!initializer || !ENV_ROOTS.has(initializer.getText())) continue;
+    if (!initializer || !envRoots.has(initializer.getText())) continue;
     const name = variable.getNameNode();
     if (!Node.isObjectBindingPattern(name)) continue;
     for (const element of name.getElements()) {
@@ -158,15 +243,15 @@ function astLane(sourceFile) {
     const callee = call.getExpression().getText();
     const first = stringArgument(call.getArguments()[0]);
 
-    if (callee === 'Deno.env.get') {
+    if (envGetters.has(callee)) {
       events.push(event('env-read', first, sourceFile, call));
     }
 
-    if (first?.endsWith('.toml') && /(?:readFileSync|readFile|readTextFile|Bun\.file|Deno\.readTextFile|open)$/.test(callee)) {
+    if (first?.endsWith('.toml') && fileReaders.has(callee)) {
       events.push(event('config-read', first, sourceFile, call));
     }
 
-    if (/^(?:(?:TOML|toml)\.(?:parse|parseString|decode)|parseToml)$/.test(callee)) {
+    if (tomlParsers.has(callee)) {
       events.push(event('toml-parse', undefined, sourceFile, call));
     }
   }
