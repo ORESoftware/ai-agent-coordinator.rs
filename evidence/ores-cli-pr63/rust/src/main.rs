@@ -382,9 +382,6 @@ fn load() {
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].line, 3);
         assert_eq!(events[1].line, 4);
-        assert_ne!(
-            (events[0].line, events[0].column),
-            (events[1].line, events[1].column)
-        );
+        assert_ne!((events[0].line, events[0].column), (events[1].line, events[1].column));
     }
 }
