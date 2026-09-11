@@ -1,0 +1,17 @@
+{
+  "schema": "ores.cli.exact-source-manifest/v1",
+  "sourceRepository": "ORESoftware/ores-cli",
+  "sourceCommit": "58f6f2412ca8d64de10cfb283de93c892c71bf97",
+  "files": [
+    {
+      "sourcePath": "src/audit/runtime_toml_chat.rs",
+      "evidencePath": "evidence/ores-cli-chat-v2/src/audit/runtime_toml_chat.rs",
+      "blobSha": "1d067c8a2bd9dcfd79fd5a1a0e996473664e01ef"
+    },
+    {
+      "sourcePath": "src/audit/runtime_toml_chat_tests.rs",
+      "evidencePath": "evidence/ores-cli-chat-v2/src/audit/runtime_toml_chat_tests.rs",
+      "blobSha": "6ed6709951ffc59860d29215b1dc8823802e6c02"
+    }
+  ]
+}
