@@ -7,9 +7,25 @@ use super::RepositoryAuditOptions;
 use crate::model::{CommandReport, Finding};
 
 const CONFIG: &str = ".ores-chat.toml";
-const ROOT_KEYS: &[&str] = &["version", "mode", "strict", "flags2env", "env", "client", "server"];
+const ROOT_KEYS: &[&str] = &[
+    "version",
+    "mode",
+    "strict",
+    "flags2env",
+    "env",
+    "client",
+    "server",
+];
 const FLAGS2ENV_KEYS: &[&str] = &["contract", "require_audit", "precedence"];
-const ENV_KEYS: &[&str] = &["name", "key", "kind", "required", "secret", "default", "description"];
+const ENV_KEYS: &[&str] = &[
+    "name",
+    "key",
+    "kind",
+    "required",
+    "secret",
+    "default",
+    "description",
+];
 const CLIENT_KEYS: &[&str] = &[
     "enabled",
     "api_base_url_binding",
@@ -80,7 +96,12 @@ pub(super) fn augment_chat_runtime_toml_audit(
 
 fn audit_flags2env(value: Option<&Value>, report: &mut CommandReport) {
     let Some(table) = value.and_then(Value::as_table) else {
-        push_error(report, "chat-flags2env-shape", "flags2env must be a TOML table", "flags2env");
+        push_error(
+            report,
+            "chat-flags2env-shape",
+            "flags2env must be a TOML table",
+            "flags2env",
+        );
         return;
     };
     audit_closed_keys(table, FLAGS2ENV_KEYS, "flags2env", report);
@@ -98,19 +119,47 @@ fn audit_flags2env(value: Option<&Value>, report: &mut CommandReport) {
 
 fn audit_env(value: Option<&Value>, report: &mut CommandReport) {
     let Some(entries) = value.and_then(Value::as_array) else {
-        push_error(report, "chat-env-list-shape", "env must be an array of TOML tables", "env");
+        push_error(
+            report,
+            "chat-env-list-shape",
+            "env must be an array of TOML tables",
+            "env",
+        );
         return;
     };
 
     for (index, entry) in entries.iter().enumerate() {
         let target = format!("env[{index}]");
         let Some(table) = entry.as_table() else {
-            push_error(report, "chat-env-entry-shape", "env entries must be TOML tables", &target);
+            push_error(
+                report,
+                "chat-env-entry-shape",
+                "env entries must be TOML tables",
+                &target,
+            );
             continue;
         };
         audit_closed_keys(table, ENV_KEYS, &target, report);
-        require_pattern_string(table, "name", 1, 64, is_logical_name, "chat-env-name", &target, report);
-        require_pattern_string(table, "key", 1, 128, is_env_key, "chat-env-key", &target, report);
+        require_pattern_string(
+            table,
+            "name",
+            1,
+            64,
+            is_logical_name,
+            "chat-env-name",
+            &target,
+            report,
+        );
+        require_pattern_string(
+            table,
+            "key",
+            1,
+            128,
+            is_env_key,
+            "chat-env-key",
+            &target,
+            report,
+        );
         require_enum(table, "kind", ENV_KINDS, "chat-env-kind", &target, report);
         require_bool(table, "required", &target, report);
         require_bool(table, "secret", &target, report);
@@ -125,9 +174,16 @@ fn audit_role_table(
     target: &str,
     report: &mut CommandReport,
 ) {
-    let Some(value) = value else { return; };
+    let Some(value) = value else {
+        return;
+    };
     let Some(table) = value.as_table() else {
-        push_error(report, "chat-role-shape", "role configuration must be a TOML table", target);
+        push_error(
+            report,
+            "chat-role-shape",
+            "role configuration must be a TOML table",
+            target,
+        );
         return;
     };
     audit_closed_keys(table, allowed, target, report);
@@ -164,7 +220,12 @@ fn require_integer_eq(
     report: &mut CommandReport,
 ) {
     if table.get(field).and_then(Value::as_integer) != Some(expected) {
-        push_error(report, code, "integer value does not match the peer-authority constant", &format!("{target}.{field}"));
+        push_error(
+            report,
+            code,
+            "integer value does not match the peer-authority constant",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
@@ -177,7 +238,12 @@ fn require_string_eq(
     report: &mut CommandReport,
 ) {
     if table.get(field).and_then(Value::as_str) != Some(expected) {
-        push_error(report, code, "string value does not match the peer-authority constant", &format!("{target}.{field}"));
+        push_error(
+            report,
+            code,
+            "string value does not match the peer-authority constant",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
@@ -188,7 +254,12 @@ fn require_bool(
     report: &mut CommandReport,
 ) {
     if table.get(field).and_then(Value::as_bool).is_none() {
-        push_error(report, "chat-boolean-shape", "required field must be boolean", &format!("{target}.{field}"));
+        push_error(
+            report,
+            "chat-boolean-shape",
+            "required field must be boolean",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
@@ -205,7 +276,12 @@ fn require_enum(
         .and_then(Value::as_str)
         .is_some_and(|value| allowed.contains(&value))
     {
-        push_error(report, code, "string value is outside the peer-authority enum", &format!("{target}.{field}"));
+        push_error(
+            report,
+            code,
+            "string value is outside the peer-authority enum",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
@@ -222,7 +298,12 @@ fn require_bounded_string(
         .and_then(Value::as_str)
         .is_some_and(|value| value.len() >= min && value.len() <= max)
     {
-        push_error(report, "chat-string-bounds", "required string is outside peer-authority length bounds", &format!("{target}.{field}"));
+        push_error(
+            report,
+            "chat-string-bounds",
+            "required string is outside peer-authority length bounds",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
@@ -241,7 +322,12 @@ fn require_pattern_string(
         .and_then(Value::as_str)
         .is_some_and(|value| value.len() >= min && value.len() <= max && predicate(value))
     {
-        push_error(report, code, "string does not satisfy the shared peer-authority pattern/bounds", &format!("{target}.{field}"));
+        push_error(
+            report,
+            code,
+            "string does not satisfy the shared peer-authority pattern/bounds",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
@@ -259,20 +345,29 @@ fn optional_bounded_string(
             .and_then(Value::as_str)
             .is_some_and(|value| value.len() >= min && value.len() <= max)
     {
-        push_error(report, "chat-optional-string-bounds", "optional field must be a string within peer-authority length bounds", &format!("{target}.{field}"));
+        push_error(
+            report,
+            "chat-optional-string-bounds",
+            "optional field must be a string within peer-authority length bounds",
+            &format!("{target}.{field}"),
+        );
     }
 }
 
 fn is_logical_name(value: &str) -> bool {
     let mut chars = value.chars();
     matches!(chars.next(), Some('a'..='z'))
-        && chars.all(|character| character.is_ascii_lowercase() || character.is_ascii_digit() || character == '_')
+        && chars.all(|character| {
+            character.is_ascii_lowercase() || character.is_ascii_digit() || character == '_'
+        })
 }
 
 fn is_env_key(value: &str) -> bool {
     let mut chars = value.chars();
     matches!(chars.next(), Some('A'..='Z') | Some('_'))
-        && chars.all(|character| character.is_ascii_uppercase() || character.is_ascii_digit() || character == '_')
+        && chars.all(|character| {
+            character.is_ascii_uppercase() || character.is_ascii_digit() || character == '_'
+        })
 }
 
 fn push_error(report: &mut CommandReport, code: &str, message: &str, target: &str) {
@@ -338,7 +433,12 @@ shared_auth_issuer_binding = "shared_auth_issuer"
     fn server_shaped_config_passes() {
         let report = audit(SERVER_SHAPED);
         assert_eq!(report.issue_count(), 0, "{:#?}", report.findings);
-        assert!(report.findings.iter().any(|finding| finding.code == "chat-domain-inspected"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "chat-domain-inspected")
+        );
     }
 
     #[test]
@@ -363,8 +463,18 @@ shared_auth_issuer_binding = "shared_auth_issuer"
                 .replace("argv-over-env", "env-over-argv")
                 .replace("kind = \"url\"", "kind = \"bytes\""),
         );
-        for code in ["chat-version", "chat-unknown-field", "chat-mode", "chat-flags2env-precedence", "chat-env-kind"] {
-            assert!(report.findings.iter().any(|finding| finding.code == code), "missing {code}: {:#?}", report.findings);
+        for code in [
+            "chat-version",
+            "chat-unknown-field",
+            "chat-mode",
+            "chat-flags2env-precedence",
+            "chat-env-kind",
+        ] {
+            assert!(
+                report.findings.iter().any(|finding| finding.code == code),
+                "missing {code}: {:#?}",
+                report.findings
+            );
         }
     }
 
@@ -375,10 +485,21 @@ shared_auth_issuer_binding = "shared_auth_issuer"
             &SERVER_SHAPED
                 .replace("name = \"bind_addr\"", "name = \"Bind-Addr\"")
                 .replace("key = \"ORES_CHAT_BIND\"", "key = \"ores-chat-bind\"")
-                .replace("bind_addr_binding = \"bind_addr\"", &format!("bind_addr_binding = \"{long_binding}\"")),
+                .replace(
+                    "bind_addr_binding = \"bind_addr\"",
+                    &format!("bind_addr_binding = \"{long_binding}\""),
+                ),
         );
-        for code in ["chat-env-name", "chat-env-key", "chat-optional-string-bounds"] {
-            assert!(report.findings.iter().any(|finding| finding.code == code), "missing {code}: {:#?}", report.findings);
+        for code in [
+            "chat-env-name",
+            "chat-env-key",
+            "chat-optional-string-bounds",
+        ] {
+            assert!(
+                report.findings.iter().any(|finding| finding.code == code),
+                "missing {code}: {:#?}",
+                report.findings
+            );
         }
     }
 }

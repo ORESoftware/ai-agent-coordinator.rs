@@ -31,14 +31,16 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
 
-      - name: Verify revision, source blob, and clean conflict state
+      - name: Verify revision, source bytes, and clean conflict state
         shell: bash
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(git hash-object evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs)" = "51645f2527ce383eb2f2bd2f834d751866d8c286"
+          source='evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs'
+          test "$(git hash-object "$source")" = "85fbd2077600f10fc80a5b6f4333d8d65042a2ad"
+          test "$(sha256sum "$source" | cut -d' ' -f1)" = "daf6daf1eadaedee2b3debe3fe3a5ae85b84eeb443a648ebbdc8b5a8d74108ab"
           git diff --check
           status=0
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-pr91 || status=$?

@@ -18,8 +18,5 @@ pub struct RepositoryAuditOptions {
 /// Run the exact ORES Chat peer-authority adapter.
 #[must_use]
 pub fn audit_repository(options: &RepositoryAuditOptions) -> CommandReport {
-    runtime_toml_chat::augment_chat_runtime_toml_audit(
-        options,
-        CommandReport::new("audit repo"),
-    )
+    runtime_toml_chat::augment_chat_runtime_toml_audit(options, CommandReport::new("audit repo"))
 }
