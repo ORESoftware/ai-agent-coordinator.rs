@@ -267,7 +267,9 @@ fn classify_uses_reference(reference: &str) -> Result<UsesKind, String> {
             return Err("Docker actions must be pinned by a sha256 image digest".to_owned());
         };
         if name.is_empty() || name.chars().any(char::is_whitespace) {
-            return Err("Docker action image name must be non-empty and whitespace-free".to_owned());
+            return Err(
+                "Docker action image name must be non-empty and whitespace-free".to_owned(),
+            );
         }
         if !is_lower_hex(digest, SHA256_HEX_LENGTH) {
             return Err(
