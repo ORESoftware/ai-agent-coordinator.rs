@@ -99,7 +99,12 @@ fn audit_role(value: Option<&Value>, target: &str, report: &mut CommandReport) {
 fn audit_logging(value: Option<&Value>, target: &str, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        error(report, "otel-logging-shape", "logging must be a table", target);
+        error(
+            report,
+            "otel-logging-shape",
+            "logging must be a table",
+            target,
+        );
         return;
     };
     closed_keys(table, LOGGING_KEYS, target, report);
@@ -112,7 +117,12 @@ fn audit_logging(value: Option<&Value>, target: &str, report: &mut CommandReport
 fn audit_tracing(value: Option<&Value>, target: &str, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        error(report, "otel-tracing-shape", "tracing must be a table", target);
+        error(
+            report,
+            "otel-tracing-shape",
+            "tracing must be a table",
+            target,
+        );
         return;
     };
     closed_keys(table, TRACING_KEYS, target, report);
@@ -148,7 +158,12 @@ fn audit_tracing(value: Option<&Value>, target: &str, report: &mut CommandReport
 fn audit_metrics(value: Option<&Value>, target: &str, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        error(report, "otel-metrics-shape", "metrics must be a table", target);
+        error(
+            report,
+            "otel-metrics-shape",
+            "metrics must be a table",
+            target,
+        );
         return;
     };
     closed_keys(table, METRICS_KEYS, target, report);
@@ -158,7 +173,12 @@ fn audit_metrics(value: Option<&Value>, target: &str, report: &mut CommandReport
 fn audit_exporter(value: Option<&Value>, target: &str, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        error(report, "otel-exporter-shape", "exporter must be a table", target);
+        error(
+            report,
+            "otel-exporter-shape",
+            "exporter must be a table",
+            target,
+        );
         return;
     };
     closed_keys(table, EXPORTER_KEYS, target, report);
@@ -208,7 +228,9 @@ fn optional_bounded_string(
     target: &str,
     report: &mut CommandReport,
 ) {
-    let Some(value) = table.get(field) else { return };
+    let Some(value) = table.get(field) else {
+        return;
+    };
     let Some(value) = value.as_str() else {
         error(
             report,
