@@ -1,0 +1,80 @@
+name: ores-cli DEN-390 exact-source runtime-authority probe
+
+on:
+  pull_request:
+    paths:
+      - "evidence/ores-cli-den-390/**"
+      - ".github/workflows/ores-cli-den-390-runtime-authority-probe.yml"
+  push:
+    branches:
+      - DEN-390-ores-cli-runtime-authority-probe
+    paths:
+      - "evidence/ores-cli-den-390/**"
+      - ".github/workflows/ores-cli-den-390-runtime-authority-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-den-390-runtime-authority-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact evidence head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact production blob and clean conflict state
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git hash-object evidence/ores-cli-den-390/src/audit/runtime_config_authority.rs)" = "974d7547f798092f152d8bb328321f9631d3ccd3"
+          git diff --check
+          status=0
+          git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-den-390 || status=$?
+          test "$status" -eq 1
+
+      - name: Install production Rust floor
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: "1.88.0"
+          components: rustfmt, clippy
+
+      - name: Resolve bounded harness dependencies
+        run: cargo generate-lockfile --manifest-path evidence/ores-cli-den-390/Cargo.toml
+
+      - name: Verify exact-source formatting
+        run: cargo fmt --manifest-path evidence/ores-cli-den-390/Cargo.toml --all -- --check
+
+      - name: Compile exact source
+        run: cargo check --manifest-path evidence/ores-cli-den-390/Cargo.toml --all-targets --locked
+
+      - name: Run exact production-module tests
+        run: cargo test --manifest-path evidence/ores-cli-den-390/Cargo.toml --all-targets --locked
+
+      - name: Reject Clippy warnings
+        run: cargo clippy --manifest-path evidence/ores-cli-den-390/Cargo.toml --all-targets --locked -- -D warnings
+
+      - name: Record certification boundary
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          - source: ORESoftware/ores-cli#136 exact head 29bb621ade8a2b8fff0a636b51f0c1afa7717c3a
+          - exact runtime-authority blob: 974d7547f798092f152d8bb328321f9631d3ccd3
+          - Rust floor: 1.88.0
+          - tests: direct env bypass, healthy generated consumption, sidecar fallback escape, missing app lockfile, library lockfile exemption
+          - source mutation: none
+          - GitHub/provider/database/cloud writes: none
+          - credentials: none
+          EOF
