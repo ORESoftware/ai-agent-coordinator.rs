@@ -1,0 +1,112 @@
+name: Ores CLI PR63 lock closure generator
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr63-ast-probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-locks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d
+        with:
+          sdk: '3.12.2'
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+
+      - name: Materialize exact helper manifests
+        run: |
+          set -euo pipefail
+          rm -rf lockgen
+          mkdir -p lockgen/{rust,gleam,typescript,dart}
+          cat > lockgen/rust/Cargo.toml <<'EOF'
+          [package]
+          name = "ores-ast-rust"
+          version = "0.1.0"
+          edition = "2024"
+          rust-version = "1.88"
+          publish = false
+
+          [dependencies]
+          proc-macro2 = { version = "1", features = ["span-locations"] }
+          regex = "1"
+          serde = { version = "1", features = ["derive"] }
+          serde_json = "1"
+          syn = { version = "3.0.5", features = ["full", "visit"] }
+          EOF
+          cat > lockgen/gleam/Cargo.toml <<'EOF'
+          [package]
+          name = "ores-ast-gleam"
+          version = "0.1.0"
+          edition = "2024"
+          rust-version = "1.88"
+          publish = false
+
+          [dependencies]
+          regex = "1"
+          serde = { version = "1", features = ["derive"] }
+          serde_json = "1"
+          tree-sitter = "=0.26.13"
+          tree-sitter-gleam = "=1.0.0"
+          EOF
+          cat > lockgen/typescript/package.json <<'EOF'
+          {
+            "name": "@oresoftware/ores-ast-typescript",
+            "private": true,
+            "type": "module",
+            "engines": { "node": "22.16.0" },
+            "dependencies": { "ts-morph": "28.0.0" }
+          }
+          EOF
+          cat > lockgen/dart/pubspec.yaml <<'EOF'
+          name: ores_ast_dart
+          publish_to: none
+          environment:
+            sdk: '>=3.11.0 <4.0.0'
+          dependencies:
+            analyzer: 14.3.0
+          EOF
+
+      - name: Generate immutable dependency closures
+        run: |
+          set -euo pipefail
+          cargo generate-lockfile --manifest-path lockgen/rust/Cargo.toml
+          cargo generate-lockfile --manifest-path lockgen/gleam/Cargo.toml
+          npm install --prefix lockgen/typescript --package-lock-only --ignore-scripts --no-audit --no-fund
+          (cd lockgen/dart && dart pub get)
+          test -s lockgen/rust/Cargo.lock
+          test -s lockgen/gleam/Cargo.lock
+          test -s lockgen/typescript/package-lock.json
+          test -s lockgen/dart/pubspec.lock
+
+      - name: Emit lock digests
+        run: sha256sum lockgen/rust/Cargo.lock lockgen/gleam/Cargo.lock lockgen/typescript/package-lock.json lockgen/dart/pubspec.lock
+
+      - name: Upload exact generated lock closure
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ores-cli-pr63-lock-closure
+          path: |
+            lockgen/rust/Cargo.lock
+            lockgen/gleam/Cargo.lock
+            lockgen/typescript/package-lock.json
+            lockgen/dart/pubspec.lock
+          if-no-files-found: error
+          retention-days: 7
