@@ -38,8 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(git hash-object evidence/ores-cli-pr97/src/audit/nested_peer_contracts.rs)" = "78bafef5b54358917889789789118018d604b3e8"
-          test "$(git hash-object evidence/ores-cli-pr97/src/audit/workflow_action_pins.rs)" = "413d57d09f9a3d011fdc4cc34174fdbd323a5f3d"
+          test "$(git hash-object evidence/ores-cli-pr97/src/audit/nested_peer_contracts.rs)" = "78baf750a10d69982996568047c43a002205dfb4"
+          test "$(git hash-object evidence/ores-cli-pr97/src/audit/workflow_action_pins.rs)" = "9dc7db48786f8a4229b2e534e7030966bf7c74aa"
           git diff --check
           status=0
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-pr97 || status=$?
