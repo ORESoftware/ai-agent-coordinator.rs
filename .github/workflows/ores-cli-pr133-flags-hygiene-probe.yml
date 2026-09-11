@@ -1,0 +1,71 @@
+name: ores-cli PR133 flags hygiene exact-source probe
+
+on:
+  pull_request:
+    paths:
+      - "evidence/ores-cli-pr133-flags-hygiene/**"
+      - ".github/workflows/ores-cli-pr133-flags-hygiene-probe.yml"
+  push:
+    branches:
+      - DEN-390-ores-cli-pr133-flags-hygiene-probe
+    paths:
+      - "evidence/ores-cli-pr133-flags-hygiene/**"
+      - ".github/workflows/ores-cli-pr133-flags-hygiene-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr133-flags-hygiene-probe-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify exact private-source blobs
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          secret='evidence/ores-cli-pr133-flags-hygiene/src/audit/cli_secret_flag_hygiene.rs'
+          source='evidence/ores-cli-pr133-flags-hygiene/src/audit/flags2env_source_hygiene.rs'
+          submodule='evidence/ores-cli-pr133-flags-hygiene/src/audit/flags2env_submodule_source_hygiene.rs'
+          test "$(git hash-object "$secret")" = c9a0297f4f799a6b2ae4473c83a616aefa4be395
+          test "$(git hash-object "$source")" = 558934d54956cc91609552fde02b61b030737c49
+          test "$(git hash-object "$submodule")" = 0e67dbe518fd7f2f1c68a2e21624ef82adf118f5
+          for path in "$secret" "$source" "$submodule"; do
+            test "$(git hash-object "$path")" = "$(git hash-object --no-filters "$path")"
+          done
+          git diff --check
+          status=0
+          git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-pr133-flags-hygiene || status=$?
+          test "$status" -eq 1
+
+      - name: Install tested Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: "1.88.0"
+          components: rustfmt, clippy
+
+      - name: Verify formatting
+        run: cargo fmt --manifest-path evidence/ores-cli-pr133-flags-hygiene/Cargo.toml --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --manifest-path evidence/ores-cli-pr133-flags-hygiene/Cargo.toml --all-targets
+
+      - name: Run exact-source tests
+        run: cargo test --manifest-path evidence/ores-cli-pr133-flags-hygiene/Cargo.toml
+
+      - name: Reject Clippy warnings
+        run: cargo clippy --manifest-path evidence/ores-cli-pr133-flags-hygiene/Cargo.toml --all-targets -- -D warnings
