@@ -21,13 +21,26 @@ jobs:
           persist-credentials: false
           show-progress: false
 
+      - name: Require private-source read credential
+        env:
+          FLEET_TOKEN: ${{ secrets.FLEET_GITHUB_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FLEET_TOKEN" || {
+            echo 'FLEET_GITHUB_READ_TOKEN is unavailable to this repository' >&2
+            exit 1
+          }
+
       - name: Check out exact ores-cli PR144 head
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: ORESoftware/ores-cli
           ref: 4779b1b226c61f0b8102c64b097614c52bf1d402
+          token: ${{ secrets.FLEET_GITHUB_READ_TOKEN }}
           path: candidate
           persist-credentials: false
+          fetch-depth: 1
           show-progress: false
 
       - name: Verify exact source identity and clean patch
@@ -36,6 +49,9 @@ jobs:
           set -euo pipefail
           test "$(git -C candidate rev-parse HEAD)" = '4779b1b226c61f0b8102c64b097614c52bf1d402'
           git -C candidate diff --check
+          status=0
+          git -C candidate grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . ':(exclude)Cargo.lock' || status=$?
+          test "$status" -eq 1
           test -z "$(git -C candidate status --porcelain)"
 
       - name: Verify shell lifecycle contracts
@@ -101,3 +117,11 @@ jobs:
           grep -R -q 'merge_page' src tests
           grep -R -q 'conflicting' src tests
           grep -R -q 'IntoIterator' src tests
+
+      - name: Prove validation left source clean
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD
+          test -z "$(git status --porcelain)"
