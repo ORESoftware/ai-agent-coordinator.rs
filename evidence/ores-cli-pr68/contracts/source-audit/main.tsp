@@ -8,6 +8,14 @@ enum SourceLanguage {
   gleam,
 }
 
+enum SourceParser {
+  syn,
+  tsMorph: "ts-morph",
+  goAst: "go/parser+go/ast",
+  dartAnalyzer: "package:analyzer",
+  treeSitterGleam: "tree-sitter-gleam",
+}
+
 enum RegexEventKind {
   configLiteral: "config-literal",
   envApi: "env-api",
@@ -24,7 +32,9 @@ model RegexEvent {
   kind: RegexEventKind;
   @maxLength(512)
   value?: string;
+  @minValue(1)
   line: uint32;
+  @minValue(1)
   column: uint32;
 }
 
@@ -32,7 +42,9 @@ model AstEvent {
   kind: AstEventKind;
   @maxLength(512)
   value?: string;
+  @minValue(1)
   line: uint32;
+  @minValue(1)
   column: uint32;
 }
 
@@ -50,9 +62,7 @@ model SourceFileEvidence {
 model CodeConfigAuditReceipt {
   schemaVersion: "ores.code-config-audit.v1";
   language: SourceLanguage;
-  @minLength(1)
-  @maxLength(128)
-  parser: string;
+  parser: SourceParser;
   @minLength(1)
   @maxLength(128)
   parserVersion: string;
