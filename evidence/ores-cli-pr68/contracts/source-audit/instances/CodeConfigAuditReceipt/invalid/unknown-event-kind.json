@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "ores.code-config-audit.v1",
+  "language": "go",
+  "parser": "go/parser+go/ast",
+  "parserVersion": "go1.23.2",
+  "files": [
+    {
+      "path": "config.go",
+      "syntaxValid": true,
+      "regexHits": [],
+      "astEvents": [
+        {"kind": "secret-read", "value": "REDIS_URL", "line": 1, "column": 1}
+      ]
+    }
+  ]
+}
