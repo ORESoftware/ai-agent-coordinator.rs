@@ -436,7 +436,9 @@ fn load() {
 "#;
         let events = events(source)
             .into_iter()
-            .filter(|event| event.kind == "env-read" && event.value.as_deref() == Some("REDIS_URL"))
+            .filter(|event| {
+                event.kind == "env-read" && event.value.as_deref() == Some("REDIS_URL")
+            })
             .collect::<Vec<_>>();
 
         assert_eq!(events.len(), 2);
@@ -463,10 +465,12 @@ fn load() {
 "#;
         let events = events(source);
         assert!(events.iter().any(|event| {
-            event.kind == "env-read" && event.value.as_deref() == Some("ALIAS_REDIS_URL")
+            event.kind == "env-read"
+                && event.value.as_deref() == Some("ALIAS_REDIS_URL")
         }));
         assert!(events.iter().any(|event| {
-            event.kind == "config-read" && event.value.as_deref() == Some(".ores-chat.toml")
+            event.kind == "config-read"
+                && event.value.as_deref() == Some(".ores-chat.toml")
         }));
         assert!(events.iter().any(|event| event.kind == "toml-parse"));
     }
