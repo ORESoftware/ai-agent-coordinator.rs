@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
-          test "$(git hash-object evidence/ores-cli-den-390/src/audit/runtime_config_authority.rs)" = "974d7547f798092f152d8bb328321f9631d3ccd3"
+          test "$(git hash-object evidence/ores-cli-den-390/src/audit/runtime_config_authority.rs)" = "8d6b90e9fd2150c06d7a1c4e5333e342197a7333"
           git diff --check
           status=0
           git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-den-390 || status=$?
@@ -70,10 +70,10 @@ jobs:
         shell: bash
         run: |
           cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
-          - source: ORESoftware/ores-cli#136 exact head 29bb621ade8a2b8fff0a636b51f0c1afa7717c3a
-          - exact runtime-authority blob: 974d7547f798092f152d8bb328321f9631d3ccd3
+          - source: ORESoftware/ores-cli#136 exact head 70a82250f5eedb39b15ca2729f19698a5bc8f344
+          - exact runtime-authority blob: 8d6b90e9fd2150c06d7a1c4e5333e342197a7333
           - Rust floor: 1.88.0
-          - tests: direct env bypass, healthy generated consumption, sidecar fallback escape, missing app lockfile, library lockfile exemption
+          - tests: direct env bypass, official-binding suppression, healthy generated consumption, sidecar fallback escape, missing app lockfile, library lockfile exemption
           - source mutation: none
           - GitHub/provider/database/cloud writes: none
           - credentials: none
