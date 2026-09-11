@@ -22,7 +22,8 @@ const MAX_RUST_SOURCE_BYTES: u64 = 1024 * 1024;
 /// production repositories:
 ///
 /// - a `.cli-flags.toml` env key is read directly from authored Rust after a
-///   generated runtime has been committed;
+///   generated runtime has been committed and no official `BundledFlags2Env`
+///   binding exists to own argv-to-config normalization;
 /// - sidecar startup retries a rejected generated bind through
 ///   `SidecarConfig::from_env`, creating a second ambient parser;
 /// - a Rust application has an executable entrypoint but no committed
@@ -87,7 +88,7 @@ pub(super) fn augment_runtime_config_authority_audit(
             name != "target" && name != "generated"
         });
 
-    let mut inspected = 0usize;
+    let mut authored_sources = Vec::new();
     for result in walker {
         let entry = match result {
             Ok(entry) => entry,
@@ -136,19 +137,46 @@ pub(super) fn augment_runtime_config_authority_audit(
                 continue;
             }
         };
-        inspected += 1;
-        let target = relative_display(&options.path, entry.path());
-        audit_direct_declared_env_reads(&source, &target, &declared_env, &mut report);
-        audit_generated_runtime_fallback_escape(&source, &target, &mut report);
+        authored_sources.push((relative_display(&options.path, entry.path()), source));
     }
 
-    report.insert_metadata("runtimeConfigAuthorityRustFileCount", json!(inspected));
+    let official_binding_present = authored_sources.iter().any(|(_, source)| {
+        source.contains("flags2env::BundledFlags2Env")
+            || source.contains("use flags2env::BundledFlags2Env")
+    });
+    report.insert_metadata(
+        "runtimeConfigAuthorityOfficialBindingPresent",
+        json!(official_binding_present),
+    );
+
+    for (target, source) in &authored_sources {
+        if !official_binding_present {
+            audit_direct_declared_env_reads(source, target, &declared_env, &mut report);
+        }
+        audit_generated_runtime_fallback_escape(source, target, &mut report);
+    }
+
+    if official_binding_present {
+        report.push(
+            Finding::info(
+                "runtime-config-authority-official-binding",
+                "official BundledFlags2Env Rust binding detected; typed application config may consume normalized environment values without being classified as a generated-runtime bypass",
+            )
+            .with_target("src"),
+        );
+    }
+
+    report.insert_metadata(
+        "runtimeConfigAuthorityRustFileCount",
+        json!(authored_sources.len()),
+    );
     report.push(
         Finding::info(
             "runtime-config-authority-inspected",
             format!(
-                "inspected {inspected} authored Rust source file{} against generated flags-2-env runtime authority",
-                if inspected == 1 { "" } else { "s" }
+                "inspected {} authored Rust source file{} against generated flags-2-env runtime authority",
+                authored_sources.len(),
+                if authored_sources.len() == 1 { "" } else { "s" }
             ),
         )
         .with_target("src"),
@@ -250,7 +278,7 @@ fn audit_direct_declared_env_reads(
     report.push(
         Finding::error(
             "generated-runtime-env-bypass",
-            "authored Rust directly reads env keys owned by .cli-flags.toml even though generated/rust/runtime.rs exists; consume the generated runtime instead of maintaining parallel environment semantics",
+            "authored Rust directly reads env keys owned by .cli-flags.toml even though generated/rust/runtime.rs exists and no official BundledFlags2Env binding owns argv-to-config normalization",
         )
         .with_target(target.to_owned())
         .with_detail("envKeys", json!(bypassed)),
@@ -321,7 +349,7 @@ mod tests {
     }
 
     #[test]
-    fn detects_direct_reads_of_contract_owned_env_keys() {
+    fn detects_direct_reads_of_contract_owned_env_keys_without_official_binding() {
         let root = tempdir().expect("temporary directory");
         write_runtime_fixture(
             root.path(),
@@ -335,6 +363,32 @@ mod tests {
             .findings
             .iter()
             .any(|finding| finding.code == "generated-runtime-env-bypass"));
+    }
+
+    #[test]
+    fn accepts_typed_env_reads_when_official_binding_exists() {
+        let root = tempdir().expect("temporary directory");
+        write_runtime_fixture(
+            root.path(),
+            "fn main() { let _ = std::env::var(\"SERVICE_BIND\"); }\n",
+        );
+        fs::write(
+            root.path().join("src/flags.rs"),
+            "use flags2env::BundledFlags2Env;\nfn parser() { let _ = BundledFlags2Env::new(); }\n",
+        )
+        .expect("write official binding fixture");
+        let report = augment_runtime_config_authority_audit(
+            &options(root.path()),
+            CommandReport::new("fixture"),
+        );
+        assert!(!report
+            .findings
+            .iter()
+            .any(|finding| finding.code == "generated-runtime-env-bypass"));
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.code == "runtime-config-authority-official-binding"));
     }
 
     #[test]
