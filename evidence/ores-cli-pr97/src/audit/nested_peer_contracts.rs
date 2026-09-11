@@ -205,11 +205,7 @@ fn should_descend(entry: &DirEntry) -> bool {
     let name = entry.file_name().to_string_lossy();
     !matches!(
         name.as_ref(),
-        ".git"
-            | "target"
-            | "node_modules"
-            | ".dart_tool"
-            | ".typespec-json-schema-validator"
+        ".git" | "target" | "node_modules" | ".dart_tool" | ".typespec-json-schema-validator"
     )
 }
 
@@ -228,12 +224,7 @@ fn audit_typespec(root: &Path, path: &Path, report: &mut CommandReport) {
         );
         return;
     }
-    audit_conflict_markers(
-        &text,
-        "nested-typespec-conflict-marker",
-        &target,
-        report,
-    );
+    audit_conflict_markers(&text, "nested-typespec-conflict-marker", &target, report);
 }
 
 fn audit_json_schema(root: &Path, path: &Path, report: &mut CommandReport) {
@@ -241,12 +232,7 @@ fn audit_json_schema(root: &Path, path: &Path, report: &mut CommandReport) {
     let Some(text) = read_regular_bounded_file(root, path, "json-schema", report) else {
         return;
     };
-    audit_conflict_markers(
-        &text,
-        "nested-json-schema-conflict-marker",
-        &target,
-        report,
-    );
+    audit_conflict_markers(&text, "nested-json-schema-conflict-marker", &target, report);
 
     let document = match serde_json::from_str::<JsonValue>(&text) {
         Ok(document) => document,
@@ -293,10 +279,7 @@ fn audit_json_schema(root: &Path, path: &Path, report: &mut CommandReport) {
             .with_target(target.clone()),
         );
     }
-    if object
-        .get("$defs")
-        .is_some_and(|value| !value.is_object())
-    {
+    if object.get("$defs").is_some_and(|value| !value.is_object()) {
         report.push(
             Finding::error(
                 "nested-json-schema-defs-shape",
@@ -374,12 +357,7 @@ fn read_regular_bounded_file(
     }
 }
 
-fn audit_conflict_markers(
-    text: &str,
-    code: &str,
-    target: &str,
-    report: &mut CommandReport,
-) {
+fn audit_conflict_markers(text: &str, code: &str, target: &str, report: &mut CommandReport) {
     let markers = text
         .lines()
         .filter_map(|line| {
