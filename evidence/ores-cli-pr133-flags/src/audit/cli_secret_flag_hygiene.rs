@@ -25,7 +25,8 @@ pub(crate) fn audit_cli_secret_flag_hygiene(root: &Path, report: &mut CommandRep
             return;
         }
     };
-    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_INPUT_BYTES {
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_INPUT_BYTES
+    {
         report.push(
             Finding::error(
                 "cli-secret-contract-unsafe",
@@ -228,9 +229,8 @@ mod tests {
 
     #[test]
     fn token_bucket_policy_is_not_a_credential_false_positive() {
-        let report = run(
-            "[flags.token-bucket-policy]\nenv = \"TOKEN_BUCKET_POLICY\"\ntype = \"string\"\n",
-        );
+        let report =
+            run("[flags.token-bucket-policy]\nenv = \"TOKEN_BUCKET_POLICY\"\ntype = \"string\"\n");
         assert!(!has(&report, "cli-secret-public-flag"));
     }
 
