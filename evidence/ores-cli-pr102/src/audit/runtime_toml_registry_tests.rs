@@ -3,7 +3,7 @@ use std::path::Path;
 
 use tempfile::tempdir;
 
-use super::{audit_repository, RepositoryAuditOptions};
+use super::{RepositoryAuditOptions, audit_repository};
 
 fn write_baseline(root: &Path) {
     fs::create_dir_all(root.join(".github")).expect("create .github");
@@ -46,16 +46,24 @@ fn rejects_invented_ores_root_config_name() {
 fn accepts_registered_sidecar_and_canonical_shared_auth_names() {
     let root = tempdir().expect("tempdir");
     write_baseline(root.path());
-    fs::write(root.path().join(".ores-sidecar.toml"), "protocol = \"v1\"\n")
-        .expect("write sidecar config");
-    fs::write(root.path().join(".shared-auth.toml"), "schema_version = 1\n")
-        .expect("write shared auth config");
+    fs::write(
+        root.path().join(".ores-sidecar.toml"),
+        "protocol = \"v1\"\n",
+    )
+    .expect("write sidecar config");
+    fs::write(
+        root.path().join(".shared-auth.toml"),
+        "schema_version = 1\n",
+    )
+    .expect("write shared auth config");
 
     let report = audit(root.path());
-    assert!(!report
-        .findings
-        .iter()
-        .any(|finding| finding.code == "runtime-toml-unregistered-name"));
+    assert!(
+        !report
+            .findings
+            .iter()
+            .any(|finding| finding.code == "runtime-toml-unregistered-name")
+    );
     assert_eq!(
         report
             .metadata
@@ -69,10 +77,16 @@ fn accepts_registered_sidecar_and_canonical_shared_auth_names() {
 fn rejects_canonical_and_compat_shared_auth_coexistence() {
     let root = tempdir().expect("tempdir");
     write_baseline(root.path());
-    fs::write(root.path().join(".shared-auth.toml"), "schema_version = 1\n")
-        .expect("write canonical shared auth");
-    fs::write(root.path().join(".auth-shared.toml"), "schema_version = 1\n")
-        .expect("write compatibility shared auth");
+    fs::write(
+        root.path().join(".shared-auth.toml"),
+        "schema_version = 1\n",
+    )
+    .expect("write canonical shared auth");
+    fs::write(
+        root.path().join(".auth-shared.toml"),
+        "schema_version = 1\n",
+    )
+    .expect("write compatibility shared auth");
 
     let report = audit(root.path());
     assert!(report.findings.iter().any(|finding| {
