@@ -319,7 +319,10 @@ runtimeKeys = ["WORKER_BATCH_SIZE"]
         let report = audit(
             &OWNER_EXAMPLE
                 .replace("ores.sidecar-config.v1", "ores.sidecar-config.v2")
-                .replace("bindPort = 7410", "bindPort = 65536\nplaintextToken = \"nope\""),
+                .replace(
+                    "bindPort = 7410",
+                    "bindPort = 65536\nplaintextToken = \"nope\"",
+                ),
         );
         assert!(
             report
