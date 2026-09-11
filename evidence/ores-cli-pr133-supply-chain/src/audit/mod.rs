@@ -19,9 +19,7 @@ pub struct RepositoryAuditOptions {
 /// Run the exact Docker then Cargo immutable-source gates.
 #[must_use]
 pub fn audit_repository(options: &RepositoryAuditOptions) -> CommandReport {
-    let report = docker_base_pins::augment_docker_base_pin_audit(
-        options,
-        CommandReport::new("audit repo"),
-    );
+    let report =
+        docker_base_pins::augment_docker_base_pin_audit(options, CommandReport::new("audit repo"));
     cargo_git_pins::augment_cargo_git_pin_audit(options, report)
 }
