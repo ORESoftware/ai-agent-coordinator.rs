@@ -69,7 +69,14 @@ pub(super) fn augment_middleware_runtime_toml_audit(
 
     let issues_before = report.issue_count();
     audit_closed_keys(root, ROOT_KEYS, "root", &mut report);
-    require_integer_eq(root, "schema_version", 1, "middleware-schema-version", "root", &mut report);
+    require_integer_eq(
+        root,
+        "schema_version",
+        1,
+        "middleware-schema-version",
+        "root",
+        &mut report,
+    );
     require_enum(
         root,
         "repository_mode",
@@ -495,7 +502,10 @@ propagate_headers = ["traceparent", "x-request-id"]
     fn version_repository_mode_unknown_field_and_target_enum_fail_closed() {
         let report = audit(
             &OWNER_SHAPED
-                .replace("schema_version = 1", "schema_version = 2\nplaintext_token = \"nope\"")
+                .replace(
+                    "schema_version = 1",
+                    "schema_version = 2\nplaintext_token = \"nope\"",
+                )
                 .replace("server-only", "peer-to-peer")
                 .replace("role = \"server\"", "role = \"admin\"")
                 .replace("middleware = \"stack\"", "middleware = \"magic\""),

@@ -20,12 +20,7 @@ const ROOT_KEYS: &[&str] = &[
     "caches",
 ];
 const ROLES: &[&str] = &["client", "server"];
-const SYNC_MODES: &[&str] = &[
-    "local_only",
-    "read_only",
-    "write_through",
-    "bidirectional",
-];
+const SYNC_MODES: &[&str] = &["local_only", "read_only", "write_through", "bidirectional"];
 const OVERFLOW_MODES: &[&str] = &["evict_lru", "reject_and_reconcile"];
 const ENV_KINDS: &[&str] = &["string", "bool", "integer", "double", "json", "url"];
 
@@ -99,10 +94,20 @@ fn audit_roles(value: Option<&Value>, target: &str, report: &mut CommandReport) 
 fn audit_flags2env(value: Option<&Value>, report: &mut CommandReport) {
     let Some(value) = value else { return };
     let Some(table) = value.as_table() else {
-        error(report, "lru-flags2env-shape", "flags2env must be a table", "flags2env");
+        error(
+            report,
+            "lru-flags2env-shape",
+            "flags2env must be a table",
+            "flags2env",
+        );
         return;
     };
-    closed_keys(table, &["contract", "requireAudit", "precedence"], "flags2env", report);
+    closed_keys(
+        table,
+        &["contract", "requireAudit", "precedence"],
+        "flags2env",
+        report,
+    );
     require_string(table, "contract", "flags2env.contract", report);
     require_bool(table, "requireAudit", "flags2env.requireAudit", report);
     require_exact_string(
@@ -123,12 +128,25 @@ fn audit_env(value: Option<&Value>, report: &mut CommandReport) {
     for (index, entry) in entries.iter().enumerate() {
         let target = format!("env[{index}]");
         let Some(table) = entry.as_table() else {
-            error(report, "lru-env-entry-shape", "env entry must be a table", &target);
+            error(
+                report,
+                "lru-env-entry-shape",
+                "env entry must be a table",
+                &target,
+            );
             continue;
         };
         closed_keys(
             table,
-            &["name", "key", "kind", "required", "secret", "default", "description"],
+            &[
+                "name",
+                "key",
+                "kind",
+                "required",
+                "secret",
+                "default",
+                "description",
+            ],
             &target,
             report,
         );
@@ -174,7 +192,12 @@ fn audit_redis(value: Option<&Value>, report: &mut CommandReport) {
 
 fn audit_defaults(value: Option<&Value>, report: &mut CommandReport) {
     let Some(table) = value.and_then(Value::as_table) else {
-        error(report, "lru-defaults-shape", "defaults must be a table", "defaults");
+        error(
+            report,
+            "lru-defaults-shape",
+            "defaults must be a table",
+            "defaults",
+        );
         return;
     };
     closed_keys(
@@ -186,7 +209,12 @@ fn audit_defaults(value: Option<&Value>, report: &mut CommandReport) {
     require_integer(table, "capacity", "defaults.capacity", report);
     require_enum(table, "syncMode", SYNC_MODES, "defaults", report);
     require_enum(table, "overflowMode", OVERFLOW_MODES, "defaults", report);
-    require_bool(table, "failOpenOnStartup", "defaults.failOpenOnStartup", report);
+    require_bool(
+        table,
+        "failOpenOnStartup",
+        "defaults.failOpenOnStartup",
+        report,
+    );
 }
 
 fn audit_role_overrides(value: Option<&Value>, report: &mut CommandReport) {
@@ -207,7 +235,12 @@ fn audit_role_overrides(value: Option<&Value>, report: &mut CommandReport) {
 
 fn audit_caches(value: Option<&Value>, report: &mut CommandReport) {
     let Some(entries) = value.and_then(Value::as_array) else {
-        error(report, "lru-caches-shape", "caches must be an array", "caches");
+        error(
+            report,
+            "lru-caches-shape",
+            "caches must be an array",
+            "caches",
+        );
         return;
     };
     for (index, entry) in entries.iter().enumerate() {
@@ -221,9 +254,22 @@ fn audit_role_like(value: &Value, target: &str, require_name: bool, report: &mut
         return;
     };
     let allowed = if require_name {
-        &["name", "role", "capacity", "syncMode", "overflowMode", "failOpenOnStartup"][..]
+        &[
+            "name",
+            "role",
+            "capacity",
+            "syncMode",
+            "overflowMode",
+            "failOpenOnStartup",
+        ][..]
     } else {
-        &["role", "capacity", "syncMode", "overflowMode", "failOpenOnStartup"][..]
+        &[
+            "role",
+            "capacity",
+            "syncMode",
+            "overflowMode",
+            "failOpenOnStartup",
+        ][..]
     };
     closed_keys(table, allowed, target, report);
     if require_name {
@@ -275,7 +321,12 @@ fn require_exact_string(
     report: &mut CommandReport,
 ) {
     if table.get(field).and_then(Value::as_str) != Some(expected) {
-        error(report, code, "string does not match the peer-authority constant", field);
+        error(
+            report,
+            code,
+            "string does not match the peer-authority constant",
+            field,
+        );
     }
 }
 
@@ -297,7 +348,12 @@ fn require_integer(
     report: &mut CommandReport,
 ) {
     if table.get(field).and_then(Value::as_integer).is_none() {
-        error(report, "lru-integer-shape", "field must be an integer", target);
+        error(
+            report,
+            "lru-integer-shape",
+            "field must be an integer",
+            target,
+        );
     }
 }
 
@@ -401,14 +457,27 @@ role = "server"
     fn accepts_peer_authority_shape() {
         let report = audit(VALID);
         assert_eq!(report.exit_code(), 0);
-        assert!(report.findings.iter().any(|f| f.code == "lru-domain-inspected"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|f| f.code == "lru-domain-inspected")
+        );
     }
 
     #[test]
     fn rejects_unknown_field() {
-        let report = audit(&VALID.replace("namespace = \"runtime\"", "namespace = \"runtime\"\nunknown = true"));
+        let report = audit(&VALID.replace(
+            "namespace = \"runtime\"",
+            "namespace = \"runtime\"\nunknown = true",
+        ));
         assert_eq!(report.exit_code(), 2);
-        assert!(report.findings.iter().any(|f| f.code == "lru-unknown-field"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|f| f.code == "lru-unknown-field")
+        );
     }
 
     #[test]
