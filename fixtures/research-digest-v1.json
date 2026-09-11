@@ -1,0 +1,150 @@
+{
+  "schema_version": "evidence-digest/v1",
+  "digest_id": "engineering-research-2026-09-04",
+  "kind": "research",
+  "generated_at": "2026-09-04T10:00:00-04:00",
+  "window": {
+    "start": "2026-09-01T00:00:00-04:00",
+    "end": "2026-09-05T00:00:00-04:00",
+    "timezone": "America/New_York"
+  },
+  "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "items": [
+    {
+      "id": "leased-work-queues-formal-model",
+      "rank": 1,
+      "title": "A Formal Model for Leased Work Queues",
+      "authors": ["Ada Research Group", "Distributed Systems Lab"],
+      "source_kind": "official_preprint",
+      "canonical_url": "https://research.example.test/papers/leased-work-queues",
+      "stable_identifier": "arxiv:2609.00001",
+      "publication_date": "2026-09-01",
+      "updated_at": "2026-09-02T12:00:00-04:00",
+      "retrieved_at": "2026-09-04T09:10:00-04:00",
+      "source_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "status": "active",
+      "supersedes": [],
+      "themes": ["distributed-systems", "formal-methods", "ai-agent-safety"],
+      "claims": [
+        {
+          "statement": "The model separates claim ownership, lease expiry, heartbeat, completion, and retry transitions.",
+          "source_fragment_sha256": "2111111111111111111111111111111111111111111111111111111111111111"
+        },
+        {
+          "statement": "The safety argument rejects stale completion after a newer fencing token is issued.",
+          "source_fragment_sha256": "3111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ],
+      "interpretation": [
+        "The state variables align closely with the coordinator lease protocol and can inform model-based regression tests."
+      ],
+      "uncertainty": [
+        "The preprint has not yet established production behavior under every database isolation level."
+      ],
+      "proposed_experiments": [
+        "Translate the transition system into a bounded property test for stale completion and lease takeover."
+      ],
+      "scores": {
+        "relevance": 95,
+        "novelty": 90,
+        "evidence_quality": 95,
+        "implementation_cost": 35,
+        "falsifiability": 90
+      },
+      "summary_sha256": "4111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "id": "schema-peer-authority-conformance",
+      "rank": 2,
+      "title": "Independent Schema Authorities and Semantic Conformance",
+      "authors": ["Interface Systems Working Group"],
+      "source_kind": "specification",
+      "canonical_url": "https://specs.example.test/schema-peer-authority/v1",
+      "stable_identifier": "isa-sac-v1",
+      "publication_date": "2026-08-29",
+      "updated_at": "2026-09-03T15:00:00-04:00",
+      "retrieved_at": "2026-09-04T09:20:00-04:00",
+      "source_sha256": "1222222222222222222222222222222222222222222222222222222222222222",
+      "status": "active",
+      "supersedes": [],
+      "themes": ["rpc-schema-tooling", "formal-methods", "developer-infrastructure"],
+      "claims": [
+        {
+          "statement": "Peer-authority conformance compares normalized semantics rather than generated source text.",
+          "source_fragment_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        },
+        {
+          "statement": "Lossy mappings require explicit, expiring waivers bound to source and generator versions.",
+          "source_fragment_sha256": "3222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ],
+      "interpretation": [
+        "The normalization approach is suitable for independent TypeSpec and JSON Schema generation pipelines."
+      ],
+      "uncertainty": [
+        "The specification leaves language-specific numeric widening policy to downstream profiles."
+      ],
+      "proposed_experiments": [
+        "Run recursive-union and decimal-precision fixtures through both schema pipelines and compare normalized output."
+      ],
+      "scores": {
+        "relevance": 90,
+        "novelty": 85,
+        "evidence_quality": 92,
+        "implementation_cost": 25,
+        "falsifiability": 88
+      },
+      "summary_sha256": "4222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "id": "otel-bounded-cardinality-guidance",
+      "rank": 3,
+      "title": "Bounded Attribute Cardinality for Distributed Tracing",
+      "authors": ["Telemetry Standards Project"],
+      "source_kind": "official_documentation",
+      "canonical_url": "https://docs.example.test/telemetry/bounded-cardinality",
+      "stable_identifier": "telemetry-bounded-cardinality-2026-09",
+      "publication_date": "2026-08-30",
+      "updated_at": null,
+      "retrieved_at": "2026-09-04T09:30:00-04:00",
+      "source_sha256": "1333333333333333333333333333333333333333333333333333333333333333",
+      "status": "active",
+      "supersedes": [],
+      "themes": ["observability", "distributed-systems"],
+      "claims": [
+        {
+          "statement": "Unbounded user, repository, request, and payload values should not be emitted as metric label dimensions.",
+          "source_fragment_sha256": "2333333333333333333333333333333333333333333333333333333333333333"
+        }
+      ],
+      "interpretation": [
+        "The guidance supports hashing or event-only storage for high-cardinality correlation identities."
+      ],
+      "uncertainty": [
+        "Recommended limits vary with backend pricing and aggregation strategy."
+      ],
+      "proposed_experiments": [
+        "Measure current coordinator label cardinality under a synthetic multi-organization workload."
+      ],
+      "scores": {
+        "relevance": 88,
+        "novelty": 80,
+        "evidence_quality": 90,
+        "implementation_cost": 20,
+        "falsifiability": 85
+      },
+      "summary_sha256": "4333333333333333333333333333333333333333333333333333333333333333"
+    }
+  ],
+  "safety": {
+    "contains_credentials": false,
+    "contains_personal_data": false,
+    "applications_authorized": false,
+    "outreach_authorized": false,
+    "external_mutations_authorized": false,
+    "notes": [
+      "The fixture uses synthetic primary-source records and content-free hashes.",
+      "Interpretations and proposed experiments are explicitly separated from source-bound claims."
+    ]
+  }
+}
