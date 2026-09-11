@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -7,7 +7,7 @@ use regex::Regex;
 use serde::Serialize;
 use syn::spanned::Spanned;
 use syn::visit::Visit;
-use syn::{Expr, ExprCall, Lit, Macro, Path as SynPath};
+use syn::{Expr, ExprCall, Item, Lit, Macro, Path as SynPath, UseTree};
 
 const SCHEMA: &str = "ores.code-config-audit.v1";
 const MAX_FILES: usize = 4_096;
@@ -172,7 +172,8 @@ fn inspect_file(root: &Path, file: &Path) -> Result<FileReceipt, String> {
     let regex_hits = regex_lane(&source)?;
     match syn::parse_file(&source) {
         Ok(parsed) => {
-            let mut visitor = ConfigVisitor::new();
+            let imports = top_level_imports(&parsed.items);
+            let mut visitor = ConfigVisitor::new(imports);
             visitor.visit_file(&parsed);
             Ok(FileReceipt {
                 path: relative,
@@ -234,14 +235,77 @@ fn regex_lane(source: &str) -> Result<Vec<Event>, String> {
     Ok(events.into_iter().collect())
 }
 
+fn top_level_imports(items: &[Item]) -> BTreeMap<String, String> {
+    let mut aliases = BTreeMap::new();
+    for item in items {
+        if let Item::Use(item_use) = item {
+            collect_use_tree(&mut aliases, Vec::new(), &item_use.tree);
+        }
+    }
+    aliases
+}
+
+fn collect_use_tree(
+    aliases: &mut BTreeMap<String, String>,
+    prefix: Vec<String>,
+    tree: &UseTree,
+) {
+    match tree {
+        UseTree::Path(path) => {
+            let mut next = prefix;
+            next.push(path.ident.to_string());
+            collect_use_tree(aliases, next, &path.tree);
+        }
+        UseTree::Name(name) => {
+            let local = name.ident.to_string();
+            let mut canonical = prefix;
+            canonical.push(local.clone());
+            aliases.insert(local, canonical.join("::"));
+        }
+        UseTree::Rename(rename) => {
+            let local = rename.rename.to_string();
+            let mut canonical = prefix;
+            canonical.push(rename.ident.to_string());
+            aliases.insert(local, canonical.join("::"));
+        }
+        UseTree::Group(group) => {
+            for item in &group.items {
+                collect_use_tree(aliases, prefix.clone(), item);
+            }
+        }
+        UseTree::Glob(_) => {}
+    }
+}
+
+fn canonical_path(path: &SynPath, imports: &BTreeMap<String, String>) -> String {
+    let segments = path
+        .segments
+        .iter()
+        .map(|segment| segment.ident.to_string())
+        .collect::<Vec<_>>();
+    let Some((first, rest)) = segments.split_first() else {
+        return String::new();
+    };
+    let Some(canonical_first) = imports.get(first) else {
+        return segments.join("::");
+    };
+    if rest.is_empty() {
+        canonical_first.clone()
+    } else {
+        format!("{canonical_first}::{}", rest.join("::"))
+    }
+}
+
 struct ConfigVisitor {
     events: BTreeSet<Event>,
+    imports: BTreeMap<String, String>,
 }
 
 impl ConfigVisitor {
-    fn new() -> Self {
+    fn new(imports: BTreeMap<String, String>) -> Self {
         Self {
             events: BTreeSet::new(),
+            imports,
         }
     }
 
@@ -263,7 +327,7 @@ impl ConfigVisitor {
 impl<'ast> Visit<'ast> for ConfigVisitor {
     fn visit_expr_call(&mut self, node: &'ast ExprCall) {
         if let Expr::Path(function) = node.func.as_ref() {
-            let function_name = path_name(&function.path);
+            let function_name = canonical_path(&function.path, &self.imports);
             let first = first_string_argument(node);
             if matches!(
                 function_name.as_str(),
@@ -292,7 +356,7 @@ impl<'ast> Visit<'ast> for ConfigVisitor {
     }
 
     fn visit_macro(&mut self, node: &'ast Macro) {
-        let name = path_name(&node.path);
+        let name = canonical_path(&node.path, &self.imports);
         if matches!(name.as_str(), "include_str" | "include_bytes") {
             if let Ok(value) = syn::parse2::<syn::LitStr>(node.tokens.clone()) {
                 let value = value.value();
@@ -318,14 +382,6 @@ fn first_string_argument(node: &ExprCall) -> Option<String> {
         },
         _ => None,
     }
-}
-
-fn path_name(path: &SynPath) -> String {
-    path.segments
-        .iter()
-        .map(|segment| segment.ident.to_string())
-        .collect::<Vec<_>>()
-        .join("::")
 }
 
 fn line_column(source: &str, offset: usize) -> (u32, u32) {
@@ -360,7 +416,15 @@ fn fail(message: &str) -> ! {
 mod tests {
     use syn::visit::Visit;
 
-    use super::ConfigVisitor;
+    use super::{ConfigVisitor, top_level_imports};
+
+    fn events(source: &str) -> Vec<super::Event> {
+        let parsed = syn::parse_file(source).expect("valid Rust fixture");
+        let imports = top_level_imports(&parsed.items);
+        let mut visitor = ConfigVisitor::new(imports);
+        visitor.visit_file(&parsed);
+        visitor.finish()
+    }
 
     #[test]
     fn repeated_identical_env_reads_keep_distinct_ast_positions() {
@@ -370,11 +434,7 @@ fn load() {
     let _ = std::env::var("REDIS_URL");
 }
 "#;
-        let parsed = syn::parse_file(source).expect("valid Rust fixture");
-        let mut visitor = ConfigVisitor::new();
-        visitor.visit_file(&parsed);
-        let events = visitor
-            .finish()
+        let events = events(source)
             .into_iter()
             .filter(|event| event.kind == "env-read" && event.value.as_deref() == Some("REDIS_URL"))
             .collect::<Vec<_>>();
@@ -382,6 +442,32 @@ fn load() {
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].line, 3);
         assert_eq!(events[1].line, 4);
-        assert_ne!((events[0].line, events[0].column), (events[1].line, events[1].column));
+        assert_ne!(
+            (events[0].line, events[0].column),
+            (events[1].line, events[1].column)
+        );
+    }
+
+    #[test]
+    fn top_level_use_aliases_resolve_to_canonical_config_apis() {
+        let source = r#"
+use std::env::var as getenv;
+use std::fs::read_to_string as read_config;
+use toml::from_str as parse_toml;
+
+fn load() {
+    let _ = getenv("ALIAS_REDIS_URL");
+    let raw = read_config(".ores-chat.toml").unwrap();
+    let _: toml::Value = parse_toml(&raw).unwrap();
+}
+"#;
+        let events = events(source);
+        assert!(events.iter().any(|event| {
+            event.kind == "env-read" && event.value.as_deref() == Some("ALIAS_REDIS_URL")
+        }));
+        assert!(events.iter().any(|event| {
+            event.kind == "config-read" && event.value.as_deref() == Some(".ores-chat.toml")
+        }));
+        assert!(events.iter().any(|event| event.kind == "toml-parse"));
     }
 }
