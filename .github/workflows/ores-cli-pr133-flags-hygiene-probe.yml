@@ -41,9 +41,9 @@ jobs:
           secret='evidence/ores-cli-pr133-flags/src/audit/cli_secret_flag_hygiene.rs'
           source='evidence/ores-cli-pr133-flags/src/audit/flags2env_source_hygiene.rs'
           submodule='evidence/ores-cli-pr133-flags/src/audit/flags2env_submodule_source_hygiene.rs'
-          test "$(git hash-object "$secret")" = c9a0297f4f799a6b2ae4473c83a616aefa4be395
-          test "$(git hash-object "$source")" = 558934d54956cc91609552fde02b61b030737c49
-          test "$(git hash-object "$submodule")" = 0e67dbe518fd7f2f1c68a2e21624ef82adf118f5
+          test "$(git hash-object "$secret")" = 9536e5dd49cd7db49c9b329f6348a2d185708ec8
+          test "$(git hash-object "$source")" = 385130a876e499b631a9c04ba41f4c221a8d1321
+          test "$(git hash-object "$submodule")" = 98dfa226db7e467826da22d3487a955d52bc0601
           for path in "$secret" "$source" "$submodule"; do
             test "$(git hash-object "$path")" = "$(git hash-object --no-filters "$path")"
           done
