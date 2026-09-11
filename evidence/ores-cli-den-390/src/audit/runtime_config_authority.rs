@@ -46,7 +46,9 @@ pub(super) fn augment_runtime_config_authority_audit(
             report.push(
                 Finding::warning(
                     "runtime-config-authority-contract-unreadable",
-                    format!("could not read {CLI_CONTRACT} for runtime-authority analysis: {error}"),
+                    format!(
+                        "could not read {CLI_CONTRACT} for runtime-authority analysis: {error}"
+                    ),
                 )
                 .with_target(CLI_CONTRACT),
             );
@@ -59,7 +61,9 @@ pub(super) fn augment_runtime_config_authority_audit(
             report.push(
                 Finding::warning(
                     "runtime-config-authority-contract-unparseable",
-                    format!("could not parse {CLI_CONTRACT} for runtime-authority analysis: {error}"),
+                    format!(
+                        "could not parse {CLI_CONTRACT} for runtime-authority analysis: {error}"
+                    ),
                 )
                 .with_target(CLI_CONTRACT),
             );
@@ -285,15 +289,11 @@ fn audit_direct_declared_env_reads(
     );
 }
 
-fn audit_generated_runtime_fallback_escape(
-    source: &str,
-    target: &str,
-    report: &mut CommandReport,
-) {
+fn audit_generated_runtime_fallback_escape(source: &str, target: &str, report: &mut CommandReport) {
     let consumes_generated_runtime = source.contains("env_runtime::load_from_os()")
         || source.contains("generated/rust/runtime.rs");
-    let retries_sidecar_from_env = source.contains("SidecarConfig::from_bind")
-        && source.contains("SidecarConfig::from_env");
+    let retries_sidecar_from_env =
+        source.contains("SidecarConfig::from_bind") && source.contains("SidecarConfig::from_env");
     if consumes_generated_runtime && retries_sidecar_from_env {
         report.push(
             Finding::error(
@@ -359,10 +359,12 @@ mod tests {
             &options(root.path()),
             CommandReport::new("fixture"),
         );
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "generated-runtime-env-bypass"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "generated-runtime-env-bypass")
+        );
     }
 
     #[test]
@@ -381,14 +383,18 @@ mod tests {
             &options(root.path()),
             CommandReport::new("fixture"),
         );
-        assert!(!report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "generated-runtime-env-bypass"));
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "runtime-config-authority-official-binding"));
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "generated-runtime-env-bypass")
+        );
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "runtime-config-authority-official-binding")
+        );
     }
 
     #[test]
@@ -421,10 +427,12 @@ mod tests {
             &options(root.path()),
             CommandReport::new("fixture"),
         );
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "generated-runtime-fallback-parser"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "generated-runtime-fallback-parser")
+        );
     }
 
     #[test]
@@ -441,10 +449,12 @@ mod tests {
             &options(root.path()),
             CommandReport::new("fixture"),
         );
-        assert!(report
-            .findings
-            .iter()
-            .any(|finding| finding.code == "rust-application-lockfile-missing"));
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.code == "rust-application-lockfile-missing")
+        );
     }
 
     #[test]
@@ -456,15 +466,20 @@ mod tests {
             "[package]\nname = \"fixture\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
         )
         .expect("write manifest");
-        fs::write(root.path().join("src/lib.rs"), "pub fn value() -> u8 { 1 }\n")
-            .expect("write library");
+        fs::write(
+            root.path().join("src/lib.rs"),
+            "pub fn value() -> u8 { 1 }\n",
+        )
+        .expect("write library");
         let report = augment_runtime_config_authority_audit(
             &options(root.path()),
             CommandReport::new("fixture"),
         );
-        assert!(!report
-            .findings
-            .iter()
-            .any(|finding| finding.code.starts_with("rust-application-lockfile-")));
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|finding| finding.code.starts_with("rust-application-lockfile-"))
+        );
     }
 }
