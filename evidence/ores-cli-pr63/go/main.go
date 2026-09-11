@@ -283,7 +283,7 @@ func positionFromOffset(lineStarts []int, offset int) (uint32, uint32) {
 	if lineIndex < 0 {
 		lineIndex = 0
 	}
-	return uint32(lineIndex + 1), uint32(offset-lineStarts[lineIndex] + 1)
+	return uint32(lineIndex + 1), uint32(offset - lineStarts[lineIndex] + 1)
 }
 
 func dedupe(events []Event) []Event {
