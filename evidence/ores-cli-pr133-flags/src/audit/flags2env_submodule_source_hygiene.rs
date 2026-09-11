@@ -16,10 +16,7 @@ const MAX_INPUT_BYTES: u64 = 1024 * 1024;
 /// submodule is the repository's gitlink entry, not a field in this file. This
 /// audit therefore validates source identity without inventing or duplicating
 /// a commit authority.
-pub(crate) fn audit_flags2env_submodule_source_hygiene(
-    root: &Path,
-    report: &mut CommandReport,
-) {
+pub(crate) fn audit_flags2env_submodule_source_hygiene(root: &Path, report: &mut CommandReport) {
     let path = root.join(GITMODULES);
     let metadata = match fs::symlink_metadata(&path) {
         Ok(metadata) => metadata,
@@ -35,7 +32,8 @@ pub(crate) fn audit_flags2env_submodule_source_hygiene(
             return;
         }
     };
-    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_INPUT_BYTES {
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > MAX_INPUT_BYTES
+    {
         report.push(
             Finding::error(
                 "flags2env-submodule-config-unsafe",
@@ -115,7 +113,10 @@ pub(crate) fn audit_flags2env_submodule_source_hygiene(
     );
 
     report.insert_metadata("flags2envSubmoduleSectionCount", json!(flags2env_sections));
-    report.insert_metadata("flags2envCanonicalSubmoduleSectionCount", json!(canonical_sections));
+    report.insert_metadata(
+        "flags2envCanonicalSubmoduleSectionCount",
+        json!(canonical_sections),
+    );
 }
 
 fn flush_section(
