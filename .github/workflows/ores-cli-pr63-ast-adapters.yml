@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ORES_CLI_SHA: fa560cb74fc001518e83f1a375360bac869341e0
+  ORES_CLI_SHA: ebbeb176958fbd54495835838e39555b50a350f7
 
 jobs:
   adapter-snapshot:
@@ -103,7 +103,7 @@ jobs:
 
   private-integration-gate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     environment: nightly-org-maintenance
     steps:
       - name: Check protected GitHub App configuration
@@ -145,3 +145,26 @@ jobs:
           set -euo pipefail
           test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
           git -C ores-cli diff --check
+          git -C ores-cli ls-files --error-unmatch Cargo.lock >/dev/null
+
+      - name: Install exact Rust toolchain used by ores-cli
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Compile and test the source-audit host admission layer
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo fmt -- --check
+          cargo check --locked --all-targets
+          cargo test --locked source_semantics -- --nocapture
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Verify private checkout remained immutable
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          git -C ores-cli diff --exit-code
