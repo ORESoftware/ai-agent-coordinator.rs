@@ -1,0 +1,153 @@
+{
+  "schema_version": "evidence-digest/v1",
+  "digest_id": "engineering-opportunities-2026-09-04",
+  "kind": "opportunity",
+  "generated_at": "2026-09-04T09:00:00-04:00",
+  "window": {
+    "start": "2026-09-01T00:00:00-04:00",
+    "end": "2026-09-05T00:00:00-04:00",
+    "timezone": "America/New_York"
+  },
+  "policy_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "items": [
+    {
+      "id": "cloudforge-platform-staff-1042",
+      "rank": 1,
+      "company_id": "cloudforge",
+      "company_name": "CloudForge",
+      "requisition_id": "1042",
+      "title": "Staff Platform Engineer",
+      "canonical_url": "https://careers.example.test/cloudforge/jobs/1042",
+      "source_kind": "employer_careers",
+      "verified_at": "2026-09-04T08:10:00-04:00",
+      "posted_at": "2026-09-02T10:00:00-04:00",
+      "expires_at": null,
+      "locations": ["Remote, United States"],
+      "remote_policy": "remote",
+      "employment_type": "full_time",
+      "role_family": "platform",
+      "compensation": {
+        "currency": "USD",
+        "minimum": 190000,
+        "maximum": 245000,
+        "period": "year",
+        "evidence_url": "https://careers.example.test/cloudforge/jobs/1042"
+      },
+      "fit": {
+        "score": 96,
+        "must_have_matches": ["Distributed systems", "Kubernetes", "Rust or Go"],
+        "preferred_matches": ["Developer tooling", "Observability"],
+        "must_have_gaps": [],
+        "preferred_gaps": ["Direct service-mesh ownership is unverified"],
+        "unknowns": ["Current on-call rotation"],
+        "evidence_sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "fiducia_opportunity_ids": ["cloudforge-startup-credits"],
+      "content_sha256": "2111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "id": "cloudforge-sdk-principal-1048",
+      "rank": 2,
+      "company_id": "cloudforge",
+      "company_name": "CloudForge",
+      "requisition_id": "1048",
+      "title": "Principal SDK Engineer",
+      "canonical_url": "https://careers.example.test/cloudforge/jobs/1048",
+      "source_kind": "employer_careers",
+      "verified_at": "2026-09-04T08:12:00-04:00",
+      "posted_at": "2026-09-02T11:00:00-04:00",
+      "expires_at": null,
+      "locations": ["Remote, Americas"],
+      "remote_policy": "remote",
+      "employment_type": "full_time",
+      "role_family": "sdk_tooling",
+      "compensation": {
+        "currency": "USD",
+        "minimum": 185000,
+        "maximum": 235000,
+        "period": "year",
+        "evidence_url": "https://careers.example.test/cloudforge/jobs/1048"
+      },
+      "fit": {
+        "score": 92,
+        "must_have_matches": ["Polyglot SDKs", "API design", "Rust and TypeScript"],
+        "preferred_matches": ["Developer experience", "Code generation"],
+        "must_have_gaps": [],
+        "preferred_gaps": ["Mobile SDK release ownership is unverified"],
+        "unknowns": ["Travel expectations"],
+        "evidence_sha256": "1222222222222222222222222222222222222222222222222222222222222222"
+      },
+      "fiducia_opportunity_ids": ["cloudforge-startup-credits"],
+      "content_sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "id": "cloudforge-sre-senior-1051",
+      "rank": 3,
+      "company_id": "cloudforge",
+      "company_name": "CloudForge",
+      "requisition_id": "1051",
+      "title": "Senior Site Reliability Engineer",
+      "canonical_url": "https://careers.example.test/cloudforge/jobs/1051",
+      "source_kind": "official_ats",
+      "verified_at": "2026-09-04T08:14:00-04:00",
+      "posted_at": "2026-09-03T09:00:00-04:00",
+      "expires_at": null,
+      "locations": ["Remote, United States", "Austin, Texas"],
+      "remote_policy": "location_dependent",
+      "employment_type": "full_time",
+      "role_family": "sre",
+      "compensation": null,
+      "fit": {
+        "score": 88,
+        "must_have_matches": ["Incident response", "Cloud infrastructure", "Kubernetes"],
+        "preferred_matches": ["OpenTelemetry", "Capacity planning"],
+        "must_have_gaps": [],
+        "preferred_gaps": ["Specific cloud certification is unverified"],
+        "unknowns": ["Compensation range"],
+        "evidence_sha256": "1333333333333333333333333333333333333333333333333333333333333333"
+      },
+      "fiducia_opportunity_ids": ["cloudforge-startup-credits"],
+      "content_sha256": "2333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "id": "observiq-observability-lead-210",
+      "rank": 4,
+      "company_id": "observiq",
+      "company_name": "ObservIQ",
+      "requisition_id": "210",
+      "title": "Lead Observability Engineer",
+      "canonical_url": "https://jobs.example.test/observiq/210",
+      "source_kind": "employer_api",
+      "verified_at": "2026-09-04T08:20:00-04:00",
+      "posted_at": null,
+      "expires_at": "2026-10-01T00:00:00-04:00",
+      "locations": ["New York, New York"],
+      "remote_policy": "hybrid",
+      "employment_type": "full_time",
+      "role_family": "observability",
+      "compensation": null,
+      "fit": {
+        "score": 84,
+        "must_have_matches": ["OpenTelemetry", "Distributed tracing", "Platform engineering"],
+        "preferred_matches": ["Rust services"],
+        "must_have_gaps": [],
+        "preferred_gaps": ["Hybrid presence requirements need review"],
+        "unknowns": ["Team size", "Compensation range"],
+        "evidence_sha256": "1444444444444444444444444444444444444444444444444444444444444444"
+      },
+      "fiducia_opportunity_ids": [],
+      "content_sha256": "2444444444444444444444444444444444444444444444444444444444444444"
+    }
+  ],
+  "safety": {
+    "contains_credentials": false,
+    "contains_personal_data": false,
+    "applications_authorized": false,
+    "outreach_authorized": false,
+    "external_mutations_authorized": false,
+    "notes": [
+      "This synthetic fixture represents a review queue, not submitted applications.",
+      "Fiducia program actions remain separate from engineering job records."
+    ]
+  }
+}

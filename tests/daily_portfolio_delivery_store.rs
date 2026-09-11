@@ -8,10 +8,22 @@ use ai_agent_coordinator::{
 use chrono::{Duration, Utc};
 use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
 
-fn digest(seed: char) -> String {
-    let nibble = seed.to_digit(36).expect("test digest seed") % 16;
+fn digest_with_offset(seed: char, offset: u32) -> String {
+    let base = seed.to_digit(36).expect("test digest seed");
+    let nibble = (base + offset) % 16;
     let character = char::from_digit(nibble, 16).expect("hex digest character");
     std::iter::repeat_n(character, 64).collect()
+}
+
+fn digest(seed: char) -> String {
+    digest_with_offset(seed, 0)
+}
+
+#[test]
+fn digest_offsets_wrap_without_constructing_invalid_seed_characters() {
+    assert_eq!(digest_with_offset('9', 1), "a".repeat(64));
+    assert_eq!(digest_with_offset('f', 1), "0".repeat(64));
+    assert_eq!(digest_with_offset('z', 2), "5".repeat(64));
 }
 
 fn scheduled_key(date: &str) -> String {
@@ -24,8 +36,8 @@ fn plan(mode: RunMode, run_key: &str, date: &str, seed: char) -> PlanSpec {
         scheduled_run_key: scheduled_key(date),
         mode,
         source_digest: digest(seed),
-        plan_digest: digest(char::from_u32(seed as u32 + 1).expect("test seed")),
-        delivery_digest: digest(char::from_u32(seed as u32 + 2).expect("test seed")),
+        plan_digest: digest_with_offset(seed, 1),
+        delivery_digest: digest_with_offset(seed, 2),
         destination: "slack:C0PORTFOLIO".to_owned(),
         idempotency_key: run_key.to_owned(),
     }

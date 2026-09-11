@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-agent-coordinator-artifact-recovery
+  namespace: ai-agent-coordinator
+  labels:
+    app.kubernetes.io/name: ai-agent-coordinator-artifact-recovery
+    app.kubernetes.io/part-of: oresoftware-agent-platform
+  annotations:
+    oresoftware.dev/activation: disabled
+spec:
+  replicas: 0
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ai-agent-coordinator-artifact-recovery
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ai-agent-coordinator-artifact-recovery
+        app.kubernetes.io/part-of: oresoftware-agent-platform
+      annotations:
+        oresoftware.dev/activation: disabled
+    spec:
+      serviceAccountName: ai-agent-coordinator
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: artifact-recovery
+          image: ghcr.io/oresoftware/ai-agent-coordinator-artifact-recovery:sha-5af90a5f89b76a91c348f2e6d5e52cf06e3fc311
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: ai-agent-coordinator-artifact-recovery
+          env:
+            - name: AI_AGENT_COORDINATOR_URL
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: AI_AGENT_COORDINATOR_URL
+            - name: AI_AGENT_COORDINATOR_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: AI_AGENT_COORDINATOR_API_TOKEN
+            - name: CHATGPT_RECOVERY_SOURCE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: CHATGPT_RECOVERY_SOURCE_TOKEN
+            - name: GITHUB_RECOVERY_SOURCE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: GITHUB_RECOVERY_SOURCE_TOKEN
+            - name: LINEAR_RECOVERY_SOURCE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: LINEAR_RECOVERY_SOURCE_TOKEN
+            - name: LOCAL_REPO_RECOVERY_SOURCE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: LOCAL_REPO_RECOVERY_SOURCE_TOKEN
+            - name: FILE_LIBRARY_RECOVERY_SOURCE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: FILE_LIBRARY_RECOVERY_SOURCE_TOKEN
+            - name: CLAUDE_RECOVERY_SOURCE_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: ai-agent-coordinator-artifact-recovery
+                  key: CLAUDE_RECOVERY_SOURCE_TOKEN
+                  optional: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 192Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: state
+              mountPath: /var/lib/artifact-recovery
+            - name: source-manifest
+              mountPath: /etc/artifact-recovery
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: state
+          persistentVolumeClaim:
+            claimName: ai-agent-coordinator-artifact-recovery-state
+        - name: source-manifest
+          secret:
+            secretName: ai-agent-coordinator-artifact-recovery
+            items:
+              - key: sources.json
+                path: sources.json
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
+      terminationGracePeriodSeconds: 40

@@ -144,11 +144,14 @@ package = "@shared-auth/client"
 [targets.typescript-deno]
 dir = "clients/typescript/deno"
 adapter = "none"
+name = "shared-auth-clients-deno"
 
 [targets.typescript-bun]
 dir = "clients/typescript/bun"
 adapter = "node"
+name = "shared-auth-clients-bun"
 
 [targets.typescript-edge]
 dir = "clients/typescript/edge"
 adapter = "none"
+name = "shared-auth-clients-edge"

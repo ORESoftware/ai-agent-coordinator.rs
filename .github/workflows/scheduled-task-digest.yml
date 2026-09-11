@@ -11,6 +11,7 @@ on:
       - tools/scheduled_task_digest_scan.py
       - tools/scheduled_task_digest_delivery.py
       - tests/test_scheduled_task_digest.py
+      - tests/test_scheduled_task_digest_catchup.py
   push:
     branches: [main]
     paths:
@@ -22,9 +23,11 @@ on:
       - tools/scheduled_task_digest_scan.py
       - tools/scheduled_task_digest_delivery.py
       - tests/test_scheduled_task_digest.py
+      - tests/test_scheduled_task_digest_catchup.py
   schedule:
-    # 07:07 America/Chicago in daylight and standard time. The timezone gate
-    # accepts only the UTC alternative that converts into the 07:00 hour.
+    # 07:07 America/Chicago in daylight and standard time. The earlier UTC
+    # alternative remains not-due before 07:00; a delayed GitHub event may catch
+    # up later on the same local date and receipt artifacts prevent duplicates.
     - cron: '7 12 * * *'
     - cron: '7 13 * * *'
   workflow_dispatch:
@@ -80,28 +83,33 @@ jobs:
           tools/scheduled_task_digest_scan.py
           tools/scheduled_task_digest_delivery.py
           tests/test_scheduled_task_digest.py
+          tests/test_scheduled_task_digest_catchup.py
       - name: Run focused digest tests
         run: >-
           python3 -m unittest discover
           -s tests
-          -p 'test_scheduled_task_digest.py'
+          -p 'test_scheduled_task_digest*.py'
           -v
-      - name: Verify both Central-time UTC alternatives
+      - name: Verify Central-time alternatives and delayed catch-up
         shell: bash
         run: |
           set -euo pipefail
           summer="$(python3 tools/scheduled_task_digest.py decision --now 2026-08-12T12:07:00Z)"
           winter="$(python3 tools/scheduled_task_digest.py decision --now 2026-01-12T13:07:00Z)"
-          python3 - "$summer" "$winter" <<'PY'
+          delayed="$(python3 tools/scheduled_task_digest.py decision --now 2026-09-02T17:06:00Z --same-day-catchup)"
+          early="$(python3 tools/scheduled_task_digest.py decision --now 2026-01-12T12:07:00Z --same-day-catchup)"
+          python3 - "$summer" "$winter" "$delayed" "$early" <<'PY'
           import json
           import sys
 
-          summer = json.loads(sys.argv[1])
-          winter = json.loads(sys.argv[2])
-          assert summer["due"] is True
-          assert winter["due"] is True
+          summer, winter, delayed, early = map(json.loads, sys.argv[1:])
+          assert summer["due"] is True and summer["catchup"] is False
+          assert winter["due"] is True and winter["catchup"] is False
+          assert delayed["due"] is True and delayed["catchup"] is True
+          assert early["due"] is False and early["catchup"] is False
           assert summer["logical_date"] == "2026-08-12"
           assert winter["logical_date"] == "2026-01-12"
+          assert delayed["logical_date"] == "2026-09-02"
           PY
 
   timezone_guard:
@@ -115,6 +123,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       due: ${{ steps.decision.outputs.due }}
+      catchup: ${{ steps.decision.outputs.catchup }}
       logical_date: ${{ steps.decision.outputs.logical_date }}
       run_key: ${{ steps.decision.outputs.run_key }}
       artifact_name: ${{ steps.decision.outputs.artifact_name }}
@@ -129,6 +138,7 @@ jobs:
         id: decision
         shell: bash
         env:
+          EVENT_NAME: ${{ github.event_name }}
           REQUESTED_NOW: ${{ inputs.now }}
           FORCE: ${{ inputs.force }}
         run: |
@@ -136,6 +146,9 @@ jobs:
           args=(decision --github-output "$GITHUB_OUTPUT")
           if [[ -n "${REQUESTED_NOW}" ]]; then
             args+=(--now "${REQUESTED_NOW}")
+          fi
+          if [[ "${EVENT_NAME}" == "schedule" ]]; then
+            args+=(--same-day-catchup)
           fi
           if [[ "${FORCE}" == "true" ]]; then
             args+=(--force)
@@ -218,3 +231,52 @@ jobs:
           path: artifacts/scheduled-task-digest
           if-no-files-found: warn
           retention-days: 90
+
+  outcome:
+    name: schedule-outcome
+    if: >-
+      always() &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    needs:
+      - validate
+      - timezone_guard
+      - digest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Refuse false-green schedule completion
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          GUARD_RESULT: ${{ needs.timezone_guard.result }}
+          DUE: ${{ needs.timezone_guard.outputs.due }}
+          CATCHUP: ${{ needs.timezone_guard.outputs.catchup }}
+          LOGICAL_DATE: ${{ needs.timezone_guard.outputs.logical_date }}
+          DIGEST_RESULT: ${{ needs.digest.result }}
+        run: |
+          set -euo pipefail
+          if [[ "${GUARD_RESULT}" != "success" ]]; then
+            echo "timezone guard did not complete successfully: ${GUARD_RESULT}" >&2
+            exit 1
+          fi
+          if [[ "${DUE}" == "true" ]]; then
+            if [[ "${DIGEST_RESULT}" != "success" ]]; then
+              echo "due digest did not complete successfully: ${DIGEST_RESULT}" >&2
+              exit 1
+            fi
+          elif [[ "${DIGEST_RESULT}" != "skipped" ]]; then
+            echo "not-due digest had unexpected result: ${DIGEST_RESULT}" >&2
+            exit 1
+          fi
+          {
+            echo "### Scheduled-task digest outcome"
+            echo
+            echo "- event: ${EVENT_NAME}"
+            echo "- validate: ${VALIDATE_RESULT}"
+            echo "- timezone guard: ${GUARD_RESULT}"
+            echo "- due: ${DUE}"
+            echo "- same-day catch-up: ${CATCHUP}"
+            echo "- logical date: ${LOGICAL_DATE}"
+            echo "- digest: ${DIGEST_RESULT}"
+          } >> "${GITHUB_STEP_SUMMARY}"

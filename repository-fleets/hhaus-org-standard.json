@@ -1,0 +1,209 @@
+{
+  "schema_version": 1,
+  "organization": "hhaus-org",
+  "project": {
+    "name": "github.com/hhaus-org",
+    "linear_url": "https://linear.app/denman/project/githubcomhhaus-org-1270c3d9de52",
+    "github_project_url": "https://github.com/orgs/hhaus-org/projects/1",
+    "public_site": "https://hhaus.org"
+  },
+  "governance": {
+    "agents": "https://github.com/ORESoftware/my-ai/blob/main/AGENTS.md",
+    "default_branch": "main",
+    "feature_branch": "agent/bootstrap-standard-foundation-20260903",
+    "visibility": "private",
+    "merge_method": "squash",
+    "delete_branch_on_merge": true,
+    "issues": true,
+    "projects": false,
+    "wiki": false
+  },
+  "contract_authorities": {
+    "typespec": {
+      "role": "independent-peer-authority",
+      "source_root": "typespec"
+    },
+    "json_schema": {
+      "role": "independent-peer-authority",
+      "draft": "2020-12",
+      "source_root": "json-schema"
+    },
+    "publication_gate": "normalize both authorities independently, compare semantic models and contract digests, then generate only on exact parity",
+    "orm_gate": "normalize Diesel and SeaORM projections independently and publish only on exact field, nullability, key, index, and relation parity"
+  },
+  "language_targets": [
+    "c",
+    "cpp",
+    "csharp",
+    "dart",
+    "elixir",
+    "erlang",
+    "gleam",
+    "go",
+    "java",
+    "kotlin",
+    "php",
+    "python",
+    "ruby",
+    "rust",
+    "swift",
+    "typescript",
+    "zig"
+  ],
+  "platform_dependencies": {
+    "dependency_orchestrator": "zed-pkg/zed-pkg",
+    "auth_contracts": "shared-auth/shared-auth-interfaces",
+    "auth_core": "shared-auth/shared-auth-lib-core",
+    "auth_clients": "shared-auth/shared-auth-clients",
+    "middleware": "ORESoftware/ores-middleware",
+    "telemetry": "ores-otel/ores-otel-clients",
+    "rate_limit_core": "ores-rate-limit/ores-rl-lib-core",
+    "rate_limit_infra": "ores-rate-limit/ores-rl-infra",
+    "sync": "opto-sync/opto-sync"
+  },
+  "required_rate_limit_layers": [
+    "cloudflare-edge",
+    "gateway-load-balancer",
+    "service-runtime-lru",
+    "distributed-redis-coordinator",
+    "durable-security-billing"
+  ],
+  "repositories": [
+    {
+      "name": "hhaus-interfaces",
+      "kind": "interfaces",
+      "description": "Independent TypeSpec and JSON Schema Draft 2020-12 declarations plus generated shared interfaces for 15+ languages.",
+      "internal_dependencies": [],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-interfaces"
+      ],
+      "backend_only": false,
+      "backend_internal_dependencies": []
+    },
+    {
+      "name": "hhaus-lib-core",
+      "kind": "lib-core",
+      "description": "Shared validation, identity, request-context, telemetry, and rate-limit primitives for every H/HAUS application surface.",
+      "internal_dependencies": [
+        "hhaus-interfaces"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-lib-core",
+        "ORESoftware/ores-middleware",
+        "ores-otel/ores-otel-clients",
+        "ores-rate-limit/ores-rl-lib-core"
+      ],
+      "backend_only": false,
+      "backend_internal_dependencies": []
+    },
+    {
+      "name": "hhaus-orm-core",
+      "kind": "orm-core",
+      "description": "Backend-only Diesel and SeaORM models, repositories, migrations, and parity gates derived from H/HAUS contract authorities.",
+      "internal_dependencies": [
+        "hhaus-interfaces",
+        "hhaus-lib-core"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-orm-core"
+      ],
+      "backend_only": true,
+      "backend_internal_dependencies": []
+    },
+    {
+      "name": "hhaus-clients",
+      "kind": "clients",
+      "description": "Generated and hand-written H/HAUS SDK clients for 15+ languages, importing hhaus-interfaces and hhaus-lib-core through zed-pkg.",
+      "internal_dependencies": [
+        "hhaus-interfaces",
+        "hhaus-lib-core"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-clients",
+        "ores-otel/ores-otel-clients",
+        "ores-rate-limit/ores-rl-lib-core"
+      ],
+      "backend_only": false,
+      "backend_internal_dependencies": []
+    },
+    {
+      "name": "hhaus-sync",
+      "kind": "sync",
+      "description": "Offline-first synchronization across app, IndexedDB, SQLite, service, Postgres, Diesel, and SeaORM layers using opto-sync contracts.",
+      "internal_dependencies": [
+        "hhaus-interfaces",
+        "hhaus-lib-core"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "opto-sync/opto-sync",
+        "shared-auth/shared-auth-sync",
+        "ores-otel/ores-otel-sync",
+        "ores-rate-limit/ores-rl-lib-core"
+      ],
+      "backend_only": false,
+      "backend_internal_dependencies": [
+        "hhaus-orm-core"
+      ]
+    },
+    {
+      "name": "hhaus-flutter",
+      "kind": "flutter",
+      "description": "Flutter codebase for H/HAUS iOS, Android, and desktop application surfaces.",
+      "internal_dependencies": [
+        "hhaus-clients",
+        "hhaus-lib-core",
+        "hhaus-sync"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-flutter",
+        "ores-otel/ores-otel-flutter",
+        "ores-rate-limit/ores-rl-flutter"
+      ],
+      "backend_only": false,
+      "backend_internal_dependencies": []
+    },
+    {
+      "name": "hhaus-desktop-app.rs",
+      "kind": "desktop-rust",
+      "description": "Native Rust desktop application for H/HAUS with no React desktop runtime.",
+      "internal_dependencies": [
+        "hhaus-clients",
+        "hhaus-lib-core",
+        "hhaus-sync"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-lib-core",
+        "ores-otel/ores-otel-clients",
+        "ores-rate-limit/ores-rl-lib-core"
+      ],
+      "backend_only": false,
+      "backend_internal_dependencies": []
+    },
+    {
+      "name": "hhaus-lambdas",
+      "kind": "lambdas",
+      "description": "Cross-provider H/HAUS function handlers for AWS Lambda, Google Cloud Functions/Run jobs, Azure Functions, and Cloudflare Workers.",
+      "internal_dependencies": [
+        "hhaus-interfaces",
+        "hhaus-lib-core",
+        "hhaus-orm-core"
+      ],
+      "external_dependencies": [
+        "zed-pkg/zed-pkg",
+        "shared-auth/shared-auth-lambdas",
+        "ORESoftware/ores-middleware",
+        "ores-otel/ores-otel-clients",
+        "ores-rate-limit/ores-rl-lib-core"
+      ],
+      "backend_only": true,
+      "backend_internal_dependencies": []
+    }
+  ]
+}

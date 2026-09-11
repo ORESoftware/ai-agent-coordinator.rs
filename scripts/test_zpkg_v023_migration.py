@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import sys
 import tempfile
@@ -21,13 +23,16 @@ from publish_zpkg_v023_migration import (  # noqa: E402
     Ledger,
     MigrationError,
     Mutation,
+    ReconciledManifest,
     RepositoryPlan,
     check_state,
     classify_paths,
     load_plan,
+    load_reconciled,
     plan_digest,
     target_dirs_exist,
     validate_owner,
+    verify_reconciled_blob,
 )
 
 PLAN = ROOT / "repository-fleets" / "zed-v023-manifest-migration.json"
@@ -167,9 +172,9 @@ class PlanTests(unittest.TestCase):
         snapshot = self.raw["snapshot"]
         self.assertEqual(snapshot["manifest_instances"], 656)
         self.assertEqual(snapshot["repositories"], 620)
-        self.assertEqual(snapshot["changed_unique_blobs"], 160)
-        self.assertEqual(snapshot["mutation_instances"], 171)
-        self.assertEqual(snapshot["mutation_repositories"], 155)
+        self.assertEqual(snapshot["changed_unique_blobs"], 158)
+        self.assertEqual(snapshot["mutation_instances"], 169)
+        self.assertEqual(snapshot["mutation_repositories"], 153)
         self.assertEqual(self.raw["zed"]["interface_revision"], INTERFACE_REVISION)
         self.assertEqual(
             self.raw["immutable_snapshots"],
@@ -189,9 +194,83 @@ class PlanTests(unittest.TestCase):
         )
         self.assertRegex(plan_digest(PLAN), r"[0-9a-f]{64}\Z")
 
+    def test_reconciled_manifests_are_exact_and_validation_provenanced(self) -> None:
+        reconciled = load_reconciled(self.raw)
+        self.assertEqual(len(reconciled), 3)
+        identities = {
+            (item.full_name, item.path): item.current_blob for item in reconciled
+        }
+        self.assertEqual(
+            identities[("canonical-cloud/canonical-clients", ".zpkg.toml")],
+            "445603a00bb245faad879b8a495687bd774eb23a",
+        )
+        self.assertEqual(
+            identities[("opto-sync-test/contract-conformance-tests", ".zpkg.toml")],
+            "d6b62cdca75610f87c2528f81f65505fc7768dbb",
+        )
+        self.assertEqual(
+            identities[("zed-pkg-test/awkward-lib", ".zpkg.toml")],
+            "81ff7c7fc500215d64f8beb2ce0dfdae0ef6bd32",
+        )
+
+    def test_reviewed_source_override_preserves_concurrent_manifest_bytes(self) -> None:
+        self.assertEqual(len(self.raw["reviewed_source_overrides"]), 1)
+        override = self.raw["reviewed_source_overrides"][0]
+        self.assertEqual(
+            (override["repository"], override["path"], override["snapshot_blob"]),
+            (
+                "shared-auth/shared-auth-clients",
+                ".zpkg.toml",
+                "ff5150cc4998ceff097678e62aa67691bc212eb6",
+            ),
+        )
+        self.assertEqual(
+            override["current_blob"],
+            "f3ea73b23d579f75230f21d9b6da3a1c9dbf7974",
+        )
+        planned = next(
+            item
+            for item in self.raw["mutations"]
+            if item["repository"] == "shared-auth/shared-auth-clients"
+        )
+        self.assertEqual(planned["source_blob"], override["current_blob"])
+        self.assertEqual(
+            planned["proposed_blob"],
+            "956d097aae003a983bd74550f4777c652cce972d",
+        )
+
+    def test_reconciled_blob_verifies_size_git_identity_and_sha256(self) -> None:
+        content = b"exact reviewed manifest\n"
+        git_sha = hashlib.sha1(
+            f"blob {len(content)}\0".encode("ascii") + content
+        ).hexdigest()
+        item = ReconciledManifest(
+            full_name="acme/widget",
+            default_branch="main",
+            private=False,
+            fork=False,
+            path=".zpkg.toml",
+            snapshot_blob="a" * 40,
+            current_blob=git_sha,
+            current_size=len(content),
+            current_sha256=hashlib.sha256(content).hexdigest(),
+        )
+        payload = {
+            "sha": git_sha,
+            "size": len(content),
+            "encoding": "base64",
+            "content": base64.b64encode(content).decode("ascii"),
+        }
+        verify_reconciled_blob(FakeGitHub(payload), item)
+        payload["content"] = base64.b64encode(b"different content bytes\n").decode(
+            "ascii"
+        )
+        with self.assertRaisesRegex(MigrationError, "SHA-256 drift"):
+            verify_reconciled_blob(FakeGitHub(payload), item)
+
     def test_every_proposal_is_content_addressed_and_structurally_isolated(self) -> None:
         proposals = {item["source_blob"]: item for item in self.raw["proposals"]}
-        self.assertEqual(len(proposals), 160)
+        self.assertEqual(len(proposals), 158)
         for source_blob, proposal in proposals.items():
             path = PLAN.parent / proposal["file"]
             content = path.read_text(encoding="utf-8")
@@ -323,14 +402,14 @@ adapter = "rust"
             phase=1,
             plan_sha256="d" * 64,
             preflight_complete=True,
-            preflight_repositories_total=155,
+            preflight_repositories_total=156,
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "ledger.json"
             ledger.write(path)
             payload = json.loads(path.read_text(encoding="utf-8"))
         self.assertTrue(payload["preflight_complete"])
-        self.assertEqual(payload["preflight_repositories_total"], 155)
+        self.assertEqual(payload["preflight_repositories_total"], 156)
 
 
 if __name__ == "__main__":

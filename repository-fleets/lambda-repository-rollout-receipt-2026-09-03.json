@@ -1,0 +1,176 @@
+{
+  "cleanupFilesRemovedByThisChange": [
+    ".github/workflows/live-lambda-repository-bootstrap.yml",
+    ".github/repository-bootstrap-trigger/lambda-repositories-20260903.txt",
+    ".github/workflows/live-lambda-repository-bootstrap-graphql-recovery.yml",
+    ".github/repository-bootstrap-trigger/lambda-repositories-20260903-graphql-recovery.txt"
+  ],
+  "complete": true,
+  "coordinator": [
+    {
+      "mergeSha": "ad950e08d681b0fc51d3cb75a991b3bbcc11e14d",
+      "pr": 184,
+      "purpose": "reviewed exact allowlist and executor"
+    },
+    {
+      "mergeSha": "db65ccd215dcdd38e2183ed02c193b3a35f38f46",
+      "pr": 185,
+      "purpose": "GraphQL rate-limit recovery"
+    },
+    {
+      "mergeSha": "205354171f890af56ac90ff0c983fd9446de2b20",
+      "pr": 186,
+      "purpose": "canonical Rustfmt resume"
+    }
+  ],
+  "manifest": {
+    "path": "repository-fleets/lambda-repositories-2026-09-03.tsv",
+    "sha256": "d5025256feb8834a258199052f1b261358a0ee8cecce4b266b91eab00d7e3df3"
+  },
+  "organizationCount": 10,
+  "recordedDate": "2026-09-03",
+  "repositories": [
+    {
+      "headSha": "213a598f2f54bd365593340be96bf5d5ced9cd77",
+      "mergeSha": "db58a51974f9a9e63132508131d371158fc8c6db",
+      "organization": "shared-auth",
+      "pullRequest": 1,
+      "repository": "shared-auth/shared-auth-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33793174463
+      }
+    },
+    {
+      "headSha": "47ff91b5138b946c82d732af1ad4de1cf3953a2f",
+      "mergeSha": "536c1a6b57e14e68f2f968a5c1ed288e240a8b83",
+      "organization": "scintilla-run",
+      "pullRequest": 1,
+      "repository": "scintilla-run/scintilla-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33793245716
+      }
+    },
+    {
+      "headSha": "1d2f6bb3c3f04d52c4d2ec993494b97d6df728df",
+      "mergeSha": "a2e890c24f9b78eb4168dd6584cccd86507489b3",
+      "organization": "fiducia-cloud",
+      "pullRequest": 1,
+      "repository": "fiducia-cloud/fiducia-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33793306738
+      }
+    },
+    {
+      "headSha": "be1fef96ade111f57dc35bc06c14fe0af22eab7a",
+      "mergeSha": "611996af50561689130309d9dea55fcac8b37bf0",
+      "organization": "opto-sync",
+      "pullRequest": 1,
+      "repository": "opto-sync/opto-sync-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33793484634
+      }
+    },
+    {
+      "headSha": "13b38aef1cdd425c95657881cadc3878e22adf47",
+      "mergeSha": "40c77873280f33ca2caa94651c69e68b0f73c12d",
+      "organization": "quaestor-ledger",
+      "pullRequest": 1,
+      "repository": "quaestor-ledger/quaestor-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33793618824
+      }
+    },
+    {
+      "headSha": "96a2279e57b127b1662c840256044bd87b9acacc",
+      "mergeSha": "089e42eabfbe56277071e921aaf57512fb14a9fa",
+      "organization": "messaging-intel",
+      "pullRequest": 1,
+      "repository": "messaging-intel/msgint-lambdas",
+      "validation": {
+        "coordinatorWorkflowRunId": 33793011410,
+        "mode": "coordinator-pre-push-exact-tree",
+        "nativeActions": {
+          "attempts": 2,
+          "logsAvailable": false,
+          "result": "runner-admission-failed",
+          "sourceStepsExecuted": 0,
+          "workflowRunId": 33793688479
+        },
+        "note": "Native failed admissions were not relabeled as passing. Merge used the exact pre-push suite, unchanged head, clean mergeability, zero unresolved review threads, and parity with nine sibling repositories.",
+        "result": "success"
+      }
+    },
+    {
+      "headSha": "a308f96cecc875733dd389eb7774a973fa3174bf",
+      "mergeSha": "dfd4a0479f34b3993ec1bb957a6e2534b4a3539d",
+      "organization": "3FA-app",
+      "pullRequest": 1,
+      "repository": "3FA-app/3fa-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33793932513
+      }
+    },
+    {
+      "headSha": "a6f9ec59c2b24007ae0e63aaa6f0e7c5c44b6b29",
+      "mergeSha": "4a371a2ff5b25045abd9a94767ea715ccb732d34",
+      "organization": "sonus-auris",
+      "pullRequest": 1,
+      "repository": "sonus-auris/sonus-auris-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33794034940
+      }
+    },
+    {
+      "headSha": "20ad669742c6689ab6af77f4f053be8c30203979",
+      "mergeSha": "18a2f809b1fd75a25e7e044706273722f798bbb3",
+      "organization": "zed-pkg",
+      "pullRequest": 1,
+      "repository": "zed-pkg/zed-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33794112055
+      }
+    },
+    {
+      "headSha": "eeb6e5708a60e99c047c33554ed9948ec25fb74e",
+      "mergeSha": "075e9593d384cbf77338529d8102e7438abe2ebb",
+      "organization": "canonical-cloud",
+      "pullRequest": 1,
+      "repository": "canonical-cloud/canonical-lambdas",
+      "validation": {
+        "mode": "repository-local-actions",
+        "result": "success",
+        "workflowRunId": 33794211695
+      }
+    }
+  ],
+  "repositoryCount": 10,
+  "schemaVersion": "ores.lambda-repository-rollout-receipt.v1",
+  "standardExactHeadChecks": [
+    "repository contract",
+    "Rustfmt",
+    "Clippy all targets/features with warnings denied",
+    "unit tests all targets/features",
+    "x86_64 target check",
+    "arm64 target check"
+  ],
+  "tracking": {
+    "github": "ORESoftware/ai-agent-coordinator.rs#183",
+    "linear": "DEN-319"
+  }
+}

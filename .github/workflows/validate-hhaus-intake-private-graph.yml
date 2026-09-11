@@ -1,0 +1,347 @@
+name: Validate H/HAUS intake private graph
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/validate-hhaus-intake-private-graph.yml
+      - repository-fleets/hhaus-intake-private-graph.json
+      - docs/hhaus-intake-private-graph.md
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/validate-hhaus-intake-private-graph.yml
+      - repository-fleets/hhaus-intake-private-graph.json
+      - docs/hhaus-intake-private-graph.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hhaus-intake-private-graph-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Validate sealed inputs and workflow policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact coordinator revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        with:
+          args: .github/workflows/validate-hhaus-intake-private-graph.yml
+
+      - name: Validate sealed private-graph manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          path = Path('repository-fleets/hhaus-intake-private-graph.json')
+          value = json.loads(path.read_text(encoding='utf-8'))
+          assert value['schema'] == 'ores.hhaus-intake-private-graph/v1'
+          assert value['linearIssue'] == 'DEN-313'
+          repositories = value['repositories']
+          assert [item['repository'] for item in repositories] == [
+              'hacker-house-medellin/hhm-api-server.rs',
+              'hacker-house-medellin/hhm-web-server.rs',
+          ]
+          assert [item['branch'] for item in repositories] == [
+              'feat/intake-dual-persistence',
+              'feat/intake-user-forms',
+          ]
+          sha = re.compile(r'^[0-9a-f]{40}$')
+          assert all(sha.fullmatch(item['inputHead']) for item in repositories)
+          assert len({item['inputHead'] for item in repositories}) == 2
+          credential = value['credentialModel']
+          assert credential['issuer'] == 'PORTFOLIO_GITHUB_APP'
+          assert credential['environment'] == 'nightly-org-maintenance'
+          assert credential['longLivedPatAllowed'] is False
+          assert credential['persistCheckoutCredentials'] is False
+          assert credential['tokenScopes']['hacker-house-medellin'] == [
+              'contents:write', 'metadata:read', 'statuses:write'
+          ]
+          assert credential['tokenScopes']['shared-auth'] == [
+              'contents:read', 'metadata:read'
+          ]
+          boundary = value['mutationBoundary']
+          assert boundary['generatedRepairPaths'] == ['Cargo.lock', 'src/**/*.rs']
+          assert boundary['forcePushAllowed'] is False
+          assert boundary['mergeAllowed'] is False
+          assert boundary['publishAllowed'] is False
+          assert boundary['deployAllowed'] is False
+          required = set(value['requiredCommands'])
+          for command in (
+              'cargo generate-lockfile',
+              'cargo fmt --all',
+              'cargo check --locked --all-targets --all-features',
+              'cargo clippy --locked --all-targets --all-features -- -D warnings',
+              'cargo test --locked --all-targets --all-features',
+              'docker build',
+          ):
+              assert command in required
+          print('H/HAUS intake private-graph manifest passed')
+          PY
+
+  live:
+    name: Regenerate, test, and attest exact private graphs
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out exact reviewed coordinator revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Load immutable target inputs
+        id: manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          value = json.load(open('repository-fleets/hhaus-intake-private-graph.json', encoding='utf-8'))
+          api, web = value['repositories']
+          print(f"api_head={api['inputHead']}")
+          print(f"api_branch={api['branch']}")
+          print(f"web_head={web['inputHead']}")
+          print(f"web_branch={web['branch']}")
+          PY
+
+      - name: Require GitHub App issuer configuration
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$APP_ID" || { echo '::error::missing PORTFOLIO_GITHUB_APP_ID'; exit 1; }
+          test -n "$PRIVATE_KEY" || { echo '::error::missing PORTFOLIO_GITHUB_APP_PRIVATE_KEY'; exit 1; }
+
+      - name: Mint short-lived HHM repair and attestation token
+        id: hhm
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.1.1
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: hacker-house-medellin
+          permission-contents: write
+          permission-metadata: read
+          permission-statuses: write
+
+      - name: Mint short-lived Shared Auth read token
+        id: shared-auth
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2.1.1
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: shared-auth
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact API merge head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hacker-house-medellin/hhm-api-server.rs
+          ref: ${{ steps.manifest.outputs.api_head }}
+          path: api
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ steps.hhm.outputs.token }}
+
+      - name: Check out exact web merge head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: hacker-house-medellin/hhm-web-server.rs
+          ref: ${{ steps.manifest.outputs.web_head }}
+          path: web
+          fetch-depth: 0
+          persist-credentials: false
+          token: ${{ steps.hhm.outputs.token }}
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.94.0 --profile minimal --component rustfmt,clippy
+
+      - name: Configure owner-scoped, ephemeral Git transport
+        env:
+          HHM_TOKEN: ${{ steps.hhm.outputs.token }}
+          SHARED_AUTH_TOKEN: ${{ steps.shared-auth.outputs.token }}
+        run: |
+          set -euo pipefail
+          git config --global url."https://x-access-token:${HHM_TOKEN}@github.com/hacker-house-medellin/".insteadOf \
+            "https://github.com/hacker-house-medellin/"
+          git config --global url."https://x-access-token:${SHARED_AUTH_TOKEN}@github.com/shared-auth/".insteadOf \
+            "https://github.com/shared-auth/"
+
+      - name: Repair and test exact API graph
+        id: api-rust
+        env:
+          API_BRANCH: ${{ steps.manifest.outputs.api_branch }}
+          API_INPUT_HEAD: ${{ steps.manifest.outputs.api_head }}
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        working-directory: api
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$API_INPUT_HEAD"
+          git switch -C "$API_BRANCH" "$API_INPUT_HEAD"
+          cargo +1.94.0 generate-lockfile
+          cargo +1.94.0 fmt --all
+          git diff --check
+          unexpected="$(git diff --name-only | grep -Ev '^(Cargo\.lock|src/.+\.rs)$' || true)"
+          test -z "$unexpected" || {
+            echo "::error::generated repair escaped the sealed path boundary"
+            printf '%s\n' "$unexpected"
+            exit 1
+          }
+          if ! git diff --quiet; then
+            git config user.name 'hhaus-private-graph[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add Cargo.lock src
+            git commit -m 'fix(DEN-313): regenerate merged API graph'
+            git push origin "HEAD:refs/heads/$API_BRANCH"
+          fi
+          head="$(git rev-parse HEAD)"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          cargo +1.94.0 fmt --all -- --check
+          cargo +1.94.0 check --locked --all-targets --all-features
+          cargo +1.94.0 clippy --locked --all-targets --all-features -- -D warnings
+          cargo +1.94.0 test --locked --all-targets --all-features
+
+      - name: Build exact API image
+        id: api-container
+        if: steps.api-rust.outcome == 'success'
+        env:
+          HHM_TOKEN: ${{ steps.hhm.outputs.token }}
+          SHARED_AUTH_TOKEN: ${{ steps.shared-auth.outputs.token }}
+          SOURCE_REVISION: ${{ steps.api-rust.outputs.head }}
+          DOCKER_BUILDKIT: "1"
+        working-directory: api
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg "SOURCE_REVISION=$SOURCE_REVISION" \
+            --secret id=hhm_github_token,env=HHM_TOKEN \
+            --secret id=shared_auth_github_token,env=SHARED_AUTH_TOKEN \
+            --tag "hhaus-api-private-graph:$SOURCE_REVISION" \
+            .
+
+      - name: Attest API exact head
+        if: always()
+        env:
+          GH_TOKEN: ${{ steps.hhm.outputs.token }}
+          TESTED_HEAD: ${{ steps.api-rust.outputs.head }}
+          INPUT_HEAD: ${{ steps.manifest.outputs.api_head }}
+          RUST_OUTCOME: ${{ steps.api-rust.outcome }}
+          CONTAINER_OUTCOME: ${{ steps.api-container.outcome }}
+        run: |
+          set -euo pipefail
+          sha="${TESTED_HEAD:-$INPUT_HEAD}"
+          rust_state=failure
+          container_state=failure
+          test "$RUST_OUTCOME" = success && rust_state=success
+          test "$CONTAINER_OUTCOME" = success && container_state=success
+          gh api --method POST "repos/hacker-house-medellin/hhm-api-server.rs/statuses/$sha" \
+            -f state="$rust_state" \
+            -f context='central-private-graph/rust' \
+            -f description="credentialed Rust graph: $RUST_OUTCOME" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh api --method POST "repos/hacker-house-medellin/hhm-api-server.rs/statuses/$sha" \
+            -f state="$container_state" \
+            -f context='central-private-graph/container' \
+            -f description="credentialed container build: $CONTAINER_OUTCOME" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Repair and test exact web graph
+        id: web-rust
+        env:
+          WEB_BRANCH: ${{ steps.manifest.outputs.web_branch }}
+          WEB_INPUT_HEAD: ${{ steps.manifest.outputs.web_head }}
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        working-directory: web
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$WEB_INPUT_HEAD"
+          git switch -C "$WEB_BRANCH" "$WEB_INPUT_HEAD"
+          cargo +1.94.0 generate-lockfile
+          cargo +1.94.0 fmt --all
+          git diff --check
+          unexpected="$(git diff --name-only | grep -Ev '^(Cargo\.lock|src/.+\.rs)$' || true)"
+          test -z "$unexpected" || {
+            echo "::error::generated repair escaped the sealed path boundary"
+            printf '%s\n' "$unexpected"
+            exit 1
+          }
+          if ! git diff --quiet; then
+            git config user.name 'hhaus-private-graph[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add Cargo.lock src
+            git commit -m 'fix(DEN-313): regenerate merged web graph'
+            git push origin "HEAD:refs/heads/$WEB_BRANCH"
+          fi
+          head="$(git rev-parse HEAD)"
+          echo "head=$head" >> "$GITHUB_OUTPUT"
+          cargo +1.94.0 fmt --all -- --check
+          cargo +1.94.0 check --locked --all-targets --all-features
+          cargo +1.94.0 clippy --locked --all-targets --all-features -- -D warnings
+          cargo +1.94.0 test --locked --all-targets --all-features
+
+      - name: Build exact web image
+        id: web-container
+        if: steps.web-rust.outcome == 'success'
+        env:
+          HHM_TOKEN: ${{ steps.hhm.outputs.token }}
+          SOURCE_REVISION: ${{ steps.web-rust.outputs.head }}
+          DOCKER_BUILDKIT: "1"
+        working-directory: web
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg "SOURCE_REVISION=$SOURCE_REVISION" \
+            --secret id=hhm_github_token,env=HHM_TOKEN \
+            --tag "hhaus-web-private-graph:$SOURCE_REVISION" \
+            .
+
+      - name: Attest web exact head
+        if: always()
+        env:
+          GH_TOKEN: ${{ steps.hhm.outputs.token }}
+          TESTED_HEAD: ${{ steps.web-rust.outputs.head }}
+          INPUT_HEAD: ${{ steps.manifest.outputs.web_head }}
+          RUST_OUTCOME: ${{ steps.web-rust.outcome }}
+          CONTAINER_OUTCOME: ${{ steps.web-container.outcome }}
+        run: |
+          set -euo pipefail
+          sha="${TESTED_HEAD:-$INPUT_HEAD}"
+          rust_state=failure
+          container_state=failure
+          test "$RUST_OUTCOME" = success && rust_state=success
+          test "$CONTAINER_OUTCOME" = success && container_state=success
+          gh api --method POST "repos/hacker-house-medellin/hhm-web-server.rs/statuses/$sha" \
+            -f state="$rust_state" \
+            -f context='central-private-graph/rust' \
+            -f description="credentialed Rust graph: $RUST_OUTCOME" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          gh api --method POST "repos/hacker-house-medellin/hhm-web-server.rs/statuses/$sha" \
+            -f state="$container_state" \
+            -f context='central-private-graph/container' \
+            -f description="credentialed container build: $CONTAINER_OUTCOME" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+
+      - name: Remove ephemeral Git transport configuration
+        if: always()
+        run: rm -f "$HOME/.gitconfig"
