@@ -1,0 +1,199 @@
+name: validate-benefactor-redis-lru-exact-head
+
+on:
+  push:
+    branches:
+      - ci/benefactor-redis-lru-exact-head
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: ${{ matrix.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: benefactor-web-server.rs
+            sha: 7ecefe5458f41ca3e12e3fd33b3d2a738c4bd2d4
+            binary: benefactor-web-server
+          - repository: benefactor-admin-web-server.rs
+            sha: bdeaac32cfe7b01996916890a30cb36ff8e0425d
+            binary: benefactor-admin-web-server
+          - repository: benefactor-admin-api-server.rs
+            sha: 19b7810892f207982452e323c470d267851d07f1
+            binary: benefactor-admin-api-server
+    services:
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - name: Verify protected portfolio settings
+        shell: bash
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          APP_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [[ "$APP_ID" =~ ^[0-9]+$ ]] || { echo '::error::PORTFOLIO_GITHUB_APP_ID is missing or invalid'; exit 78; }
+          [[ -n "$APP_KEY" ]] || { echo '::error::PORTFOLIO_GITHUB_APP_PRIVATE_KEY is missing'; exit 78; }
+
+      - name: Mint target-repository token
+        id: target-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: benefactor-cc
+          repositories: ${{ matrix.repository }}
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Mint shared-crate token
+        id: shared-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ores-redis-lru-cache
+          repositories: ores-lru-redis.rs
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact target head
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          repository: benefactor-cc/${{ matrix.repository }}
+          ref: ${{ matrix.sha }}
+          token: ${{ steps.target-token.outputs.token }}
+          path: service
+          persist-credentials: false
+
+      - name: Configure read-only shared-crate access
+        shell: bash
+        env:
+          TOKEN: ${{ steps.shared-token.outputs.token }}
+        run: git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+
+      - name: Select stable Rust
+        shell: bash
+        run: |
+          rustup update stable
+          rustup default stable
+
+      - name: Verify formatting and runtime contract
+        working-directory: service
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo fmt --all --check
+          grep -F 'allow_unknown = false' .cli-flags.toml
+          grep -F 'default = 180' .cli-flags.toml
+          grep -F 'REDIS_URL' src/runtime_env_flags.rs
+          grep -F 'ores-lru-redis' Cargo.toml
+
+      - name: Generate exact dependency lock
+        working-directory: service
+        shell: bash
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: cargo generate-lockfile
+
+      - name: Check committed lockfile parity
+        id: lockfile
+        continue-on-error: true
+        working-directory: service
+        shell: bash
+        run: git diff --exit-code -- Cargo.lock
+
+      - name: Preserve generated lockfile
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ matrix.binary }}-Cargo.lock-${{ matrix.sha }}
+          path: service/Cargo.lock
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Clippy, unit tests, and release build
+        working-directory: service
+        shell: bash
+        env:
+          CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+        run: |
+          set -euo pipefail
+          cargo clippy --all-targets --all-features -- -D warnings
+          cargo test --all-targets --all-features
+          cargo build --release
+
+      - name: Redis-backed server smoke test
+        working-directory: service
+        shell: bash
+        env:
+          REDIS_URL: redis://127.0.0.1:6379
+          REDIS_LRU_REQUIRED: "true"
+          REDIS_LRU_POLL_SECONDS: "180"
+          REDIS_LRU_CAPACITY: "256"
+          MAINTENANCE_MODE: "false"
+          SERVICE_BANNER: redis-lru-exact-head-ci
+          SERVICE_HOST: 127.0.0.1
+          PORT: "18080"
+          K_REVISION: exact-head-ci
+          RUST_LOG: info
+        run: |
+          set -euo pipefail
+          log_file="$(mktemp)"
+          "./target/release/${{ matrix.binary }}" >"$log_file" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill -TERM "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+            rm -f "$log_file"
+          }
+          trap cleanup EXIT
+
+          healthy=false
+          for _ in $(seq 1 45); do
+            if curl --fail --silent --show-error http://127.0.0.1:18080/healthz >/dev/null; then
+              healthy=true
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "$log_file"
+              exit 1
+            fi
+            sleep 1
+          done
+          [[ "$healthy" == true ]] || { cat "$log_file"; echo '::error::healthz did not become ready'; exit 1; }
+
+          curl --fail --silent --show-error http://127.0.0.1:18080/readyz >/dev/null
+          root_body="$(curl --fail --silent --show-error http://127.0.0.1:18080/)"
+          grep -F 'redis-lru-exact-head-ci' <<<"$root_body" >/dev/null
+          metrics="$(curl --fail --silent --show-error http://127.0.0.1:18080/metrics)"
+          if grep -F 'redis-lru-exact-head-ci' <<<"$metrics" >/dev/null; then
+            echo '::error::Runtime cache values leaked into metrics'
+            exit 1
+          fi
+
+      - name: Enforce committed lockfile parity
+        if: ${{ steps.lockfile.outcome != 'success' }}
+        shell: bash
+        run: |
+          echo '::error::Cargo.lock changed after resolving the exact private dependency pin; update the target PR with the generated artifact.'
+          exit 1
