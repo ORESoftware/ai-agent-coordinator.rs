@@ -1,0 +1,72 @@
+name: Canonical docs PR14 exact-head certification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/canonical-docs-pr14-cert.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out certification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check out exact Canonical docs candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: canonical-cloud/canonical-docs
+          ref: 18ceddab346e70300913ff513a36a9821f010f7b
+          path: candidate
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify exact source identity and clean patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = '18ceddab346e70300913ff513a36a9821f010f7b'
+          git -C candidate diff --check
+          test -z "$(git -C candidate status --porcelain)"
+
+      - name: Run legal document audit
+        working-directory: candidate
+        run: python3 scripts/check_legal.py
+
+      - name: Run legal catalog audit
+        working-directory: candidate
+        run: python3 scripts/check_legal_catalog.py
+
+      - name: Run documentation contract
+        working-directory: candidate
+        run: python3 scripts/check_docs.py
+
+      - name: Run unit tests
+        working-directory: candidate
+        run: python3 -m unittest discover -s tests -v
+
+      - name: Assert commercial/legal files are indexed and draft bounded
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in \
+            docs/legal/external/service-tier-schedule.md \
+            docs/legal/internal/separation-and-release-agreement.md \
+            docs/legal/internal/termination-and-offboarding-checklist.md; do
+            test -s "$path"
+            grep -qi 'draft' "$path"
+          done
+          grep -q 'service-tier-schedule' docs/legal/external/README.md
+          grep -q 'separation-and-release-agreement' docs/legal/internal/README.md
+          grep -q 'termination-and-offboarding-checklist' docs/legal/internal/README.md
+          ! grep -R -nE 'BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|lin_api_[A-Za-z0-9]+' docs/legal
