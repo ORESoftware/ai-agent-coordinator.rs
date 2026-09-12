@@ -1,0 +1,319 @@
+{
+  "schema_version": "portfolio-release-manifest/v1",
+  "release_id": "fiducia-portfolio-candidate-2026-09-04",
+  "generated_at": "2026-09-04T12:45:00-04:00",
+  "coverage": {
+    "catalog_complete": false,
+    "expected_repository_count": 8,
+    "observed_repository_count": 5,
+    "unresolved_repository_count": 3
+  },
+  "repositories": [
+    {
+      "id": "fiducia-interfaces",
+      "github_url": "https://github.com/fiducia-cloud/fiducia-interfaces",
+      "role": "canonical public interface and schema contracts",
+      "environment": "production",
+      "status": "verified",
+      "head_sha": "1111111111111111111111111111111111111111",
+      "default_branch": "main",
+      "visibility": "public",
+      "archived": false,
+      "superseded": false,
+      "linear_anchor": "DEN-2354"
+    },
+    {
+      "id": "fiducia-clients",
+      "github_url": "https://github.com/fiducia-cloud/fiducia-clients",
+      "role": "polyglot SDK implementations and packages",
+      "environment": "production",
+      "status": "planned",
+      "head_sha": null,
+      "default_branch": "main",
+      "visibility": "public",
+      "archived": false,
+      "superseded": false,
+      "linear_anchor": "DEN-2362"
+    },
+    {
+      "id": "fiducia-e2e",
+      "github_url": "https://github.com/fiducia-cloud/fiducia-e2e",
+      "role": "production-owned orchestration and release evidence",
+      "environment": "test",
+      "status": "blocked",
+      "head_sha": null,
+      "default_branch": "main",
+      "visibility": "private",
+      "archived": false,
+      "superseded": false,
+      "linear_anchor": "DEN-2353"
+    },
+    {
+      "id": "package-ingestion-matrix",
+      "github_url": "https://github.com/fiducia-cloud-test/package-ingestion-matrix",
+      "role": "independent clean package ingestion and version-skew tests",
+      "environment": "test",
+      "status": "planned",
+      "head_sha": null,
+      "default_branch": "main",
+      "visibility": "private",
+      "archived": false,
+      "superseded": false,
+      "linear_anchor": "DEN-2362"
+    },
+    {
+      "id": "release-certification",
+      "github_url": "https://github.com/fiducia-cloud-test/release-certification",
+      "role": "independent immutable release-manifest certification",
+      "environment": "test",
+      "status": "planned",
+      "head_sha": null,
+      "default_branch": "main",
+      "visibility": "private",
+      "archived": false,
+      "superseded": false,
+      "linear_anchor": "DEN-2371"
+    }
+  ],
+  "capabilities": [
+    {
+      "id": "contract-generation",
+      "implementation_repositories": [
+        "fiducia-interfaces"
+      ],
+      "independent_lanes": [
+        "contract-parity"
+      ],
+      "maturity": 2,
+      "status": "planned",
+      "blockers": [
+        "cross-generator-parity-not-yet-frozen"
+      ]
+    },
+    {
+      "id": "polyglot-sdk-installation",
+      "implementation_repositories": [
+        "fiducia-clients"
+      ],
+      "independent_lanes": [
+        "sdk-clean-consumer"
+      ],
+      "maturity": 2,
+      "status": "planned",
+      "blockers": [
+        "clean-consumer-matrix-incomplete"
+      ]
+    },
+    {
+      "id": "browser-journeys",
+      "implementation_repositories": [
+        "fiducia-e2e"
+      ],
+      "independent_lanes": [
+        "browser-journey"
+      ],
+      "maturity": 1,
+      "status": "blocked",
+      "blockers": [
+        "independent-browser-environment-not-certified"
+      ]
+    },
+    {
+      "id": "recovery-and-rollback",
+      "implementation_repositories": [
+        "fiducia-e2e",
+        "release-certification"
+      ],
+      "independent_lanes": [
+        "recovery-chaos",
+        "rollback-certification"
+      ],
+      "maturity": 1,
+      "status": "planned",
+      "blockers": [
+        "destructive-recovery-evidence-missing"
+      ]
+    },
+    {
+      "id": "release-decision",
+      "implementation_repositories": [
+        "release-certification",
+        "package-ingestion-matrix"
+      ],
+      "independent_lanes": [
+        "security-abuse",
+        "migration-upgrade",
+        "scale-soak"
+      ],
+      "maturity": 1,
+      "status": "planned",
+      "blockers": [
+        "immutable-release-manifest-not-frozen"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "interface-bundle",
+      "repository_id": "fiducia-interfaces",
+      "kind": "contract-bundle",
+      "status": "planned",
+      "sha256": null,
+      "provenance_sha256": null
+    },
+    {
+      "id": "sdk-package-set",
+      "repository_id": "fiducia-clients",
+      "kind": "package-set",
+      "status": "planned",
+      "sha256": null,
+      "provenance_sha256": null
+    },
+    {
+      "id": "e2e-runner-image",
+      "repository_id": "fiducia-e2e",
+      "kind": "oci-image",
+      "status": "blocked",
+      "sha256": null,
+      "provenance_sha256": null
+    },
+    {
+      "id": "ingestion-evidence",
+      "repository_id": "package-ingestion-matrix",
+      "kind": "evidence-bundle",
+      "status": "planned",
+      "sha256": null,
+      "provenance_sha256": null
+    },
+    {
+      "id": "release-receipt",
+      "repository_id": "release-certification",
+      "kind": "release-receipt",
+      "status": "planned",
+      "sha256": null,
+      "provenance_sha256": null
+    }
+  ],
+  "lanes": [
+    {
+      "id": "contract-parity",
+      "kind": "contract",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": false,
+      "independent": true,
+      "blockers": [
+        "exact-head-contract-receipt-missing"
+      ]
+    },
+    {
+      "id": "sdk-clean-consumer",
+      "kind": "sdk-clean-consumer",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": false,
+      "independent": true,
+      "blockers": [
+        "language-matrix-incomplete"
+      ]
+    },
+    {
+      "id": "browser-journey",
+      "kind": "browser",
+      "status": "blocked",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": false,
+      "independent": true,
+      "blockers": [
+        "browser-environment-unavailable"
+      ]
+    },
+    {
+      "id": "security-abuse",
+      "kind": "security",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": true,
+      "independent": true,
+      "blockers": [
+        "abuse-fixtures-not-certified"
+      ]
+    },
+    {
+      "id": "migration-upgrade",
+      "kind": "migration",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": false,
+      "independent": true,
+      "blockers": [
+        "version-skew-matrix-incomplete"
+      ]
+    },
+    {
+      "id": "recovery-chaos",
+      "kind": "recovery",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": true,
+      "independent": true,
+      "blockers": [
+        "crash-and-partition-drills-not-run"
+      ]
+    },
+    {
+      "id": "scale-soak",
+      "kind": "scale",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": true,
+      "independent": true,
+      "blockers": [
+        "capacity-and-flake-budgets-unverified"
+      ]
+    },
+    {
+      "id": "rollback-certification",
+      "kind": "rollback",
+      "status": "planned",
+      "head_sha": null,
+      "evidence_sha256": null,
+      "destructive": true,
+      "independent": true,
+      "blockers": [
+        "rollback-target-not-frozen"
+      ]
+    }
+  ],
+  "blockers": [
+    "repository-catalog-incomplete",
+    "immutable-artifacts-not-frozen",
+    "independent-lanes-not-green",
+    "release-approval-not-recorded"
+  ],
+  "decision": {
+    "value": "hold",
+    "rationale": "The manifest is a planning snapshot; catalog, artifact, independent-lane, and approval evidence remains incomplete.",
+    "approved_by": [],
+    "decided_at": "2026-09-04T12:45:00-04:00"
+  },
+  "safety": {
+    "read_only": true,
+    "deployment_authorized": false,
+    "migration_authorized": false,
+    "credential_rotation_authorized": false,
+    "real_user_enrollment_authorized": false,
+    "notes": [
+      "This planning manifest contains only public repository coordinates, Linear identifiers, bounded status metadata, and content-free digests.",
+      "A go decision cannot validate until catalog, repository, capability, artifact, lane, blocker, and approval closure rules all pass.",
+      "Promotion remains a separate reviewed operation even after certification."
+    ]
+  }
+}
