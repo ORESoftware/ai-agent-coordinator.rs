@@ -1,0 +1,193 @@
+name: DEN-2797 finalize cumulative recovery wave 3
+
+on:
+  push:
+    branches:
+      - agent/den-2797-backfill-wave-3
+    paths:
+      - .github/workflows/den-2797-backfill-wave-3-v3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: den-2797-backfill-wave-3-v3-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/den-2797-backfill-wave-3
+          fetch-depth: 0
+          persist-credentials: true
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.12'
+
+      - name: Verify carrier-only scope and apply transformations
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=a30af8786d7dc22782ff8d6d12de829cf2306193
+          test "$(git merge-base HEAD "$base")" = "$base"
+          git diff --name-only "$base"...HEAD | sort > /tmp/carriers.actual
+          cat > /tmp/carriers.expected <<'EOF'
+          .github/recovery/den2797_wave3.py
+          .github/workflows/den-2797-backfill-wave-3-v2.yml
+          .github/workflows/den-2797-backfill-wave-3-v3.yml
+          .github/workflows/den-2797-backfill-wave-3.yml
+          EOF
+          diff -u /tmp/carriers.expected /tmp/carriers.actual
+          python3 -m py_compile .github/recovery/den2797_wave3.py
+          python3 .github/recovery/den2797_wave3.py
+          git add \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md
+          git diff --cached --check
+
+      - name: Run tests, actionlint, deterministic reconciliation, and secret scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/build_artifact_recovery_backfill.py \
+            tools/artifact_recovery_ledger.py \
+            tools/artifact_recovery/*.py \
+            tools/enqueue_artifact_recovery.py \
+            tests/test_artifact_recovery_ledger.py \
+            tests/test_enqueue_artifact_recovery.py
+          python3 -m unittest -v \
+            tests/test_artifact_recovery_ledger.py \
+            tests/test_enqueue_artifact_recovery.py
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/nightly-artifact-recovery.yml
+
+          evidence="$RUNNER_TEMP/artifact-recovery-wave-3"
+          mkdir -p "$evidence"
+          python3 scripts/build_artifact_recovery_backfill.py --output "$evidence/backfill.json"
+          python3 tools/artifact_recovery_ledger.py validate "$evidence/backfill.json"
+          python3 tools/artifact_recovery_ledger.py reconcile \
+            --input "$evidence/backfill.json" --output "$evidence/ledger-first.json" \
+            --cli-queue "$evidence/queue-first.json" --batch-size 50 --now 2026-08-08T04:58:00Z
+          python3 tools/artifact_recovery_ledger.py reconcile \
+            --input "$evidence/backfill.json" --ledger "$evidence/ledger-first.json" \
+            --output "$evidence/ledger-second.json" --cli-queue "$evidence/queue-second.json" \
+            --batch-size 50 --now 2026-08-08T04:58:00Z
+          cmp "$evidence/ledger-first.json" "$evidence/ledger-second.json"
+          cmp "$evidence/queue-first.json" "$evidence/queue-second.json"
+          EVIDENCE="$evidence" python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ['EVIDENCE'])
+          ledger = json.loads((root / 'ledger-second.json').read_text())
+          queue = json.loads((root / 'queue-second.json').read_text())
+          summary = ledger['summary']
+          assert summary['entries'] == 22
+          assert summary['complete'] == 18
+          assert summary['actionable'] == 4
+          assert summary['blocked'] == 0
+          assert summary['excluded'] == 0
+          assert queue['summary'] == {'items': 4, 'create_repository': 4, 'recover_local': 0}
+          assert {
+              f"{item['owner']}/{item['repository']}"
+              for item in queue['items']
+          } == {
+              'apostille-me/apme-e2e',
+              'embedded-alerts/eal-e2e',
+              'evento-globolo/evgl-e2e',
+              'hacker-house-medellin/hhm-e2e',
+          }
+          PY
+
+          if grep -RInE \
+            '(gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|cfat_[A-Za-z0-9_-]{20,}|-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)' \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md; then
+            exit 1
+          fi
+
+      - name: Commit and export product-only wave-3 tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=a30af8786d7dc22782ff8d6d12de829cf2306193
+          git rm \
+            .github/recovery/den2797_wave3.py \
+            .github/workflows/den-2797-backfill-wave-3-v2.yml \
+            .github/workflows/den-2797-backfill-wave-3-v3.yml \
+            .github/workflows/den-2797-backfill-wave-3.yml
+          git add \
+            scripts/build_artifact_recovery_backfill.py \
+            tests/test_artifact_recovery_ledger.py \
+            .github/workflows/nightly-artifact-recovery.yml \
+            docs/artifact-recovery-initial-backfill.md
+          git diff --cached --check
+          test -z "$(git diff --name-only)"
+          test -z "$(git ls-files --others --exclude-standard)"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'feat(DEN-2797): extend artifact recovery backfill through wave 3'
+          product_commit="$(git rev-parse HEAD)"
+          product_tree="$(git rev-parse 'HEAD^{tree}')"
+          echo "PRODUCT_COMMIT=$product_commit"
+          echo "PRODUCT_TREE=$product_tree"
+          git diff --name-only "$base"...HEAD | sort > /tmp/product.actual
+          cat > /tmp/product.expected <<'EOF'
+          .github/workflows/nightly-artifact-recovery.yml
+          docs/artifact-recovery-initial-backfill.md
+          scripts/build_artifact_recovery_backfill.py
+          tests/test_artifact_recovery_ledger.py
+          EOF
+          diff -u /tmp/product.expected /tmp/product.actual
+
+          root="$RUNNER_TEMP/den-2797-wave-3-product"
+          mkdir -p "$root/.github/workflows" "$root/docs" "$root/scripts" "$root/tests"
+          cp .github/workflows/nightly-artifact-recovery.yml "$root/.github/workflows/nightly-artifact-recovery.yml"
+          cp docs/artifact-recovery-initial-backfill.md "$root/docs/artifact-recovery-initial-backfill.md"
+          cp scripts/build_artifact_recovery_backfill.py "$root/scripts/build_artifact-recovery-backfill.py"
+          cp tests/test_artifact_recovery_ledger.py "$root/tests/test_artifact_recovery_ledger.py"
+          cp -R "$RUNNER_TEMP/artifact-recovery-wave-3" "$root/evidence"
+          (
+            cd "$root"
+            find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          )
+          cat > "$root/RECOVERY_EVIDENCE.json" <<EOF
+          {
+            "schema_version": 1,
+            "source_branch_head": "${GITHUB_SHA}",
+            "base_commit": "$base",
+            "product_commit": "$product_commit",
+            "product_tree": "$product_tree",
+            "ledger_rows": 22,
+            "complete": 18,
+            "actionable": 4,
+            "cli_repository_creates": 4
+          }
+          EOF
+
+          set +e
+          push_output="$(git push origin HEAD:agent/den-2797-backfill-wave-3 2>&1)"
+          push_status=$?
+          set -e
+          printf '%s\n' "$push_output"
+          test "$push_status" -ne 0
+          grep -F 'refusing to allow a GitHub App to create or update workflow' <<<"$push_output"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: den-2797-wave-3-product-${{ github.sha }}
+          path: ${{ runner.temp }}/den-2797-wave-3-product
+          include-hidden-files: true
+          retention-days: 14
+          if-no-files-found: error
