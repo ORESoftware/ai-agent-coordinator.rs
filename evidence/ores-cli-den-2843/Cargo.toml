@@ -1,0 +1,21 @@
+[package]
+name = "ores-cli-den-2843-infra-policy-probe"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+
+[dependencies]
+serde_json = "=1.0.151"
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints.rust]
+unsafe_code = "forbid"
+missing_docs = "warn"
+
+[lints.clippy]
+all = "deny"
+pedantic = "allow"
+nursery = "allow"
