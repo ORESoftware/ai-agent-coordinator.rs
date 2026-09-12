@@ -1,0 +1,94 @@
+name: Sync ores-cli Sidecar runtime-policy evidence v2
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - DEN-390-ores-cli-sidecar-policy-probe
+    paths:
+      - ".github/workflows/sync-ores-cli-sidecar-policy-v2.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-ores-cli-sidecar-policy-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out evidence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: DEN-390-ores-cli-sidecar-policy-probe
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Copy immutable upstream source and write manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import json
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          repository = 'ORESoftware/ores-cli'
+          branch = 'feat/DEN-390-sidecar-runtime-policy-v2'
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'ores-cli-sidecar-policy-v2-source-sync',
+          }
+          branch_url = (
+              f'https://api.github.com/repos/{repository}/branches/'
+              + urllib.parse.quote(branch, safe='')
+          )
+          with urllib.request.urlopen(
+              urllib.request.Request(branch_url, headers=headers), timeout=30
+          ) as response:
+              source_commit = json.load(response)['commit']['sha']
+
+          source_path = 'src/audit/runtime_toml_sidecar_policy.rs'
+          evidence_path = Path(
+              'evidence/ores-cli-sidecar-policy/src/audit/runtime_toml_sidecar_policy.rs'
+          )
+          quoted = urllib.parse.quote(source_path, safe='/')
+          url = f'https://api.github.com/repos/{repository}/contents/{quoted}?ref={source_commit}'
+          with urllib.request.urlopen(
+              urllib.request.Request(url, headers=headers), timeout=30
+          ) as response:
+              payload = json.load(response)
+          evidence_path.parent.mkdir(parents=True, exist_ok=True)
+          evidence_path.write_bytes(base64.b64decode(payload['content']))
+
+          manifest = {
+              'schema': 'ores.cli.exact-source-manifest/v1',
+              'sourceRepository': repository,
+              'sourceCommit': source_commit,
+              'files': [
+                  {
+                      'sourcePath': source_path,
+                      'evidencePath': str(evidence_path),
+                      'blobSha': payload['sha'],
+                  }
+              ],
+          }
+          Path('evidence/ores-cli-sidecar-policy/source-manifest.json').write_text(
+              json.dumps(manifest, indent=2) + '\n', encoding='utf-8'
+          )
+          PY
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evidence/ores-cli-sidecar-policy
+          if git diff --cached --quiet; then
+            echo 'evidence already matches the immutable source head'
+            exit 0
+          fi
+          git commit -m 'test(DEN-390): sync exact Sidecar policy source bytes'
+          git push origin HEAD:DEN-390-ores-cli-sidecar-policy-probe

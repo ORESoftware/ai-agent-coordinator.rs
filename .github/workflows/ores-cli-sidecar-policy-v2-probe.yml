@@ -1,0 +1,112 @@
+name: ores-cli Sidecar runtime-policy exact-source probe v2
+
+on:
+  pull_request:
+    paths:
+      - "evidence/ores-cli-sidecar-policy/**"
+      - ".github/workflows/ores-cli-sidecar-policy-v2-probe.yml"
+      - ".github/workflows/sync-ores-cli-sidecar-policy-v2.yml"
+  push:
+    branches:
+      - DEN-390-ores-cli-sidecar-policy-probe
+    paths:
+      - "evidence/ores-cli-sidecar-policy/**"
+      - ".github/workflows/ores-cli-sidecar-policy-v2-probe.yml"
+      - ".github/workflows/sync-ores-cli-sidecar-policy-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-sidecar-policy-v2-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify immutable upstream bytes and conflict-free state
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import re
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          manifest_path = Path('evidence/ores-cli-sidecar-policy/source-manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          assert manifest['schema'] == 'ores.cli.exact-source-manifest/v1'
+          repository = manifest['sourceRepository']
+          commit = manifest['sourceCommit']
+          assert re.fullmatch(r'[0-9a-f]{40}', commit), commit
+          assert len(manifest['files']) == 1
+          headers = {
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'ores-cli-sidecar-policy-v2-exact-source-probe',
+          }
+          for entry in manifest['files']:
+              source_path = entry['sourcePath']
+              evidence_path = Path(entry['evidencePath'])
+              expected_blob = entry['blobSha']
+              assert re.fullmatch(r'[0-9a-f]{40}', expected_blob), expected_blob
+              quoted = urllib.parse.quote(source_path, safe='/')
+              url = f'https://api.github.com/repos/{repository}/contents/{quoted}?ref={commit}'
+              with urllib.request.urlopen(
+                  urllib.request.Request(url, headers=headers), timeout=30
+              ) as response:
+                  payload = json.load(response)
+              assert payload['sha'] == expected_blob, (
+                  source_path,
+                  payload['sha'],
+                  expected_blob,
+              )
+              upstream = base64.b64decode(payload['content'])
+              local = evidence_path.read_bytes()
+              assert upstream == local, f'{source_path} differs from {evidence_path}'
+              git_blob = hashlib.sha1(
+                  f'blob {len(local)}\0'.encode() + local
+              ).hexdigest()
+              assert git_blob == expected_blob, (
+                  str(evidence_path),
+                  git_blob,
+                  expected_blob,
+              )
+          PY
+          git diff --check
+          status=0
+          git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-sidecar-policy || status=$?
+          test "$status" -eq 1
+
+      - name: Install tested Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: "1.88.0"
+          components: rustfmt, clippy
+
+      - name: Verify canonical formatting
+        run: cargo fmt --manifest-path evidence/ores-cli-sidecar-policy/Cargo.toml --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --manifest-path evidence/ores-cli-sidecar-policy/Cargo.toml --all-targets
+
+      - name: Run exact-source tests
+        run: cargo test --manifest-path evidence/ores-cli-sidecar-policy/Cargo.toml
+
+      - name: Reject Clippy warnings
+        run: cargo clippy --manifest-path evidence/ores-cli-sidecar-policy/Cargo.toml --all-targets -- -D warnings
