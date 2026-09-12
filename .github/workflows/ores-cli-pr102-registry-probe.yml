@@ -1,0 +1,64 @@
+name: ores-cli PR102 exact-source registry probe
+
+on:
+  pull_request:
+    paths:
+      - "evidence/ores-cli-pr102/**"
+      - ".github/workflows/ores-cli-pr102-registry-probe.yml"
+  push:
+    branches:
+      - DEN-390-ores-cli-pr102-registry-probe
+    paths:
+      - "evidence/ores-cli-pr102/**"
+      - ".github/workflows/ores-cli-pr102-registry-probe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr102-registry-probe-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Verify revision, source blobs, and clean conflict state
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(git hash-object evidence/ores-cli-pr102/src/audit/runtime_toml_registry.rs)" = "96b0f7545df769ee1d1e98c7a544ea869bc8d184"
+          test "$(git hash-object evidence/ores-cli-pr102/src/audit/runtime_toml_registry_tests.rs)" = "6c3ee4ad6c53b5849e84313a5f6be6e99e7c993b"
+          git diff --check
+          status=0
+          git grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- evidence/ores-cli-pr102 || status=$?
+          test "$status" -eq 1
+
+      - name: Install the tested Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: "1.88.0"
+          components: rustfmt, clippy
+
+      - name: Verify formatting
+        run: cargo fmt --manifest-path evidence/ores-cli-pr102/Cargo.toml --all -- --check
+
+      - name: Compile all targets
+        run: cargo check --manifest-path evidence/ores-cli-pr102/Cargo.toml --all-targets
+
+      - name: Run exact-source tests
+        run: cargo test --manifest-path evidence/ores-cli-pr102/Cargo.toml
+
+      - name: Reject Clippy warnings
+        run: cargo clippy --manifest-path evidence/ores-cli-pr102/Cargo.toml --all-targets -- -D warnings
