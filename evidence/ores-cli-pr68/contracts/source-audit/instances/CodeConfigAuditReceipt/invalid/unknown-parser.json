@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "ores.code-config-audit.v1",
+  "language": "rust",
+  "parser": "regex-only",
+  "parserVersion": "1.0.0",
+  "files": [
+    {
+      "path": "src/config.rs",
+      "syntaxValid": true,
+      "regexHits": [],
+      "astEvents": []
+    }
+  ]
+}

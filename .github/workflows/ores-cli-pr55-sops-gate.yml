@@ -1,0 +1,87 @@
+name: Ores CLI PR55 external SOPS acceptance
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr63-ast-probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr55-sops-acceptance
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_SHA: 418e8e9df49423a1f58cf9bd17e1332043f8c6f9
+
+jobs:
+  private-sops-contract-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check protected GitHub App configuration
+        shell: bash
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_ID" || -z "$PRIVATE_KEY" ]]; then
+            echo '::error::nightly-org-maintenance is missing PORTFOLIO_GITHUB_APP_ID and/or PORTFOLIO_GITHUB_APP_PRIVATE_KEY; private SOPS integration stays fail-closed.'
+            exit 1
+          fi
+
+      - name: Mint least-privilege ores-cli read token
+        id: ores-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-cli
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact PR55 candidate
+        id: checkout-candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: ${{ env.ORES_CLI_SHA }}
+          token: ${{ steps.ores-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: ores-cli
+
+      - name: Verify immutable candidate identity and committed lock
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          git -C ores-cli diff --check
+          git -C ores-cli ls-files --error-unmatch Cargo.lock >/dev/null
+
+      - name: Install exact Rust toolchain used by ores-cli
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Compile and run encrypted-environment adversarial suites
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo fmt -- --check
+          cargo check --locked --all-targets
+          cargo test --locked --test encrypted_environment_cli -- --nocapture
+          cargo test --locked --test encrypted_environment_security -- --nocapture
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Prove candidate checkout stayed immutable
+        if: ${{ always() && steps.checkout-candidate.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          git -C ores-cli diff --exit-code

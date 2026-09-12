@@ -1,0 +1,170 @@
+name: Ores CLI PR63 external AST acceptance
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr63-ast-probe
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr63-ast-acceptance
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_SHA: 8049e745e8da83ec4d85985467104a28e499517e
+
+jobs:
+  adapter-snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out evidence snapshot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - name: Verify evidence tree cleanliness
+        run: git diff --check
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e
+        with:
+          go-version: '1.23.2'
+          cache: false
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22.16.0
+          package-manager-cache: false
+
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Verify Go AST alias resolution
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -d evidence/ores-cli-pr63/go/main.go evidence/ores-cli-pr63/go-fixture/config.go)"
+          go vet evidence/ores-cli-pr63/go/main.go
+          mkdir -p "$RUNNER_TEMP/evidence"
+          go run evidence/ores-cli-pr63/go/main.go \
+            --root evidence/ores-cli-pr63/go-fixture \
+            --format json > "$RUNNER_TEMP/evidence/go.json"
+          jq -e '
+            .language == "go" and
+            .files[0].syntaxValid == true and
+            ([.files[0].regexHits[] | select(.kind == "env-api")] | length) == 0 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-lru.toml")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/go.json" >/dev/null
+          grep -F 'import operatingSystem "os"' evidence/ores-cli-pr63/go-fixture/config.go
+
+      - name: Verify Rust AST exact source spans
+        run: |
+          set -euo pipefail
+          cargo fmt --manifest-path evidence/ores-cli-pr63/rust/Cargo.toml -- --check
+          cargo test --manifest-path evidence/ores-cli-pr63/rust/Cargo.toml
+          cargo clippy --manifest-path evidence/ores-cli-pr63/rust/Cargo.toml --all-targets -- -D warnings
+
+      - name: Verify TypeScript destructured env reads
+        run: |
+          set -euo pipefail
+          node --check evidence/ores-cli-pr63/typescript/index.mjs
+          npm install --prefix evidence/ores-cli-pr63/typescript --ignore-scripts --no-audit --no-fund
+          node evidence/ores-cli-pr63/typescript/index.mjs \
+            --root evidence/ores-cli-pr63/typescript-fixture \
+            --format json > "$RUNNER_TEMP/evidence/typescript.json"
+          jq -e '
+            .language == "typescript" and
+            .parser == "ts-morph" and
+            .files[0].syntaxValid == true and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "API_KEY")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "DATABASE_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "rest")] | length) == 0 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-rl.toml")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "toml-parse")] | length) == 1
+          ' "$RUNNER_TEMP/evidence/typescript.json" >/dev/null
+
+      - name: Retain generated dependency closures and receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ores-cli-pr63-adapter-snapshot-${{ env.ORES_CLI_SHA }}
+          path: |
+            evidence/ores-cli-pr63/rust/Cargo.lock
+            evidence/ores-cli-pr63/typescript/package-lock.json
+            ${{ runner.temp }}/evidence
+          if-no-files-found: warn
+          retention-days: 30
+
+  private-integration-gate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check protected GitHub App configuration
+        shell: bash
+        env:
+          APP_ID: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          PRIVATE_KEY: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_ID" || -z "$PRIVATE_KEY" ]]; then
+            echo '::error::nightly-org-maintenance is missing PORTFOLIO_GITHUB_APP_ID and/or PORTFOLIO_GITHUB_APP_PRIVATE_KEY; private integration stays fail-closed.'
+            exit 1
+          fi
+
+      - name: Mint least-privilege ores-cli read token
+        id: ores-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-cli
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact PR63 candidate
+        id: checkout-candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: ${{ env.ORES_CLI_SHA }}
+          token: ${{ steps.ores-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: ores-cli
+
+      - name: Verify immutable candidate identity
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          git -C ores-cli diff --check
+          git -C ores-cli ls-files --error-unmatch Cargo.lock >/dev/null
+
+      - name: Install exact Rust toolchain used by ores-cli
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Compile and test the source-audit host admission layer
+        working-directory: ores-cli
+        run: |
+          set -euo pipefail
+          cargo fmt -- --check
+          cargo check --locked --all-targets
+          cargo test --locked source_semantics -- --nocapture
+          cargo clippy --locked --all-targets -- -D warnings
+
+      - name: Verify private checkout remained immutable
+        if: ${{ always() && steps.checkout-candidate.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          git -C ores-cli diff --exit-code

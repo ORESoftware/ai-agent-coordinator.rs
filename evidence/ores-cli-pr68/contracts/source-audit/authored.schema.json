@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.oresoftware.com/ores-cli/source-audit/v1",
+  "title": "CodeConfigAuditReceiptAuthoritySet",
+  "description": "Independent JSON Schema authority for parser-backed and regex source-config audit receipts.",
+  "x-ores-authority": "independent-peer",
+  "$defs": {
+    "SourceLanguage": {
+      "$id": "SourceLanguage.json",
+      "type": "string",
+      "enum": ["rust", "typescript", "go", "dart", "gleam"]
+    },
+    "SourceParser": {
+      "$id": "SourceParser.json",
+      "type": "string",
+      "enum": ["syn", "ts-morph", "go/parser+go/ast", "package:analyzer", "tree-sitter-gleam"]
+    },
+    "RegexEventKind": {
+      "$id": "RegexEventKind.json",
+      "type": "string",
+      "enum": ["config-literal", "env-api", "toml-api"]
+    },
+    "AstEventKind": {
+      "$id": "AstEventKind.json",
+      "type": "string",
+      "enum": ["config-read", "env-read", "toml-parse"]
+    },
+    "RegexEvent": {
+      "$id": "RegexEvent.json",
+      "type": "object",
+      "properties": {
+        "kind": {"$ref": "RegexEventKind.json"},
+        "value": {"type": "string", "maxLength": 512},
+        "line": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "column": {"type": "integer", "minimum": 1, "maximum": 4294967295}
+      },
+      "required": ["kind", "line", "column"],
+      "unevaluatedProperties": false
+    },
+    "AstEvent": {
+      "$id": "AstEvent.json",
+      "type": "object",
+      "properties": {
+        "kind": {"$ref": "AstEventKind.json"},
+        "value": {"type": "string", "maxLength": 512},
+        "line": {"type": "integer", "minimum": 1, "maximum": 4294967295},
+        "column": {"type": "integer", "minimum": 1, "maximum": 4294967295}
+      },
+      "required": ["kind", "line", "column"],
+      "unevaluatedProperties": false
+    },
+    "SourceFileEvidence": {
+      "$id": "SourceFileEvidence.json",
+      "type": "object",
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "syntaxValid": {"type": "boolean"},
+        "regexHits": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {"$ref": "RegexEvent.json"}
+        },
+        "astEvents": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {"$ref": "AstEvent.json"}
+        }
+      },
+      "required": ["path", "syntaxValid", "regexHits", "astEvents"],
+      "unevaluatedProperties": false
+    },
+    "CodeConfigAuditReceipt": {
+      "$id": "CodeConfigAuditReceipt.json",
+      "type": "object",
+      "properties": {
+        "schemaVersion": {"type": "string", "const": "ores.code-config-audit.v1"},
+        "language": {"$ref": "SourceLanguage.json"},
+        "parser": {"$ref": "SourceParser.json"},
+        "parserVersion": {"type": "string", "minLength": 1, "maxLength": 128},
+        "files": {
+          "type": "array",
+          "maxItems": 4096,
+          "items": {"$ref": "SourceFileEvidence.json"}
+        }
+      },
+      "required": ["schemaVersion", "language", "parser", "parserVersion", "files"],
+      "unevaluatedProperties": false
+    }
+  },
+  "$ref": "CodeConfigAuditReceipt.json"
+}

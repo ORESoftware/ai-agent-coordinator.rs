@@ -1,0 +1,118 @@
+name: Ores CLI PR70 TJSV contract acceptance
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr63-ast-probe
+    paths:
+      - 'evidence/ores-cli-pr68/**'
+      - 'evidence/ores-cli-pr63/go/**'
+      - 'evidence/ores-cli-pr63/go-fixture/**'
+      - '.github/workflows/ores-cli-pr68-tjsv-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr70-tjsv-contract
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_PARENT_SHA: 75c257b4a19d947107d598c1a7765f85f739cde1
+  ORES_CLI_HARDENING_SHA: 47710d1aff1d83b63583f9dffd78a5b7a76ce75c
+  TJSV_SHA: 5b04b08512f8a03a376dcb96818969e2d83c2d84
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out immutable evidence snapshot
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify evidence tree cleanliness and source identities
+        run: |
+          set -euo pipefail
+          git diff --check
+          test "$ORES_CLI_PARENT_SHA" = '75c257b4a19d947107d598c1a7765f85f739cde1'
+          test "$ORES_CLI_HARDENING_SHA" = '47710d1aff1d83b63583f9dffd78a5b7a76ce75c'
+          test "$TJSV_SHA" = '5b04b08512f8a03a376dcb96818969e2d83c2d84'
+
+      - name: Set up pinned Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: '1.23.2'
+          cache: false
+
+      - name: Generate real Go regex plus AST receipt
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -d evidence/ores-cli-pr63/go/main.go evidence/ores-cli-pr63/go-fixture/config.go)"
+          go vet evidence/ores-cli-pr63/go/main.go
+          rm -rf "$RUNNER_TEMP/source-audit-instances"
+          mkdir -p "$RUNNER_TEMP/source-audit-instances/CodeConfigAuditReceipt/valid"
+          cp -R evidence/ores-cli-pr68/contracts/source-audit/instances/. "$RUNNER_TEMP/source-audit-instances/"
+          go run evidence/ores-cli-pr63/go/main.go \
+            --root evidence/ores-cli-pr63/go-fixture \
+            --format json \
+            > "$RUNNER_TEMP/source-audit-instances/CodeConfigAuditReceipt/valid/runtime-go.json"
+          jq -e '
+            .schemaVersion == "ores.code-config-audit.v1" and
+            .language == "go" and
+            .parser == "go/parser+go/ast" and
+            ((.files | length) == 1) and
+            ([.files[0].astEvents[] | select(.kind == "env-read" and .value == "REDIS_URL")] | length) == 1 and
+            ([.files[0].astEvents[] | select(.kind == "config-read" and .value == ".ores-lru.toml")] | length) == 1
+          ' "$RUNNER_TEMP/source-audit-instances/CodeConfigAuditReceipt/valid/runtime-go.json" >/dev/null
+
+      - name: Compare peer authorities and runtime receipt with pinned TJSV
+        uses: ORESoftware/typespec-json-schema-validator@5b04b08512f8a03a376dcb96818969e2d83c2d84
+        with:
+          typespec: evidence/ores-cli-pr68/contracts/source-audit/main.tsp
+          schema: evidence/ores-cli-pr68/contracts/source-audit/authored.schema.json
+          mapping: evidence/ores-cli-pr68/contracts/source-audit/tjsv.mapping.json
+          instances: ${{ runner.temp }}/source-audit-instances
+          report: ${{ runner.temp }}/tjsv/source-audit.report.json
+          sarif: ${{ runner.temp }}/tjsv/source-audit.sarif
+          contract_ir: ${{ runner.temp }}/tjsv/source-audit.contract-ir.json
+          output_dir: ${{ runner.temp }}/tjsv/generated
+          int64_strategy: number
+          quiet: 'false'
+
+      - name: Require fail-closed parity, corpus expectations, and differential evidence
+        run: |
+          set -euo pipefail
+          jq -e '
+            .schema == "ores.typespec-json-schema-validator.report/v1" and
+            .status == "passed" and
+            .zeroUnexplainedFindings == true and
+            .authorities.precedence == "none" and
+            .authorities.typespec.authority == "independently-authored" and
+            .authorities.jsonSchema.authority == "independently-authored" and
+            .differential.disabled != true and
+            .differential.summary.corpusInstances >= 7 and
+            .differential.summary.divergences == 0 and
+            .differential.summary.refusals == 0
+          ' "$RUNNER_TEMP/tjsv/source-audit.report.json"
+          jq -e '
+            .schema == "ores.typespec-json-schema-validator.contract-ir/v1" and
+            .status == "passed" and
+            .admissible == true and
+            .editableAuthority == false
+          ' "$RUNNER_TEMP/tjsv/source-audit.contract-ir.json"
+
+      - name: Retain external contract evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ores-cli-pr70-tjsv-${{ env.ORES_CLI_HARDENING_SHA }}
+          path: |
+            ${{ runner.temp }}/source-audit-instances/CodeConfigAuditReceipt/valid/runtime-go.json
+            ${{ runner.temp }}/tjsv
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 30

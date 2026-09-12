@@ -1,0 +1,7 @@
+{
+  "schemaVersion": "ores.code-config-audit.v1",
+  "language": "go",
+  "parser": "go/parser+go/ast",
+  "parserVersion": "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv",
+  "files": []
+}
