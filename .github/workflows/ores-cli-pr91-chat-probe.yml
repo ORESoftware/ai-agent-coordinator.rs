@@ -39,7 +39,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
           source='evidence/ores-cli-pr91/src/audit/runtime_toml_chat.rs'
-          test "$(git hash-object "$source")" = "cbceb26686a6a4aa29ef6868f81d84fea9bb7f82"
+          test "$(git hash-object "$source")" = "85fbd2077600f10fc80a5b6f4333d8d65042a2ad"
           test "$(git hash-object "$source")" = "$(git hash-object --no-filters "$source")"
           git diff --check
           status=0
