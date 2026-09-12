@@ -1,0 +1,385 @@
+{
+  "schema_version": "portfolio-remediation-queue/v1",
+  "queue_id": "governed-portfolio-remediation-2026-09-04",
+  "generated_at": "2026-09-04T11:00:00-04:00",
+  "baseline": {
+    "observed_at": "2026-08-31T12:00:00-04:00",
+    "catalog_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "policy_sha256": "baaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "repository_count": 5
+  },
+  "repositories": [
+    {
+      "repository": "shared-auth/shared-auth-server.rs",
+      "visibility": "public",
+      "lifecycle": "active",
+      "canonical_role": "api_server",
+      "default_branch": "main",
+      "observed_head": "1111111111111111111111111111111111111111",
+      "linear_project_url": "https://linear.app/denman/project/shared-auth",
+      "github_project_url": "https://github.com/orgs/shared-auth/projects/1",
+      "agents_sha256": "2111111111111111111111111111111111111111111111111111111111111111",
+      "toolchain": ["Rust 1.97.0", "PostgreSQL"],
+      "ci_state": "present_green",
+      "security_policy": true,
+      "license_spdx": "MIT",
+      "release_path": "container",
+      "test_maturity": "L3",
+      "deployment_boundary": "production",
+      "expectation_profile": "rust-api-server",
+      "current_state_sha256": "3111111111111111111111111111111111111111111111111111111111111111"
+    },
+    {
+      "repository": "ORESoftware/ores-gh-bots",
+      "visibility": "public",
+      "lifecycle": "active",
+      "canonical_role": "control_plane",
+      "default_branch": "main",
+      "observed_head": "2222222222222222222222222222222222222222",
+      "linear_project_url": "https://linear.app/denman/project/oresoftware",
+      "github_project_url": "https://github.com/orgs/ORESoftware/projects/1",
+      "agents_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "toolchain": ["Rust 1.97.0", "GitHub Apps"],
+      "ci_state": "present_unknown",
+      "security_policy": true,
+      "license_spdx": "MIT",
+      "release_path": "container",
+      "test_maturity": "L2",
+      "deployment_boundary": "production",
+      "expectation_profile": "github-control-plane",
+      "current_state_sha256": "3222222222222222222222222222222222222222222222222222222222222222"
+    },
+    {
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "visibility": "public",
+      "lifecycle": "active",
+      "canonical_role": "control_plane",
+      "default_branch": "main",
+      "observed_head": "ac82b00a1b3765b71482b684db29ba3cead10763",
+      "linear_project_url": "https://linear.app/denman/project/ai-agent-coordinator",
+      "github_project_url": "https://github.com/orgs/ORESoftware/projects/1",
+      "agents_sha256": "2333333333333333333333333333333333333333333333333333333333333333",
+      "toolchain": ["Rust 1.97.0", "Python 3", "PostgreSQL"],
+      "ci_state": "present_green",
+      "security_policy": true,
+      "license_spdx": "MIT",
+      "release_path": "container",
+      "test_maturity": "L4",
+      "deployment_boundary": "production",
+      "expectation_profile": "agent-control-plane",
+      "current_state_sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+    },
+    {
+      "repository": "zed-pkg/zed-cli",
+      "visibility": "public",
+      "lifecycle": "active",
+      "canonical_role": "cli",
+      "default_branch": "main",
+      "observed_head": "4444444444444444444444444444444444444444",
+      "linear_project_url": "https://linear.app/denman/project/zed-pkg",
+      "github_project_url": "https://github.com/orgs/zed-pkg/projects/1",
+      "agents_sha256": "2444444444444444444444444444444444444444444444444444444444444444",
+      "toolchain": ["Rust 1.97.0", "Nix"],
+      "ci_state": "present_green",
+      "security_policy": true,
+      "license_spdx": "MIT",
+      "release_path": "native_artifact",
+      "test_maturity": "L4",
+      "deployment_boundary": "none",
+      "expectation_profile": "zed-cli-package",
+      "current_state_sha256": "3444444444444444444444444444444444444444444444444444444444444444"
+    },
+    {
+      "repository": "praxonne/praxonne-test",
+      "visibility": "private",
+      "lifecycle": "active",
+      "canonical_role": "tests",
+      "default_branch": "main",
+      "observed_head": "5555555555555555555555555555555555555555",
+      "linear_project_url": "https://linear.app/denman/project/praxonne",
+      "github_project_url": "https://github.com/orgs/praxonne/projects/1",
+      "agents_sha256": "2555555555555555555555555555555555555555555555555555555555555555",
+      "toolchain": ["Rust 1.97.0", "Flutter", "TypeSpec", "JSON Schema"],
+      "ci_state": "present_unknown",
+      "security_policy": true,
+      "license_spdx": null,
+      "release_path": "none",
+      "test_maturity": "L1",
+      "deployment_boundary": "test",
+      "expectation_profile": "organization-e2e",
+      "current_state_sha256": "3555555555555555555555555555555555555555555555555555555555555555"
+    }
+  ],
+  "findings": [
+    {
+      "id": "shared-auth-deployment-isolation",
+      "rank": 1,
+      "repository": "shared-auth/shared-auth-server.rs",
+      "category": "deployment_isolation",
+      "state": "drifted",
+      "severity": "critical",
+      "disposition": "amend_existing",
+      "evidence_sha256": "4111111111111111111111111111111111111111111111111111111111111111",
+      "baseline_value_sha256": "5111111111111111111111111111111111111111111111111111111111111111",
+      "current_value_sha256": "6111111111111111111111111111111111111111111111111111111111111111",
+      "linear_anchor": "DEN-2197",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/205",
+      "owner": "Shared Auth maintainers",
+      "duplicate_of": null,
+      "depends_on": [],
+      "scores": {
+        "security": 98,
+        "data_integrity": 95,
+        "user_impact": 90,
+        "dependency_centrality": 95,
+        "operational_risk": 95,
+        "effort": 55,
+        "test_evidence": 80
+      },
+      "remediation": {
+        "branch_name": "feat/den-2197-isolated-auth-canaries",
+        "base_commit": "1111111111111111111111111111111111111111",
+        "acceptance_checks": [
+          "Prove separate test and production issuers, credentials, state, and domains.",
+          "Run registration, login, refresh, recovery, organization, factor, and revocation canaries."
+        ],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "Production tenant migration and key rotation remain separately reviewed operations."
+      }
+    },
+    {
+      "id": "review-bot-protection-drift",
+      "rank": 2,
+      "repository": "ORESoftware/ores-gh-bots",
+      "category": "branch_protection_drift",
+      "state": "drifted",
+      "severity": "critical",
+      "disposition": "amend_existing",
+      "evidence_sha256": "4222222222222222222222222222222222222222222222222222222222222222",
+      "baseline_value_sha256": "5222222222222222222222222222222222222222222222222222222222222222",
+      "current_value_sha256": "6222222222222222222222222222222222222222222222222222222222222222",
+      "linear_anchor": "DEN-3570",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/195",
+      "owner": "GitHub automation maintainers",
+      "duplicate_of": null,
+      "depends_on": [],
+      "scores": {
+        "security": 95,
+        "data_integrity": 80,
+        "user_impact": 75,
+        "dependency_centrality": 95,
+        "operational_risk": 90,
+        "effort": 40,
+        "test_evidence": 70
+      },
+      "remediation": {
+        "branch_name": "feat/den-3570-dual-review-receipts",
+        "base_commit": "2222222222222222222222222222222222222222",
+        "acceptance_checks": [
+          "Require independent ChatGPT and Claude receipts for the same immutable pull-request head.",
+          "Reject self-review, stale heads, identity collision, unresolved threads, and nonterminal checks."
+        ],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "Target repository branch protection and human-review requirements remain authoritative."
+      }
+    },
+    {
+      "id": "portfolio-duplicate-tracking",
+      "rank": 3,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "category": "duplicate_tracking",
+      "state": "drifted",
+      "severity": "high",
+      "disposition": "amend_existing",
+      "evidence_sha256": "4333333333333333333333333333333333333333333333333333333333333333",
+      "baseline_value_sha256": "5333333333333333333333333333333333333333333333333333333333333333",
+      "current_value_sha256": "6333333333333333333333333333333333333333333333333333333333333333",
+      "linear_anchor": "DEN-598",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/212",
+      "owner": "Portfolio governance maintainers",
+      "duplicate_of": null,
+      "depends_on": [],
+      "scores": {
+        "security": 70,
+        "data_integrity": 85,
+        "user_impact": 60,
+        "dependency_centrality": 90,
+        "operational_risk": 75,
+        "effort": 30,
+        "test_evidence": 90
+      },
+      "remediation": {
+        "branch_name": "feat/den-598-remediation-queue",
+        "base_commit": "ac82b00a1b3765b71482b684db29ba3cead10763",
+        "acceptance_checks": [
+          "Search existing Linear and GitHub records before emitting a remediation plan.",
+          "Rank current findings deterministically and preserve explicit duplicate or no-op dispositions."
+        ],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "The queue cannot prove remote issue relations without a separately authenticated resolver."
+      }
+    },
+    {
+      "id": "zed-release-certification",
+      "rank": 4,
+      "repository": "zed-pkg/zed-cli",
+      "category": "release_gap",
+      "state": "missing",
+      "severity": "high",
+      "disposition": "draft_pr",
+      "evidence_sha256": "4444444444444444444444444444444444444444444444444444444444444444",
+      "baseline_value_sha256": null,
+      "current_value_sha256": "6444444444444444444444444444444444444444444444444444444444444444",
+      "linear_anchor": "DEN-3908",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/199",
+      "owner": "Zed package maintainers",
+      "duplicate_of": null,
+      "depends_on": [],
+      "scores": {
+        "security": 65,
+        "data_integrity": 70,
+        "user_impact": 70,
+        "dependency_centrality": 80,
+        "operational_risk": 65,
+        "effort": 45,
+        "test_evidence": 75
+      },
+      "remediation": {
+        "branch_name": "feat/den-3908-certified-package-tranche",
+        "base_commit": "4444444444444444444444444444444444444444",
+        "acceptance_checks": [
+          "Publish immutable source and native artifacts with checksums, SBOM, and provenance.",
+          "Install and execute clean external consumers with deterministic locks and rollback tests."
+        ],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "Registry credentials and publication remain protected follow-up operations."
+      }
+    },
+    {
+      "id": "praxonne-test-maturity",
+      "rank": 5,
+      "repository": "praxonne/praxonne-test",
+      "category": "test_maturity_gap",
+      "state": "drifted",
+      "severity": "high",
+      "disposition": "draft_pr",
+      "evidence_sha256": "4555555555555555555555555555555555555555555555555555555555555555",
+      "baseline_value_sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+      "current_value_sha256": "6555555555555555555555555555555555555555555555555555555555555555",
+      "linear_anchor": "DEN-3911",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/201",
+      "owner": "Praxonne maintainers",
+      "duplicate_of": null,
+      "depends_on": ["shared-auth-deployment-isolation", "zed-release-certification"],
+      "scores": {
+        "security": 60,
+        "data_integrity": 75,
+        "user_impact": 65,
+        "dependency_centrality": 70,
+        "operational_risk": 70,
+        "effort": 50,
+        "test_evidence": 30
+      },
+      "remediation": {
+        "branch_name": "feat/den-3911-praxonne-e2e-canaries",
+        "base_commit": "5555555555555555555555555555555555555555",
+        "acceptance_checks": [
+          "Exercise shared-auth, opto-sync, middleware, telemetry, schema, and ORM boundaries in the test organization.",
+          "Produce exact-head contract, artifact, deployment, recovery, and cleanup receipts."
+        ],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "Production data, authentication, stores, DNS, and deployment remain disabled."
+      }
+    },
+    {
+      "id": "organization-project-permission",
+      "rank": 6,
+      "repository": "zed-pkg/zed-cli",
+      "category": "ownership_unresolved",
+      "state": "externally_blocked",
+      "severity": "medium",
+      "disposition": "noop_blocked",
+      "evidence_sha256": "4666666666666666666666666666666666666666666666666666666666666666",
+      "baseline_value_sha256": null,
+      "current_value_sha256": null,
+      "linear_anchor": "DEN-2263",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/issues/200",
+      "owner": "Organization owner",
+      "duplicate_of": null,
+      "depends_on": [],
+      "scores": {
+        "security": 45,
+        "data_integrity": 55,
+        "user_impact": 40,
+        "dependency_centrality": 50,
+        "operational_risk": 45,
+        "effort": 20,
+        "test_evidence": 10
+      },
+      "remediation": {
+        "branch_name": null,
+        "base_commit": null,
+        "acceptance_checks": [
+          "Record the organization owner and exact Projects permission required before retrying."
+        ],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "The installed GitHub integration cannot grant organization Projects permission."
+      }
+    },
+    {
+      "id": "prompt-corpus-regression-complete",
+      "rank": 7,
+      "repository": "ORESoftware/ai-agent-coordinator.rs",
+      "category": "instruction_drift",
+      "state": "already_remediated",
+      "severity": "low",
+      "disposition": "noop_completed",
+      "evidence_sha256": "4777777777777777777777777777777777777777777777777777777777777777",
+      "baseline_value_sha256": "5777777777777777777777777777777777777777777777777777777777777777",
+      "current_value_sha256": "6777777777777777777777777777777777777777777777777777777777777777",
+      "linear_anchor": "DEN-1613",
+      "github_anchor": "https://github.com/ORESoftware/ai-agent-coordinator.rs/pull/207",
+      "owner": "Coordinator maintainers",
+      "duplicate_of": null,
+      "depends_on": [],
+      "scores": {
+        "security": 20,
+        "data_integrity": 30,
+        "user_impact": 20,
+        "dependency_centrality": 25,
+        "operational_risk": 15,
+        "effort": 10,
+        "test_evidence": 95
+      },
+      "remediation": {
+        "branch_name": null,
+        "base_commit": null,
+        "acceptance_checks": [],
+        "dry_run": true,
+        "apply_authorized": false,
+        "residual_risk": "No further action is selected unless new source or policy evidence changes the finding."
+      }
+    }
+  ],
+  "safety": {
+    "read_only": true,
+    "dry_run": true,
+    "repository_creation_authorized": false,
+    "visibility_changes_authorized": false,
+    "branch_protection_changes_authorized": false,
+    "merge_authorized": false,
+    "deployment_authorized": false,
+    "dns_changes_authorized": false,
+    "database_changes_authorized": false,
+    "notes": [
+      "The fixture is synthetic planning evidence and does not establish live repository state.",
+      "Every actionable remediation remains a dry-run branch plan pending repository-specific review."
+    ]
+  }
+}
