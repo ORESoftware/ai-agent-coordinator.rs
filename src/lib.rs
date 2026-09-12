@@ -14,6 +14,8 @@ pub mod daily_portfolio_delivery;
 )]
 pub mod daily_portfolio_delivery_store;
 pub mod db;
+/// Side-effect-free dependency-update risk evidence normalization and classification.
+pub mod dependency_risk;
 pub mod email_attention;
 pub mod entity;
 pub mod error;
