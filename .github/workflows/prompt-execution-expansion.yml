@@ -1,0 +1,97 @@
+name: Prompt execution expansion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/prompt-execution-expansion.yml'
+      - 'docs/prompt-execution-expansion-*.md'
+      - 'fixtures/prompt-execution-expansion-*.json'
+      - 'scripts/validate_prompt_execution_expansion.py'
+      - 'scripts/test_validate_prompt_execution_expansion.py'
+      - 'fixtures/prompt-execution-ledger-*.json'
+      - 'scripts/prompt_execution_ledger*.py'
+  pull_request:
+    paths:
+      - '.github/workflows/prompt-execution-expansion.yml'
+      - 'docs/prompt-execution-expansion-*.md'
+      - 'fixtures/prompt-execution-expansion-*.json'
+      - 'scripts/validate_prompt_execution_expansion.py'
+      - 'scripts/test_validate_prompt_execution_expansion.py'
+      - 'fixtures/prompt-execution-ledger-*.json'
+      - 'scripts/prompt_execution_ledger*.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/prompt-execution-expansion.yml
+
+      - name: Compile validators and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/prompt_execution_ledger.py \
+            scripts/prompt_execution_ledger_validation.py \
+            scripts/validate_prompt_execution_expansion.py \
+            scripts/test_validate_prompt_execution_expansion.py
+
+      - name: Run adversarial unit tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_validate_prompt_execution_expansion.py
+
+      - name: Verify the combined twenty-workstream receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_prompt_execution_expansion.py \
+            fixtures/prompt-execution-ledger-2026-09-03.json \
+            fixtures/prompt-execution-expansion-2026-09-04.json \
+            --json > expansion-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          report = json.loads(Path("expansion-report.json").read_text(encoding="utf-8"))
+          assert report["valid"] is True
+          assert report["base_workstream_count"] == 15
+          assert report["added_workstream_count"] == 5
+          assert report["combined_workstream_count"] == 20
+          assert report["base_sha256"] == (
+              "e2ea566eb781b3a7174be4ec2ab06f5c5cb6c4c2047375d9ca541264952117c1"
+          )
+          assert re.fullmatch(r"[0-9a-f]{64}", report["expansion_sha256"])
+          assert report["errors"] == []
+          PY
+
+      - name: Require a clean worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f expansion-report.json
+          test -z "$(git status --porcelain)"
