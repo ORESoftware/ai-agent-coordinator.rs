@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "organization": "ores-legal",
+  "test_organization": "ores-legal-test",
+  "linear_issue": "DEN-319",
+  "governance": {
+    "default_branch": "main",
+    "feature_branch": "alexanderdmills/den-319-bootstrap-ores-legal-fleet",
+    "merge_method": "squash",
+    "delete_branch_on_merge": true,
+    "agents": "https://github.com/ORESoftware/my-ai/blob/main/AGENTS.md",
+    "default_visibility": "private",
+    "public_repositories": [
+      "ores-legal-interfaces",
+      "ores-legal-clients",
+      "ores-legal-pub-lib-core",
+      "ores-legal-docs",
+      "ores-legal.github.io"
+    ]
+  },
+  "contract_authorities": {
+    "typespec": {
+      "role": "independent-peer-authority",
+      "path": "typespec"
+    },
+    "json_schema": {
+      "role": "independent-peer-authority",
+      "draft": "2020-12",
+      "path": "json-schema"
+    },
+    "protobuf": {
+      "role": "wire-contract-authority",
+      "path": "protobuf"
+    }
+  },
+  "language_targets": [
+    "rust",
+    "typescript",
+    "javascript",
+    "dart",
+    "kotlin",
+    "swift",
+    "java",
+    "csharp",
+    "go",
+    "python",
+    "ruby",
+    "php",
+    "c",
+    "cpp",
+    "objective-c",
+    "scala",
+    "elixir",
+    "gleam",
+    "haskell",
+    "clojure"
+  ],
+  "storage": {
+    "neon": {
+      "role": "primary-transactional-postgres",
+      "tenant_column": "tenant_id",
+      "iac_directory": "neon"
+    },
+    "supabase": {
+      "role": "shared-near-term-auth-and-canonical-projection",
+      "organization": "oresoftware",
+      "canonical_schema": "ores_legal_canonical",
+      "auth_schema": "ores_legal_auth",
+      "iac_directory": "supabase"
+    },
+    "client_owned_location": {
+      "required": true,
+      "routing_key": "tenant_storage_profile_id",
+      "write_mode": "outbox-with-idempotent-replication"
+    }
+  },
+  "feature_baseline": [
+    "reusable document templates and versions",
+    "signature, initials, date, text, checkbox, attachment, and witness fields",
+    "ordered, parallel, conditional, delegated, and declined routing",
+    "embedded and hosted signing ceremonies",
+    "B2B organizations and B2C individual signers",
+    "identity evidence and consent capture",
+    "append-only audit chain and completion certificate",
+    "SHA-256 document and evidence hashes",
+    "webhooks with replay protection and delivery ledger",
+    "reminders, expiration, cancellation, correction, and resend",
+    "bulk send, reusable forms, and team templates",
+    "organization-owned storage replication",
+    "mobile, web, desktop, SDK, API, lambda, and MCP surfaces"
+  ],
+  "parity_reference_platforms": [
+    "DocuSign",
+    "Dropbox Sign",
+    "Adobe Acrobat Sign",
+    "PandaDoc",
+    "signNow",
+    "Zoho Sign",
+    "OneSpan Sign",
+    "Yousign"
+  ],
+  "repositories": [
+    {
+      "name": "ores-legal-interfaces",
+      "kind": "interfaces",
+      "visibility": "public",
+      "description": "Independent TypeSpec, JSON Schema, Protobuf, OpenAPI, and language-neutral ores-legal contracts."
+    },
+    {
+      "name": "ores-legal-lib-core",
+      "kind": "lib-core",
+      "visibility": "private",
+      "description": "Shared internal Rust signing domain, RuntimeConfig, evidence-chain, and workflow core."
+    },
+    {
+      "name": "ores-legal-pub-lib-core",
+      "kind": "pub-lib-core",
+      "visibility": "public",
+      "description": "Public, backend-safe Rust SDK surface for embedded ores-legal signing integrations."
+    },
+    {
+      "name": "ores-legal-orm-core",
+      "kind": "orm-core",
+      "visibility": "private",
+      "description": "Private Diesel and SeaORM persistence models, migrations, tenancy, outbox, and evidence constraints."
+    },
+    {
+      "name": "ores-legal-clients",
+      "kind": "clients",
+      "visibility": "public",
+      "description": "Generated and hand-audited ores-legal SDK foundations for twenty client and server languages."
+    },
+    {
+      "name": "ores-legal-api-server.rs",
+      "kind": "api-server",
+      "visibility": "private",
+      "description": "Customer and integration write API for templates, envelopes, ceremonies, signatures, and webhooks."
+    },
+    {
+      "name": "ores-legal-admin-api-server.rs",
+      "kind": "admin-api-server",
+      "visibility": "private",
+      "description": "Privileged administrative API for policy, evidence, retention, delivery, and tenant operations."
+    },
+    {
+      "name": "ores-legal-web-server.rs",
+      "kind": "web-server",
+      "visibility": "private",
+      "description": "MASH-first customer and signer web server with shared Leptos and Dioxus component contracts."
+    },
+    {
+      "name": "ores-legal-admin-web-server.rs",
+      "kind": "admin-web-server",
+      "visibility": "private",
+      "description": "MASH-first organization and platform administration web server."
+    },
+    {
+      "name": "ores-legal-flutter",
+      "kind": "flutter",
+      "visibility": "private",
+      "description": "Flutter signing application and shared widgets for mobile web, iOS, Android, and desktop."
+    },
+    {
+      "name": "ores-legal-desktop-app.rs",
+      "kind": "desktop-app",
+      "visibility": "private",
+      "description": "Rust and Dioxus desktop signing application foundation."
+    },
+    {
+      "name": "ores-legal-lambdas",
+      "kind": "lambdas",
+      "visibility": "private",
+      "description": "Portable AWS, GCP, Azure, and Cloudflare workers for webhooks, reminders, evidence, and replication."
+    },
+    {
+      "name": "ores-legal-infra",
+      "kind": "infra",
+      "visibility": "private",
+      "description": "Top-level Neon and Supabase infrastructure-as-code, tenant schemas, migrations, and deployment contracts."
+    },
+    {
+      "name": "ores-legal-docs",
+      "kind": "docs",
+      "visibility": "public",
+      "description": "Architecture, API, threat model, compliance boundaries, feature parity, and counsel-review templates."
+    },
+    {
+      "name": "ores-legal-mcp-server.rs",
+      "kind": "mcp-server",
+      "visibility": "private",
+      "description": "Policy-bounded Rust MCP server for template, envelope, signing, evidence, and status workflows."
+    },
+    {
+      "name": "ores-legal.github.io",
+      "kind": "marketing-site",
+      "visibility": "public",
+      "description": "Responsive Astro organization site for the ores-legal signing platform."
+    },
+    {
+      "name": "ores-legal-monorepo",
+      "kind": "monorepo",
+      "visibility": "private",
+      "description": "Organization composition repository with real apps/ git submodules for every ores-legal service and library."
+    }
+  ]
+}
