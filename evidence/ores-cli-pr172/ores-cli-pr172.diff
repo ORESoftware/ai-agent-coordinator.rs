@@ -1,0 +1,470 @@
+diff --git a/src/audit/runtime_toml_otel.rs b/src/audit/runtime_toml_otel.rs
+index 03f6f15..42eee2e 100644
+--- a/src/audit/runtime_toml_otel.rs
++++ b/src/audit/runtime_toml_otel.rs
+@@ -1,12 +1,20 @@
+ use std::fs;
+ use std::io;
++use std::path::Path;
+ 
++use serde_json::Value as JsonValue;
+ use toml::Value;
+ 
+ use super::RepositoryAuditOptions;
+ use crate::model::{CommandReport, Finding};
+ 
+ const CONFIG: &str = ".ores-otel.toml";
++const TYPESPEC_AUTHORITY: &str = "validation/evidence/ores-otel-config-v1/main.tsp";
++const JSON_SCHEMA_AUTHORITY: &str =
++    "validation/evidence/ores-otel-config-v1/authored.schema.json";
++const TJSV_WORKFLOW: &str = ".github/workflows/ores-otel-config-contract.yml";
++const TJSV_ACTION: &str = "ORESoftware/typespec-json-schema-validator@";
++const MAX_EVIDENCE_BYTES: u64 = 1024 * 1024;
+ const ROOT_KEYS: &[&str] = &["version", "common", "client", "server"];
+ const ROLE_KEYS: &[&str] = &[
+     "enabled",
+@@ -62,6 +70,7 @@ pub(super) fn augment_otel_runtime_toml_audit(
+     for section in ["common", "client", "server"] {
+         audit_role(root.get(section), section, &mut report);
+     }
++    audit_peer_authority_evidence(&options.path, &mut report);
+ 
+     if report.issue_count() == issues_before {
+         report.push(
+@@ -186,6 +195,237 @@ fn audit_exporter(value: Option<&Value>, target: &str, report: &mut CommandRepor
+     optional_bounded_string(table, "endpoint_env", 1, 128, target, report);
+ }
+ 
++fn audit_peer_authority_evidence(root: &Path, report: &mut CommandReport) {
++    let typespec = read_evidence_file(root, TYPESPEC_AUTHORITY, "TypeSpec", report);
++    let schema = read_evidence_file(root, JSON_SCHEMA_AUTHORITY, "JSON Schema", report);
++
++    match (typespec, schema) {
++        (EvidenceFile::Missing, EvidenceFile::Missing) => {
++            report.push(
++                Finding::info(
++                    "otel-peer-authority-external",
++                    "repository does not vendor OTel authority evidence; bounded lint assumes the owner TypeSpec and authored JSON Schema remain external peer authorities",
++                )
++                .with_target(CONFIG),
++            );
++        }
++        (EvidenceFile::Present(_), EvidenceFile::Missing)
++        | (EvidenceFile::Missing, EvidenceFile::Present(_)) => {
++            error(
++                report,
++                "otel-peer-authority-incomplete",
++                "vendored OTel authority evidence must contain both human-authored TypeSpec and independently authored JSON Schema Draft 2020-12",
++                "validation/evidence/ores-otel-config-v1",
++            );
++        }
++        (EvidenceFile::Present(typespec), EvidenceFile::Present(schema)) => {
++            audit_typespec_authority(&typespec, report);
++            audit_json_schema_authority(&schema, report);
++            audit_tjsv_workflow(root, report);
++        }
++        (EvidenceFile::Invalid, _) | (_, EvidenceFile::Invalid) => {}
++    }
++}
++
++fn audit_typespec_authority(text: &str, report: &mut CommandReport) {
++    for marker in [
++        "namespace OresOtel;",
++        "@id(\"OresOtelConfigV1\")",
++        "model OresOtelConfigV1",
++    ] {
++        if !text.contains(marker) {
++            error(
++                report,
++                "otel-typespec-authority-shape",
++                "vendored TypeSpec must expose the OresOtelConfigV1 peer-authority declaration",
++                TYPESPEC_AUTHORITY,
++            );
++            return;
++        }
++    }
++}
++
++fn audit_json_schema_authority(text: &str, report: &mut CommandReport) {
++    let Ok(value) = serde_json::from_str::<JsonValue>(text) else {
++        error(
++            report,
++            "otel-json-schema-authority-shape",
++            "vendored authored JSON Schema must parse as JSON",
++            JSON_SCHEMA_AUTHORITY,
++        );
++        return;
++    };
++    if value.get("$schema").and_then(JsonValue::as_str)
++        != Some("https://json-schema.org/draft/2020-12/schema")
++        || value
++            .get("$defs")
++            .and_then(JsonValue::as_object)
++            .and_then(|definitions| definitions.get("OresOtelConfigV1"))
++            .is_none()
++    {
++        error(
++            report,
++            "otel-json-schema-authority-shape",
++            "vendored JSON Schema peer authority must be Draft 2020-12 and define OresOtelConfigV1 independently of generated Schema B",
++            JSON_SCHEMA_AUTHORITY,
++        );
++    }
++}
++
++fn audit_tjsv_workflow(root: &Path, report: &mut CommandReport) {
++    let workflow = match read_evidence_file(root, TJSV_WORKFLOW, "TJSV workflow", report) {
++        EvidenceFile::Present(workflow) => workflow,
++        EvidenceFile::Missing => {
++            error(
++                report,
++                "otel-tjsv-workflow-missing",
++                "vendored OTel peer authorities require a repository workflow that runs TJSV against both authored inputs",
++                TJSV_WORKFLOW,
++            );
++            return;
++        }
++        EvidenceFile::Invalid => return,
++    };
++
++    let issues_before = report.issue_count();
++    if !has_immutable_tjsv_action(&workflow) {
++        error(
++            report,
++            "otel-tjsv-workflow-pin",
++            "TJSV must be referenced at an immutable 40-character Git commit SHA",
++            TJSV_WORKFLOW,
++        );
++    }
++
++    for (marker, purpose) in [
++        (
++            &format!("typespec: {TYPESPEC_AUTHORITY}"),
++            "human-authored TypeSpec input",
++        ),
++        (
++            &format!("schema: {JSON_SCHEMA_AUTHORITY}"),
++            "independently authored JSON Schema input",
++        ),
++    ] {
++        if !workflow.contains(marker) {
++            error(
++                report,
++                "otel-tjsv-workflow-input",
++                &format!("TJSV workflow must name the {purpose}"),
++                TJSV_WORKFLOW,
++            );
++        }
++    }
++
++    for key in ["instances:", "report:", "contract_ir:", "output_dir:"] {
++        if !workflow
++            .lines()
++            .any(|line| line.trim_start().starts_with(key))
++        {
++            error(
++                report,
++                "otel-tjsv-workflow-evidence",
++                "TJSV workflow must retain differential instances, parity report, Contract IR, and generated Schema B evidence",
++                TJSV_WORKFLOW,
++            );
++        }
++    }
++
++    if report.issue_count() == issues_before {
++        report.push(
++            Finding::info(
++                "otel-peer-authorities-wired",
++                "TypeSpec and authored JSON Schema are first-class independent peers; pinned TJSV is wired to transpile TypeSpec to comparison Schema B, compare Schema B with authored Schema A, and retain differential evidence",
++            )
++            .with_target(TJSV_WORKFLOW),
++        );
++    }
++}
++
++fn has_immutable_tjsv_action(workflow: &str) -> bool {
++    workflow.lines().any(|line| {
++        let Some(rest) = line.trim().strip_prefix("uses: ") else {
++            return false;
++        };
++        let Some(revision) = rest.strip_prefix(TJSV_ACTION) else {
++            return false;
++        };
++        let revision = revision.split_whitespace().next().unwrap_or_default();
++        revision.len() == 40
++            && revision
++                .bytes()
++                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
++    })
++}
++
++#[derive(Debug)]
++enum EvidenceFile {
++    Missing,
++    Invalid,
++    Present(String),
++}
++
++fn read_evidence_file(
++    root: &Path,
++    relative: &str,
++    label: &str,
++    report: &mut CommandReport,
++) -> EvidenceFile {
++    let path = root.join(relative);
++    let metadata = match fs::symlink_metadata(&path) {
++        Ok(metadata) => metadata,
++        Err(error) if error.kind() == io::ErrorKind::NotFound => return EvidenceFile::Missing,
++        Err(_) => {
++            error(
++                report,
++                "otel-peer-authority-unreadable",
++                &format!("{label} evidence metadata could not be read"),
++                relative,
++            );
++            return EvidenceFile::Invalid;
++        }
++    };
++    if metadata.file_type().is_symlink() || !metadata.is_file() {
++        error(
++            report,
++            "otel-peer-authority-file",
++            &format!("{label} evidence must be a regular non-symlink file"),
++            relative,
++        );
++        return EvidenceFile::Invalid;
++    }
++    if metadata.len() > MAX_EVIDENCE_BYTES {
++        error(
++            report,
++            "otel-peer-authority-size",
++            &format!("{label} evidence exceeds the 1 MiB audit bound"),
++            relative,
++        );
++        return EvidenceFile::Invalid;
++    }
++    match fs::read_to_string(path) {
++        Ok(text) if text.trim().is_empty() => {
++            error(
++                report,
++                "otel-peer-authority-empty",
++                &format!("{label} evidence must not be empty"),
++                relative,
++            );
++            EvidenceFile::Invalid
++        }
++        Ok(text) => EvidenceFile::Present(text),
++        Err(_) => {
++            error(
++                report,
++                "otel-peer-authority-unreadable",
++                &format!("{label} evidence could not be read as UTF-8"),
++                relative,
++            );
++            EvidenceFile::Invalid
++        }
++    }
++}
++
+ fn closed_keys(
+     table: &toml::map::Map<String, Value>,
+     allowed: &[&str],
+@@ -258,6 +498,7 @@ fn error(report: &mut CommandReport, code: &str, message: &str, target: &str) {
+ #[cfg(test)]
+ mod tests {
+     use std::fs;
++    use std::path::Path;
+ 
+     use tempfile::tempdir;
+ 
+@@ -265,23 +506,7 @@ mod tests {
+     use crate::audit::RepositoryAuditOptions;
+     use crate::model::CommandReport;
+ 
+-    fn audit(contents: &str) -> CommandReport {
+-        let root = tempdir().expect("temporary repository");
+-        fs::write(root.path().join(".ores-otel.toml"), contents).expect("write OTel config");
+-        augment_otel_runtime_toml_audit(
+-            &RepositoryAuditOptions {
+-                path: root.path().to_path_buf(),
+-                profile: "baseline".to_owned(),
+-                additional_required_paths: Vec::new(),
+-            },
+-            CommandReport::new("audit repo"),
+-        )
+-    }
+-
+-    #[test]
+-    fn common_and_mixed_role_shapes_pass() {
+-        let report = audit(
+-            r#"
++    const VALID_CONFIG: &str = r#"
+ version = 1
+ 
+ [common]
+@@ -317,8 +542,85 @@ service_name = "api"
+ 
+ [server.tracing]
+ sample_ratio = 1
+-"#,
+-        );
++"#;
++
++    const VALID_TYPESPEC: &str = r#"
++import "@typespec/json-schema";
++using TypeSpec.JsonSchema;
++namespace OresOtel;
++@id("OresOtelConfigV1")
++model OresOtelConfigV1 { version: integer; }
++"#;
++
++    const VALID_SCHEMA: &str = r#"{
++  "$schema": "https://json-schema.org/draft/2020-12/schema",
++  "$defs": { "OresOtelConfigV1": { "type": "object" } }
++}"#;
++
++    const VALID_WORKFLOW: &str = r#"
++name: ORES OTEL config contract
++jobs:
++  validate:
++    steps:
++      - uses: ORESoftware/typespec-json-schema-validator@4a5d049218adc2740d4cf78f612caf7f38f6f64c
++        with:
++          typespec: validation/evidence/ores-otel-config-v1/main.tsp
++          schema: validation/evidence/ores-otel-config-v1/authored.schema.json
++          instances: .contract/instances
++          report: .contract/tjsv-report.json
++          contract_ir: .contract/tjsv-contract-ir.json
++          output_dir: .contract/generated
++"#;
++
++    fn run_audit(root: &Path) -> CommandReport {
++        augment_otel_runtime_toml_audit(
++            &RepositoryAuditOptions {
++                path: root.to_path_buf(),
++                profile: "baseline".to_owned(),
++                additional_required_paths: Vec::new(),
++            },
++            CommandReport::new("audit repo"),
++        )
++    }
++
++    fn audit(contents: &str) -> CommandReport {
++        let root = tempdir().expect("temporary repository");
++        fs::write(root.path().join(".ores-otel.toml"), contents).expect("write OTel config");
++        run_audit(root.path())
++    }
++
++    fn write_peer_evidence(root: &Path, typespec: Option<&str>, schema: Option<&str>, workflow: Option<&str>) {
++        if typespec.is_some() || schema.is_some() {
++            fs::create_dir_all(root.join("validation/evidence/ores-otel-config-v1"))
++                .expect("create authority evidence directory");
++        }
++        if let Some(typespec) = typespec {
++            fs::write(
++                root.join("validation/evidence/ores-otel-config-v1/main.tsp"),
++                typespec,
++            )
++            .expect("write TypeSpec authority");
++        }
++        if let Some(schema) = schema {
++            fs::write(
++                root.join("validation/evidence/ores-otel-config-v1/authored.schema.json"),
++                schema,
++            )
++            .expect("write JSON Schema authority");
++        }
++        if let Some(workflow) = workflow {
++            fs::create_dir_all(root.join(".github/workflows")).expect("create workflow directory");
++            fs::write(
++                root.join(".github/workflows/ores-otel-config-contract.yml"),
++                workflow,
++            )
++            .expect("write TJSV workflow");
++        }
++    }
++
++    #[test]
++    fn common_and_mixed_role_shapes_pass() {
++        let report = audit(VALID_CONFIG);
+         assert_eq!(report.issue_count(), 0, "{:#?}", report.findings);
+         assert!(
+             report
+@@ -326,6 +628,12 @@ sample_ratio = 1
+                 .iter()
+                 .any(|finding| finding.code == "otel-domain-inspected")
+         );
++        assert!(
++            report
++                .findings
++                .iter()
++                .any(|finding| finding.code == "otel-peer-authority-external")
++        );
+     }
+ 
+     #[test]
+@@ -388,4 +696,64 @@ endpoint_env = ""
+             );
+         }
+     }
++
++    #[test]
++    fn vendored_authorities_are_an_inseparable_pair() {
++        let root = tempdir().expect("temporary repository");
++        fs::write(root.path().join(".ores-otel.toml"), VALID_CONFIG).expect("write OTel config");
++        write_peer_evidence(root.path(), Some(VALID_TYPESPEC), None, None);
++        let report = run_audit(root.path());
++        assert!(
++            report
++                .findings
++                .iter()
++                .any(|finding| finding.code == "otel-peer-authority-incomplete"),
++            "{:#?}",
++            report.findings
++        );
++    }
++
++    #[test]
++    fn vendored_authorities_require_pinned_schema_b_comparison_workflow() {
++        let root = tempdir().expect("temporary repository");
++        fs::write(root.path().join(".ores-otel.toml"), VALID_CONFIG).expect("write OTel config");
++        write_peer_evidence(
++            root.path(),
++            Some(VALID_TYPESPEC),
++            Some(VALID_SCHEMA),
++            Some(&VALID_WORKFLOW.replace(
++                "@4a5d049218adc2740d4cf78f612caf7f38f6f64c",
++                "@main",
++            )),
++        );
++        let report = run_audit(root.path());
++        assert!(
++            report
++                .findings
++                .iter()
++                .any(|finding| finding.code == "otel-tjsv-workflow-pin"),
++            "{:#?}",
++            report.findings
++        );
++    }
++
++    #[test]
++    fn vendored_peer_authorities_and_tjsv_wiring_pass_together() {
++        let root = tempdir().expect("temporary repository");
++        fs::write(root.path().join(".ores-otel.toml"), VALID_CONFIG).expect("write OTel config");
++        write_peer_evidence(
++            root.path(),
++            Some(VALID_TYPESPEC),
++            Some(VALID_SCHEMA),
++            Some(VALID_WORKFLOW),
++        );
++        let report = run_audit(root.path());
++        assert_eq!(report.issue_count(), 0, "{:#?}", report.findings);
++        assert!(
++            report
++                .findings
++                .iter()
++                .any(|finding| finding.code == "otel-peer-authorities-wired")
++        );
++    }
++}
