@@ -1,0 +1,153 @@
+name: Dependency risk exact-head gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/dependency-risk-exact-head.yml'
+      - 'src/dependency_risk.rs'
+      - 'fixtures/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+  pull_request:
+    paths:
+      - '.github/workflows/dependency-risk-exact-head.yml'
+      - 'src/dependency_risk.rs'
+      - 'fixtures/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/dependency-risk-exact-head.yml
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: '1.97.0'
+          components: rustfmt, clippy
+
+      - name: Restore Rust cache
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
+      - name: Prove the classifier boundary remains pure
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("src/dependency_risk.rs")
+          if not path.is_file() or path.is_symlink():
+              raise SystemExit("src/dependency_risk.rs must be a regular file")
+          raw = path.read_bytes()
+          if len(raw) > 512 * 1024:
+              raise SystemExit("dependency-risk module exceeds the review bound")
+          text = raw.decode("utf-8")
+          forbidden = {
+              "filesystem": r"\bstd::fs\b|\btokio::fs\b",
+              "network": r"\bstd::net\b|\breqwest\b|\bhyper::client\b|\btonic::transport\b",
+              "process": r"\bstd::process\b|\btokio::process\b|\bCommand\s*::",
+              "environment": r"\bstd::env\b|\benv!\s*\(|\boption_env!\s*\(",
+              "clock": r"\bSystemTime\b|\bInstant\b|\bUtc::now\b|\bLocal::now\b",
+              "randomness": r"\brand::|\bgetrandom\b|\bUuid::new_v4\b",
+              "database": r"\bsea_orm\b|\bsqlx\b|\bdiesel\b",
+              "runtime": r"\btokio::spawn\b|\bstd::thread\b",
+          }
+          failures = [
+              name
+              for name, pattern in forbidden.items()
+              if re.search(pattern, text)
+          ]
+          if failures:
+              raise SystemExit(
+                  "dependency-risk classifier crossed purity boundaries: "
+                  + ", ".join(sorted(failures))
+              )
+          required = (
+              "auto_merge_authorized",
+              "candidate_head",
+              "evidence_head",
+              "policy_digest",
+          )
+          missing = [token for token in required if token not in text]
+          if missing:
+              raise SystemExit(
+                  "dependency-risk evidence contract is missing: "
+                  + ", ".join(missing)
+              )
+          if not re.search(r"auto_merge_authorized\s*:\s*false\b", text):
+              raise SystemExit("auto_merge_authorized must be emitted as false")
+          PY
+
+      - name: Verify canonical formatting
+        shell: bash
+        run: cargo fmt --all -- --check
+
+      - name: Run strict Clippy
+        shell: bash
+        run: cargo clippy --locked --all-targets --all-features -- -D warnings
+
+      - name: Run dependency-risk tests
+        shell: bash
+        run: cargo test --locked --all dependency_risk -- --nocapture
+
+      - name: Run the complete repository test gate
+        shell: bash
+        run: cargo test --locked --all
+
+      - name: Parse tracked JSON evidence fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+
+          candidates = sorted(
+              path
+              for path in Path("fixtures").rglob("*.json")
+              if "dependency" in path.as_posix().casefold()
+              or "risk" in path.as_posix().casefold()
+          )
+          if len(candidates) < 7:
+              raise SystemExit(
+                  f"expected at least seven dependency-risk JSON fixtures; found {len(candidates)}"
+              )
+          for path in candidates:
+              if path.is_symlink() or not path.is_file():
+                  raise SystemExit(f"fixture must be a regular file: {path}")
+              raw = path.read_bytes()
+              if len(raw) > 256 * 1024:
+                  raise SystemExit(f"fixture exceeds size bound: {path}")
+              json.loads(raw.decode("utf-8"))
+          print(f"validated {len(candidates)} dependency-risk JSON fixtures")
+          PY
+
+      - name: Require an unchanged tracked worktree
+        shell: bash
+        run: git diff --exit-code
