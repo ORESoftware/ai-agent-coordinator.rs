@@ -1,0 +1,133 @@
+name: Daily briefing receipts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/daily-briefing-receipts.yml'
+      - 'docs/daily-briefing-receipts.md'
+      - 'fixtures/daily-briefing-lanes-v1.json'
+      - 'scripts/daily_briefing_receipts.py'
+      - 'scripts/test_daily_briefing_receipts.py'
+      - 'scripts/validate_daily_briefing_receipts.py'
+  pull_request:
+    paths:
+      - '.github/workflows/daily-briefing-receipts.yml'
+      - 'docs/daily-briefing-receipts.md'
+      - 'fixtures/daily-briefing-lanes-v1.json'
+      - 'scripts/daily_briefing_receipts.py'
+      - 'scripts/test_daily_briefing_receipts.py'
+      - 'scripts/validate_daily_briefing_receipts.py'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Validate workflow syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/repo" \
+            --workdir /repo \
+            rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 \
+            .github/workflows/daily-briefing-receipts.yml
+
+      - name: Compile Python contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            scripts/daily_briefing_receipts.py \
+            scripts/validate_daily_briefing_receipts.py \
+            scripts/test_daily_briefing_receipts.py
+
+      - name: Run adversarial contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest -v scripts/test_daily_briefing_receipts.py
+
+      - name: Verify the complete synthetic lane fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/validate_daily_briefing_receipts.py lanes \
+            fixtures/daily-briefing-lanes-v1.json \
+            --require-ready --json > lane-report.json
+          python3 - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          report = json.loads(Path('lane-report.json').read_text(encoding='utf-8'))
+          assert report['valid'] is True
+          assert report['ready_for_composition'] is True
+          assert report['expected_lane_count'] == 8
+          assert report['receipt_count'] == 8
+          assert report['blocking_lanes'] == []
+          assert re.fullmatch(r'[0-9a-f]{64}', report['manifest_sha256'])
+          assert re.fullmatch(r'[0-9a-f]{64}', report['envelope_sha256'])
+          PY
+
+      - name: Prove composition blocks on an unavailable lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          source = Path('fixtures/daily-briefing-lanes-v1.json')
+          manifest = json.loads(source.read_text(encoding='utf-8'))
+          receipt = manifest['receipts'][0]
+          receipt.update(
+              {
+                  'status': 'blocked',
+                  'result_sha256': None,
+                  'result_bytes': None,
+                  'item_count': None,
+                  'reason_code': 'source-authorization-unavailable',
+              }
+          )
+          Path('blocked-lanes.json').write_text(
+              json.dumps(manifest, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+          status=0
+          set +e
+          python3 scripts/validate_daily_briefing_receipts.py lanes \
+            blocked-lanes.json \
+            --require-ready --json > blocked-report.json
+          status=$?
+          set -e
+          test "$status" -eq 4
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          report = json.loads(Path('blocked-report.json').read_text(encoding='utf-8'))
+          assert report['valid'] is True
+          assert report['ready_for_composition'] is False
+          assert report['blocking_lanes'] == ['github']
+          PY
+
+      - name: Require a clean tracked worktree
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f lane-report.json blocked-lanes.json blocked-report.json
+          test -z "$(git status --porcelain)"
