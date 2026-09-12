@@ -1,0 +1,108 @@
+name: Sync ores-cli Chat v2 evidence
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - DEN-390-ores-cli-chat-v2-probe
+    paths:
+      - ".github/workflows/sync-ores-cli-chat-v2.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-ores-cli-chat-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out evidence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: DEN-390-ores-cli-chat-v2-probe
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Copy exact immutable upstream source and write manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import json
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          repository = 'ORESoftware/ores-cli'
+          branch = 'feat/DEN-390-chat-v2-audit'
+          branch_url = (
+              f'https://api.github.com/repos/{repository}/branches/'
+              + urllib.parse.quote(branch, safe='')
+          )
+          request = urllib.request.Request(
+              branch_url,
+              headers={
+                  'Accept': 'application/vnd.github+json',
+                  'User-Agent': 'ores-cli-chat-v2-source-sync',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=30) as response:
+              source_commit = json.load(response)['commit']['sha']
+
+          files = [
+              (
+                  'src/audit/runtime_toml_chat.rs',
+                  'evidence/ores-cli-chat-v2/src/audit/runtime_toml_chat.rs',
+              ),
+              (
+                  'src/audit/runtime_toml_chat_tests.rs',
+                  'evidence/ores-cli-chat-v2/src/audit/runtime_toml_chat_tests.rs',
+              ),
+          ]
+          manifest_files = []
+          for source_path, evidence_path in files:
+              quoted = urllib.parse.quote(source_path, safe='/')
+              url = f'https://api.github.com/repos/{repository}/contents/{quoted}?ref={source_commit}'
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      'Accept': 'application/vnd.github+json',
+                      'User-Agent': 'ores-cli-chat-v2-source-sync',
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  payload = json.load(response)
+              Path(evidence_path).write_bytes(base64.b64decode(payload['content']))
+              manifest_files.append(
+                  {
+                      'sourcePath': source_path,
+                      'evidencePath': evidence_path,
+                      'blobSha': payload['sha'],
+                  }
+              )
+
+          manifest = {
+              'schema': 'ores.cli.exact-source-manifest/v1',
+              'sourceRepository': repository,
+              'sourceCommit': source_commit,
+              'files': manifest_files,
+          }
+          Path('evidence/ores-cli-chat-v2/source-manifest.json').write_text(
+              json.dumps(manifest, indent=2) + '\n'
+          )
+          PY
+          git diff --check
+          if git diff --quiet -- evidence/ores-cli-chat-v2; then
+            echo 'evidence already matches the source branch head'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evidence/ores-cli-chat-v2
+          git commit -m 'test(DEN-390): sync exact Chat v2 source bytes'
+          git push origin HEAD:DEN-390-ores-cli-chat-v2-probe
