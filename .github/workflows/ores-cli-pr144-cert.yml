@@ -1,0 +1,127 @@
+name: ores-cli PR144 exact-head certification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ores-cli-pr144-cert.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  certify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out certification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+          show-progress: false
+
+      - name: Require private-source read credential
+        env:
+          FLEET_TOKEN: ${{ secrets.FLEET_GITHUB_READ_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$FLEET_TOKEN" || {
+            echo 'FLEET_GITHUB_READ_TOKEN is unavailable to this repository' >&2
+            exit 1
+          }
+
+      - name: Check out exact ores-cli PR144 head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: 4779b1b226c61f0b8102c64b097614c52bf1d402
+          token: ${{ secrets.FLEET_GITHUB_READ_TOKEN }}
+          path: candidate
+          persist-credentials: false
+          fetch-depth: 1
+          show-progress: false
+
+      - name: Verify exact source identity and clean patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C candidate rev-parse HEAD)" = '4779b1b226c61f0b8102c64b097614c52bf1d402'
+          git -C candidate diff --check
+          status=0
+          git -C candidate grep -n -I -E '^(<<<<<<< .+|=======|>>>>>>> .+)$' -- . ':(exclude)Cargo.lock' || status=$?
+          test "$status" -eq 1
+          test -z "$(git -C candidate status --porcelain)"
+
+      - name: Verify shell lifecycle contracts
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -x post-install.sh
+          command -v zsh >/dev/null
+          bash -n post-install.sh
+          bash -n tests/post_install.sh
+          bash -n tests/shell_install_contract.sh
+          bash -n tests/tjsv_lifecycle_contract.sh
+          bash -n tests/launcher_symlink_contract.sh
+          bash tests/post_install.sh
+          bash tests/shell_install_contract.sh
+          bash tests/tjsv_lifecycle_contract.sh
+          bash tests/launcher_symlink_contract.sh
+
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+
+      - name: Verify committed dependency graph
+        working-directory: candidate
+        run: cargo metadata --locked --format-version 1 > /dev/null
+
+      - name: Check formatting
+        working-directory: candidate
+        run: cargo fmt --all --check
+
+      - name: Run warning-denied Clippy
+        working-directory: candidate
+        run: cargo clippy --all-targets --all-features --locked -- -D warnings
+
+      - name: Run all Rust tests
+        working-directory: candidate
+        run: cargo test --all-targets --all-features --locked
+
+      - name: Audit Cargo and zed-pkg parity
+        working-directory: candidate
+        run: cargo run --quiet --locked -- audit package --path . > "$RUNNER_TEMP/package-audit.jsonl"
+
+      - name: Verify explicit plain stdout
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo run --quiet --locked -- --no-json audit package --path . > "$RUNNER_TEMP/package-audit.txt"
+          grep -F 'status=passed command=audit package' "$RUNNER_TEMP/package-audit.txt"
+          if grep -Eq '^[[:space:]]*\{' "$RUNNER_TEMP/package-audit.txt"; then
+            echo 'plain mode emitted JSON' >&2
+            exit 1
+          fi
+
+      - name: Assert value-flow regression coverage exists
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -R -q 'merge_page' src tests
+          grep -R -q 'conflicting' src tests
+          grep -R -q 'IntoIterator' src tests
+
+      - name: Prove validation left source clean
+        working-directory: candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --exit-code HEAD
+          test -z "$(git status --porcelain)"
