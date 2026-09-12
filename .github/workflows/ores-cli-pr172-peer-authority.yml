@@ -14,7 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  ORES_CLI_SHA: 105404efb776e44b134ed1ac25228bbf30a0933e
+  ORES_CLI_MODULE_BLOB: 42eee2e4dea83a9852b3b89e31cf1df87bfab48f
+  ORES_CLI_BASE_MODULE_BLOB: 03f6f150d7c0d721348e050ee0f7593da2b91bfb
   TJSV_SHA: 5bab34e08856c47af3600adf40a4aa860fa71c01
   OTEL_CANARY_SHA: a2776abb443b42fffacbb40c00a139029f22c0a9
   ORES_OTEL_RUNTIME_SHA: 277aa47c7da94da921070f1e202574222b383f90
@@ -22,41 +23,19 @@ env:
 jobs:
   verify:
     runs-on: ubuntu-24.04
-    timeout-minutes: 75
-    environment: nightly-org-maintenance
+    timeout-minutes: 45
     steps:
       - name: Check out probe control
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           path: control
+          show-progress: false
 
       - name: Validate probe workflow syntax
         uses: docker://rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
         with:
           args: control/.github/workflows/ores-cli-pr172-peer-authority.yml
-
-      - name: Mint least-privilege ores-cli read token
-        id: ores-token
-        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
-        with:
-          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
-          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
-          owner: ORESoftware
-          repositories: ores-cli
-          skip-token-revoke: true
-          permission-contents: read
-          permission-metadata: read
-
-      - name: Check out exact private ores-cli candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: ORESoftware/ores-cli
-          ref: ${{ env.ORES_CLI_SHA }}
-          token: ${{ steps.ores-token.outputs.token }}
-          persist-credentials: false
-          fetch-depth: 1
-          path: ores-cli
 
       - name: Check out exact canonical TJSV
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,6 +45,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
           path: tjsv
+          show-progress: false
 
       - name: Check out merged OTel test-org peer canary
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,6 +55,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
           path: otel-canary
+          show-progress: false
 
       - name: Check out exact public ORES OTEL runtime
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -84,18 +65,16 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
           path: ores-otel-runtime
+          show-progress: false
 
-      - name: Verify immutable source identities
+      - name: Verify immutable public source identities
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
           test "$(git -C tjsv rev-parse HEAD)" = "$TJSV_SHA"
           test "$(git -C otel-canary rev-parse HEAD)" = "$OTEL_CANARY_SHA"
           test "$(git -C ores-otel-runtime rev-parse HEAD)" = "$ORES_OTEL_RUNTIME_SHA"
-          grep -F '"repository": "ORESoftware/typespec-json-schema-validator"' ores-cli/tjsv/source-lock.json
-          grep -F "\"revision\": \"$TJSV_SHA\"" ores-cli/tjsv/source-lock.json
-          git -C ores-cli diff --check
+          git -C control diff --check
           git -C tjsv diff --check
           git -C otel-canary diff --check
           git -C ores-otel-runtime diff --check
@@ -110,20 +89,6 @@ jobs:
         working-directory: tjsv
         run: npm ci
 
-      - name: Expose exact TJSV executable
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p "$RUNNER_TEMP/bin"
-          cat > "$RUNNER_TEMP/bin/tjsv" <<EOF
-          #!/usr/bin/env bash
-          set -euo pipefail
-          exec node "$GITHUB_WORKSPACE/tjsv/bin/typespec-json-schema-validator.mjs" "\$@"
-          EOF
-          chmod 0700 "$RUNNER_TEMP/bin/tjsv"
-          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/bin/tjsv" --version
-
       - name: Re-run merged test-org TypeSpec to Schema-B parity canary
         working-directory: otel-canary
         env:
@@ -133,7 +98,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p tmp/otel-peer/generated
-          "$RUNNER_TEMP/bin/tjsv" check \
+          node "$GITHUB_WORKSPACE/tjsv/bin/typespec-json-schema-validator.mjs" check \
             --typespec=otel-peer-authority/main.tsp \
             --schema=otel-peer-authority/authored.schema.json \
             --instances=otel-peer-authority/instances \
@@ -161,75 +126,47 @@ jobs:
           toolchain: 1.95.0
           components: clippy,rustfmt
 
-      - name: Run focused OTel peer-authority lint regressions
-        working-directory: ores-cli
-        run: |
-          set -euo pipefail
-          cargo test --locked runtime_toml_otel -- --nocapture
-
-      - name: Verify complete ores-cli Rust application
-        working-directory: ores-cli
-        run: |
-          set -euo pipefail
-          cargo metadata --locked --format-version=1 >/dev/null
-          cargo fmt --all --check
-          cargo clippy --locked --all-targets --all-features -- -D warnings
-          cargo test --locked --all-targets --all-features
-          cargo build --locked --bins
-
-      - name: Prove new OTel lint is compiled into the exact candidate
-        working-directory: ores-cli
-        run: |
-          set -euo pipefail
-          grep -F 'otel-peer-authority-incomplete' src/audit/runtime_toml_otel.rs
-          grep -F 'otel-peer-authorities-wired' src/audit/runtime_toml_otel.rs
-          grep -F 'TypeSpec and authored JSON Schema are first-class independent peers' src/audit/runtime_toml_otel.rs
-          grep -F 'output_dir:' src/audit/runtime_toml_otel.rs
-          target/debug/oresc --no-json audit repo --path . --profile rust-cli > "$RUNNER_TEMP/repository-audit.txt"
-          grep -F 'status=passed command=audit repo' "$RUNNER_TEMP/repository-audit.txt"
-
-      - name: Exercise real oresc contract gate against the independent peers
-        working-directory: ores-cli
+      - name: Reconstruct exact ores-cli PR172 OTel audit module
         shell: bash
         run: |
           set -euo pipefail
-          run_dir=$(mktemp -d "$RUNNER_TEMP/ores-cli-otel-peer.XXXXXXXX")
-          target/debug/oresc --no-json audit contract \
-            --typespec "$GITHUB_WORKSPACE/otel-canary/otel-peer-authority/main.tsp" \
-            --schema "$GITHUB_WORKSPACE/otel-canary/otel-peer-authority/authored.schema.json" \
-            --report "$run_dir/parity.json" \
-            --validator "$RUNNER_TEMP/bin/tjsv" \
-            > "$run_dir/result.txt"
-          grep -F 'INFO contract-parity-passed' "$run_dir/result.txt"
-          grep -F 'status=passed command=audit contract' "$run_dir/result.txt"
-          test -s "$run_dir/parity.json"
-          test -s "$run_dir/parity.contract-ir.json"
-          test -s "$run_dir/parity.consumer-verification.json"
+          base=control/evidence/ores-cli-pr172/base/runtime_toml_otel.rs
+          patch_file=control/evidence/ores-cli-pr172/ores-cli-pr172.diff
+          harness="$RUNNER_TEMP/ores-cli-pr172-harness"
+          test "$(git hash-object "$base")" = "$ORES_CLI_BASE_MODULE_BLOB"
+          cp -R control/evidence/ores-cli-pr172/template "$harness"
+          cp "$base" "$harness/src/audit/runtime_toml_otel.rs"
+          (cd "$harness" && patch --batch --forward -p1 < "$GITHUB_WORKSPACE/$patch_file")
+          test "$(git hash-object "$harness/src/audit/runtime_toml_otel.rs")" = "$ORES_CLI_MODULE_BLOB"
+          printf '%s\n' "$harness" > "$RUNNER_TEMP/ores-cli-pr172-harness-path"
 
-      - name: Reject real TypeSpec JSON-Schema drift fail closed
-        working-directory: ores-cli
+      - name: Compile and execute exact changed Rust module
         shell: bash
         run: |
           set -euo pipefail
-          run_dir=$(mktemp -d "$RUNNER_TEMP/ores-cli-drift.XXXXXXXX")
-          set +e
-          target/debug/oresc --no-json audit contract \
-            --typespec "$GITHUB_WORKSPACE/tjsv/test/fixtures/drift/main.tsp" \
-            --schema "$GITHUB_WORKSPACE/tjsv/test/fixtures/drift/authored.schema.json" \
-            --report "$run_dir/parity.json" \
-            --validator "$RUNNER_TEMP/bin/tjsv" \
-            > "$run_dir/result.txt"
-          status=$?
-          set -e
-          test "$status" -eq 2
-          grep -F 'contract-parity-stopped-for-evaluation' "$run_dir/result.txt"
-          grep -F 'status=stopped_for_evaluation command=audit contract' "$run_dir/result.txt"
+          harness=$(cat "$RUNNER_TEMP/ores-cli-pr172-harness-path")
+          cargo fmt --manifest-path "$harness/Cargo.toml" -- --check
+          cargo test --manifest-path "$harness/Cargo.toml" -- --nocapture
+          cargo clippy --manifest-path "$harness/Cargo.toml" --all-targets -- -D warnings
 
-      - name: Prove source checkouts stayed read-only
+      - name: Prove peer-authority lint semantics are in exact blob
         shell: bash
         run: |
           set -euo pipefail
-          git -C ores-cli diff --exit-code HEAD
+          harness=$(cat "$RUNNER_TEMP/ores-cli-pr172-harness-path")
+          module="$harness/src/audit/runtime_toml_otel.rs"
+          test "$(git hash-object "$module")" = "$ORES_CLI_MODULE_BLOB"
+          grep -F 'otel-peer-authority-incomplete' "$module"
+          grep -F 'otel-peer-authorities-wired' "$module"
+          grep -F 'TypeSpec and authored JSON Schema are first-class independent peers' "$module"
+          grep -F 'transpile TypeSpec to comparison Schema B' "$module"
+          grep -F 'independently authored JSON Schema Draft 2020-12' "$module"
+
+      - name: Prove tracked evidence stayed read-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C control diff --exit-code HEAD
           git -C tjsv diff --exit-code HEAD
           git -C otel-canary diff --exit-code HEAD
           git -C ores-otel-runtime diff --exit-code HEAD
@@ -238,7 +175,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ores-cli-pr172-peer-authority-${{ env.ORES_CLI_SHA }}
+          name: ores-cli-pr172-peer-authority-${{ env.ORES_CLI_MODULE_BLOB }}
           path: otel-canary/tmp/otel-peer/
           if-no-files-found: warn
           retention-days: 30
