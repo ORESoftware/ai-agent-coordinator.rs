@@ -1,0 +1,273 @@
+name: Live ores-otel canonical and test fleet bootstrap
+
+on:
+  push:
+    branches:
+      - agent/live-ores-otel-bootstrap-20260809
+    paths:
+      - .github/repository-bootstrap-trigger/live-ores-otel-20260809.txt
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: live-ores-otel-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RELAY_ISSUE: '135'
+      CONFIRMATION: create:ores-otel/ores.otel.log:ores-otel-test:13:no-force
+    steps:
+      - name: Check out without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+
+      - name: Reconstruct one-time bootstrap executor
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat scripts/bootstrap_ores_otel_live.py.gz.b64.* | base64 -d | gzip -d > scripts/bootstrap_ores_otel_live.py
+          chmod 700 scripts/bootstrap_ores_otel_live.py
+
+      - name: Validate exact bootstrap source and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/bootstrap_ores_otel_live.py
+          python - <<'PY'
+          import importlib.util
+          import json
+          import sys
+          from pathlib import Path
+
+          path = Path('scripts/bootstrap_ores_otel_live.py')
+          spec = importlib.util.spec_from_file_location('bootstrap_ores_otel_live', path)
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+          _, repositories = module.load_manifest(Path('repository-fleets/ores-otel.json'))
+          assert len(repositories) == 13
+          assert len({repository.language for repository in repositories}) >= 12
+          assert all(repository.full.startswith('ores-otel-test/') for repository in repositories)
+          print(f'validated {len(repositories)} repositories across {len({r.language for r in repositories})} language/runtime entries')
+          PY
+          credential_pattern='gh[pousr]_[A-Za-z0-9]{20,}|lin_''api_[A-Za-z0-9]{20,}|cfat_[A-Za-z0-9_-]{20,}|BEGIN [A-Z ]*PRIVATE KEY'
+          if grep -nE "$credential_pattern" \
+            scripts/bootstrap_ores_otel_live.py \
+            .github/workflows/live-ores-otel-bootstrap.yml \
+            repository-fleets/ores-otel.json; then
+            echo 'Credential-shaped source is forbidden.' >&2
+            exit 1
+          fi
+          if grep -nE '^(<{7}|={7}|>{7})' \
+            scripts/bootstrap_ores_otel_live.py \
+            .github/workflows/live-ores-otel-bootstrap.yml \
+            repository-fleets/ores-otel.json; then
+            echo 'Conflict markers are forbidden.' >&2
+            exit 1
+          fi
+          grep -q 'git", "push", "canonical", "--all"' scripts/bootstrap_ores_otel_live.py
+          if grep -nE -- '--force|force_with_lease|force-with-lease|push --mirror' scripts/bootstrap_ores_otel_live.py; then
+            echo 'Force and mirror pushes are forbidden.' >&2
+            exit 1
+          fi
+
+      - name: Publish one-time RSA public key
+        id: keypair
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          umask 077
+          run_id="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(openssl rand -hex 12)"
+          openssl genpkey -algorithm RSA \
+            -pkeyopt rsa_keygen_bits:3072 \
+            -out "${RUNNER_TEMP}/private.pem" >/dev/null 2>&1
+          openssl pkey -in "${RUNNER_TEMP}/private.pem" -pubout \
+            -out "${RUNNER_TEMP}/public.pem" >/dev/null 2>&1
+          key_b64="$(base64 -w0 < "${RUNNER_TEMP}/public.pem")"
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/${RELAY_ISSUE}/comments" \
+            -f body="ORES_OTEL_LIVE_PUBLIC_KEY protocol=1 run_id=${run_id} key_b64=${key_b64} payload_fields=run_id,token,confirm" >/dev/null
+          echo "run_id=${run_id}" >> "$GITHUB_OUTPUT"
+
+      - name: Receive exactly one run-bound ciphertext
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.keypair.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          prefix="ORES_OTEL_LIVE_CIPHERTEXT protocol=1 run_id=${RUN_ID} data="
+          matches="${RUNNER_TEMP}/ores-otel-ciphertext-matches"
+
+          query_matches() {
+            gh api --paginate \
+              "repos/${GITHUB_REPOSITORY}/issues/${RELAY_ISSUE}/comments" \
+              --jq ".[] | select(.body | startswith(\"${prefix}\")) | .body" \
+              > "$matches"
+          }
+
+          reject_duplicates() {
+            local count="$1"
+            gh api --method POST \
+              "repos/${GITHUB_REPOSITORY}/issues/${RELAY_ISSUE}/comments" \
+              -f body="ORES_OTEL_LIVE_REJECTED protocol=1 run_id=${RUN_ID} reason=duplicate_ciphertexts count=${count}" >/dev/null
+            echo "Expected exactly one ciphertext; observed ${count}." >&2
+            exit 1
+          }
+
+          ciphertext=''
+          for attempt in $(seq 1 240); do
+            query_matches
+            count="$(awk 'NF { count += 1 } END { print count + 0 }' "$matches")"
+            if [ "$count" -gt 1 ]; then reject_duplicates "$count"; fi
+            if [ "$count" -eq 1 ]; then
+              sleep 10
+              query_matches
+              count="$(awk 'NF { count += 1 } END { print count + 0 }' "$matches")"
+              [ "$count" -eq 1 ] || reject_duplicates "$count"
+              line="$(cat "$matches")"
+              ciphertext="${line#"$prefix"}"
+              break
+            fi
+            sleep 5
+          done
+          test -n "$ciphertext" || {
+            echo 'Timed out waiting for encrypted credential payload.' >&2
+            exit 1
+          }
+
+          printf '%s' "$ciphertext" | base64 -d > "${RUNNER_TEMP}/ores-otel-payload.bin"
+          openssl pkeyutl -decrypt \
+            -inkey "${RUNNER_TEMP}/private.pem" \
+            -in "${RUNNER_TEMP}/ores-otel-payload.bin" \
+            -pkeyopt rsa_padding_mode:oaep \
+            -pkeyopt rsa_oaep_md:sha256 \
+            -pkeyopt rsa_mgf1_md:sha256 \
+            -out "${RUNNER_TEMP}/ores-otel-payload.json"
+          jq -e --arg run_id "$RUN_ID" --arg confirmation "$CONFIRMATION" '
+            (.run_id == $run_id) and
+            (.confirm == $confirmation) and
+            (.token | type == "string" and length >= 20 and (test("\\s") | not))
+          ' "${RUNNER_TEMP}/ores-otel-payload.json" >/dev/null
+          token="$(jq -r .token "${RUNNER_TEMP}/ores-otel-payload.json")"
+          echo "::add-mask::${token}"
+          printf '%s' "$token" > "${RUNNER_TEMP}/github-admin-token"
+          chmod 600 "${RUNNER_TEMP}/github-admin-token"
+          rm -f "$matches" "${RUNNER_TEMP}/ores-otel-payload.bin" "${RUNNER_TEMP}/ores-otel-payload.json"
+
+      - name: Mirror canonical history and create exact-head test repositories
+        id: execute
+        shell: bash
+        run: |
+          set +e
+          python scripts/bootstrap_ores_otel_live.py \
+            --manifest repository-fleets/ores-otel.json \
+            --token-file "${RUNNER_TEMP}/github-admin-token" \
+            --result "${RUNNER_TEMP}/ores-otel-result.json" \
+            --merge
+          status=$?
+          set -e
+          if [ ! -f "${RUNNER_TEMP}/ores-otel-result.json" ]; then
+            jq -n --argjson status "$status" '{schema_version:1,summary:{failures:1},canonical:{},repositories:[],failures:[{repository:"bootstrap",error:"result file was not produced"}],fatal_exit_code:$status}' \
+              > "${RUNNER_TEMP}/ores-otel-result.json"
+          fi
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+
+      - name: Publish bounded completion evidence
+        if: always() && steps.keypair.outputs.run_id != ''
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.keypair.outputs.run_id }}
+          EXIT_CODE: ${{ steps.execute.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          result="${RUNNER_TEMP}/ores-otel-result.json"
+          if [ ! -f "$result" ]; then
+            jq -n '{schema_version:1,summary:{failures:1},canonical:{},repositories:[],failures:[{repository:"bootstrap",error:"execution did not produce a result"}]}' > "$result"
+          fi
+          python - "$result" "$RUN_ID" "${EXIT_CODE:-1}" > "${RUNNER_TEMP}/ores-otel-result-comment.md" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          result = json.loads(Path(sys.argv[1]).read_text())
+          run_id = sys.argv[2]
+          exit_code = sys.argv[3]
+          summary = result.get('summary', {})
+          canonical = result.get('canonical', {})
+          lines = [
+              f'ORES_OTEL_LIVE_COMPLETE protocol=1 run_id={run_id} exit_code={exit_code}',
+              '',
+              f"- Canonical: `{canonical.get('repository', 'unknown')}`",
+              f"- Canonical SHA: `{canonical.get('canonical_sha', 'unknown')}`",
+              f"- Source SHA: `{canonical.get('source_sha', 'unknown')}`",
+              '',
+              '| Metric | Count |',
+              '|---|---:|',
+          ]
+          for key in (
+              'test_repositories_total',
+              'test_repositories_created',
+              'test_repositories_existing',
+              'pull_requests_created_or_reused',
+              'pull_requests_merged',
+              'pull_requests_open',
+              'pull_requests_failed',
+              'failures',
+          ):
+              lines.append(f"| `{key}` | {summary.get(key, 0)} |")
+          lines.extend(['', '### Repository results'])
+          for item in result.get('repositories', []):
+              repository = item.get('repository', 'unknown')
+              state = item.get('state', 'unknown')
+              pull_url = item.get('pull_request')
+              suffix = f' — [PR]({pull_url})' if pull_url else ''
+              checks = item.get('checks')
+              check_suffix = f' — checks `{checks}`' if checks else ''
+              lines.append(f'- `{repository}`: `{state}`{check_suffix}{suffix}')
+          failures = result.get('failures', [])
+          if failures:
+              lines.extend(['', '### Failures'])
+              for failure in failures:
+                  lines.append(f"- `{failure.get('repository', 'unknown')}`: {failure.get('error', 'unknown error')[:500]}")
+          print('\n'.join(lines))
+          PY
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/${RELAY_ISSUE}/comments" \
+            -F body=@"${RUNNER_TEMP}/ores-otel-result-comment.md" >/dev/null
+
+      - name: Destroy credential material
+        if: always()
+        shell: bash
+        run: |
+          rm -f \
+            "${RUNNER_TEMP}/private.pem" \
+            "${RUNNER_TEMP}/public.pem" \
+            "${RUNNER_TEMP}/ores-otel-ciphertext-matches" \
+            "${RUNNER_TEMP}/ores-otel-payload.bin" \
+            "${RUNNER_TEMP}/ores-otel-payload.json" \
+            "${RUNNER_TEMP}/github-admin-token"
+
+      - name: Preserve execution failure status
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.execute.outputs.exit_code }}
+        run: |
+          test "${EXIT_CODE:-1}" = '0'
