@@ -1,4 +1,5 @@
 name: RPC source evidence exact-head
+# Triggered from the coordinator so private dependency access stays centralized.
 
 on:
   push:
