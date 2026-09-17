@@ -4,6 +4,7 @@ name: RPC source evidence exact-head
 on:
   push:
     branches:
+      - main
       - rpc-source-evidence
     paths:
       - ".github/workflows/rpc-source-evidence.yml"
@@ -74,6 +75,7 @@ jobs:
           owner: ${{ matrix.target_owner }}
           repositories: ${{ matrix.target_repo }}
           permission-contents: write
+          permission-metadata: read
 
       - name: Mint shared-auth dependency token
         id: shared-token
@@ -84,6 +86,7 @@ jobs:
           owner: shared-auth
           repositories: shared-auth-clients
           permission-contents: read
+          permission-metadata: read
 
       - name: Mint Canonical dependency token
         if: ${{ matrix.need_canonical_deps }}
@@ -93,7 +96,9 @@ jobs:
           app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
           private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
           owner: canonical-cloud
-          repositories: canonical-lib-core,canonical-interfaces
+          repositories: |
+            canonical-lib-core
+            canonical-interfaces
           permission-contents: read
 
       - name: Mint k8s dependency token
