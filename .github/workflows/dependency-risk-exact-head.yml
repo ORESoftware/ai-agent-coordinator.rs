@@ -88,11 +88,14 @@ jobs:
                   "dependency-risk classifier crossed purity boundaries: "
                   + ", ".join(sorted(failures))
               )
+          # These are the canonical Rust evidence names. Keep this gate aligned
+          # with the serialized classifier contract instead of accepting vague
+          # aliases such as candidate_head or policy_digest.
           required = (
               "auto_merge_authorized",
-              "candidate_head",
-              "evidence_head",
-              "policy_digest",
+              "candidate_head_sha",
+              "evidence_head_sha",
+              "policy_sha256",
           )
           missing = [token for token in required if token not in text]
           if missing:
