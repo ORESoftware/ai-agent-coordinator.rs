@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+  echo 'pre-push: not inside a Git worktree' >&2
+  exit 1
+}
+lint="$root/.ores-lint/lint.sh"
+[ -x "$lint" ] || {
+  echo "pre-push: required ores-lint entrypoint is missing or not executable: $lint" >&2
+  exit 1
+}
+exec sh "$lint"
