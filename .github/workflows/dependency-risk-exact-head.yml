@@ -6,14 +6,14 @@ on:
     paths:
       - '.github/workflows/dependency-risk-exact-head.yml'
       - 'src/dependency_risk.rs'
-      - 'fixtures/**'
+      - 'tests/fixtures/dependency-risk/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
   pull_request:
     paths:
       - '.github/workflows/dependency-risk-exact-head.yml'
       - 'src/dependency_risk.rs'
-      - 'fixtures/**'
+      - 'tests/fixtures/dependency-risk/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
 
@@ -88,11 +88,14 @@ jobs:
                   "dependency-risk classifier crossed purity boundaries: "
                   + ", ".join(sorted(failures))
               )
+          # These are the canonical Rust evidence names. Keep this gate aligned
+          # with the serialized classifier contract instead of accepting vague
+          # aliases such as candidate_head or policy_digest.
           required = (
               "auto_merge_authorized",
-              "candidate_head",
-              "evidence_head",
-              "policy_digest",
+              "candidate_head_sha",
+              "evidence_head_sha",
+              "policy_sha256",
           )
           missing = [token for token in required if token not in text]
           if missing:
@@ -120,7 +123,7 @@ jobs:
         shell: bash
         run: cargo test --locked --all
 
-      - name: Parse tracked JSON evidence fixtures
+      - name: Parse canonical dependency-risk fixture corpus
         shell: bash
         run: |
           set -euo pipefail
@@ -128,24 +131,40 @@ jobs:
           from pathlib import Path
           import json
 
-          candidates = sorted(
-              path
-              for path in Path("fixtures").rglob("*.json")
-              if "dependency" in path.as_posix().casefold()
-              or "risk" in path.as_posix().casefold()
-          )
-          if len(candidates) < 7:
+          path = Path("tests/fixtures/dependency-risk/test-org-canaries.json")
+          if not path.is_file() or path.is_symlink():
+              raise SystemExit(f"fixture corpus must be a regular file: {path}")
+          raw = path.read_bytes()
+          if len(raw) > 256 * 1024:
+              raise SystemExit(f"fixture corpus exceeds size bound: {path}")
+          fixtures = json.loads(raw.decode("utf-8"))
+          if not isinstance(fixtures, list) or len(fixtures) < 7:
               raise SystemExit(
-                  f"expected at least seven dependency-risk JSON fixtures; found {len(candidates)}"
+                  f"expected at least seven dependency-risk fixture receipts; found {len(fixtures) if isinstance(fixtures, list) else 'non-list'}"
               )
-          for path in candidates:
-              if path.is_symlink() or not path.is_file():
-                  raise SystemExit(f"fixture must be a regular file: {path}")
-              raw = path.read_bytes()
-              if len(raw) > 256 * 1024:
-                  raise SystemExit(f"fixture exceeds size bound: {path}")
-              json.loads(raw.decode("utf-8"))
-          print(f"validated {len(candidates)} dependency-risk JSON fixtures")
+          repositories = []
+          ecosystems = []
+          for index, fixture in enumerate(fixtures):
+              if not isinstance(fixture, dict) or not isinstance(fixture.get("input"), dict):
+                  raise SystemExit(f"fixture {index} must contain an input object")
+              item = fixture["input"]
+              repository = item.get("repository")
+              ecosystem = item.get("ecosystem")
+              if not isinstance(repository, str) or not repository.endswith("-test/" + repository.split("/", 1)[-1]):
+                  # Every canary is intentionally scoped to a test organization.
+                  if not isinstance(repository, str) or "-test/" not in repository:
+                      raise SystemExit(f"fixture {index} is not scoped to a test org: {repository!r}")
+              if not isinstance(ecosystem, str) or not ecosystem:
+                  raise SystemExit(f"fixture {index} has no ecosystem")
+              repositories.append(repository)
+              ecosystems.append(ecosystem)
+          if len(set(repositories)) != len(repositories):
+              raise SystemExit("dependency-risk fixture repositories must be unique")
+          if len(set(ecosystems)) < 7:
+              raise SystemExit("dependency-risk corpus must cover at least seven ecosystems")
+          print(
+              f"validated {len(fixtures)} dependency-risk receipts across {len(set(ecosystems))} ecosystems"
+          )
           PY
 
       - name: Require an unchanged tracked worktree
