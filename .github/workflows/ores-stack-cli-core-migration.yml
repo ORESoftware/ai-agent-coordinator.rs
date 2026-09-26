@@ -1,0 +1,140 @@
+name: ores-stack-cli exact core migration
+
+on:
+  push:
+    branches:
+      - migration/ores-stack-cli-core-20260926
+    paths:
+      - .github/workflows/ores-stack-cli-core-migration.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-stack-cli-core-migration
+  cancel-in-progress: false
+
+env:
+  LEGACY_SHA: 2fd66cfaaf0d014f0e27cf29eae6a943928724c5
+  EXPECTED_CORE_TREE: 93d215a4433e7c0a6028b270dec0c01149918a86
+  EXPECTED_LOCK_BLOB: 5980d0e4cf9386106244874a0a3ab991c63aa40c
+  TARGET_BRANCH: migration/current-main-parity-20260925
+
+jobs:
+  migrate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment:
+      name: nightly-org-maintenance
+      deployment: false
+    steps:
+      - name: Mint legacy read token
+        id: legacy-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-stack
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Mint target write token
+        id: target-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ores-stack
+          repositories: ores-stack-cli
+          permission-contents: write
+          permission-metadata: read
+
+      - name: Check out immutable legacy source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-stack
+          ref: ${{ env.LEGACY_SHA }}
+          token: ${{ steps.legacy-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: legacy
+
+      - name: Check out target migration branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ores-stack/ores-stack-cli
+          ref: ${{ env.TARGET_BRANCH }}
+          token: ${{ steps.target-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 0
+          path: target
+
+      - name: Prove immutable source identities
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C legacy rev-parse HEAD)" = "$LEGACY_SHA"
+          test "$(git -C legacy rev-parse HEAD:crates/ores-stack-core)" = "$EXPECTED_CORE_TREE"
+          test "$(git -C legacy hash-object Cargo.lock)" = "$EXPECTED_LOCK_BLOB"
+          git -C legacy diff --exit-code
+
+      - name: Restore exact core and lock
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf target/crates/ores-stack-core
+          cp -a legacy/crates/ores-stack-core target/crates/ores-stack-core
+          cp legacy/Cargo.lock target/Cargo.lock
+
+      - name: Remove superseded branch-local migration experiments
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            target/.github/workflows/migration-private-core-snapshot.yml \
+            target/.github/workflows/migrate-legacy-parity.yml \
+            target/.github/workflows/restore-legacy-tree.yml
+
+      - name: Prove exact target subtree before commit
+        shell: bash
+        working-directory: target
+        run: |
+          set -euo pipefail
+          git add -A -- crates/ores-stack-core Cargo.lock .github/workflows
+          test "$(git hash-object Cargo.lock)" = "$EXPECTED_LOCK_BLOB"
+          root_tree="$(git write-tree)"
+          copied_core_tree="$(git ls-tree "$root_tree" crates/ores-stack-core | awk '{print $3}')"
+          test "$copied_core_tree" = "$EXPECTED_CORE_TREE"
+          git diff --cached --check
+          test -z "$(git status --porcelain | awk '{print $2}' | grep -v -E '^(Cargo.lock|crates/ores-stack-core/|\.github/workflows/(migration-private-core-snapshot|migrate-legacy-parity|restore-legacy-tree)\.yml$)' || true)"
+
+      - name: Commit and push exact closure
+        shell: bash
+        working-directory: target
+        env:
+          TARGET_TOKEN: ${{ steps.target-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          if git diff --cached --quiet; then
+            echo 'Exact pinned core/lock closure already present.'
+            exit 0
+          fi
+          git config user.name 'ores-stack migration bot'
+          git config user.email 'ores-stack-migration-bot@users.noreply.github.com'
+          git commit -m 'migration: restore pinned core and Cargo.lock'
+          git push "https://x-access-token:${TARGET_TOKEN}@github.com/ores-stack/ores-stack-cli.git" "HEAD:${TARGET_BRANCH}"
+
+      - name: Re-prove pushed target identity from remote
+        shell: bash
+        working-directory: target
+        env:
+          TARGET_TOKEN: ${{ steps.target-token.outputs.token }}
+        run: |
+          set -euo pipefail
+          git fetch "https://x-access-token:${TARGET_TOKEN}@github.com/ores-stack/ores-stack-cli.git" "${TARGET_BRANCH}:refs/remotes/proof/${TARGET_BRANCH}"
+          pushed="$(git rev-parse "refs/remotes/proof/${TARGET_BRANCH}")"
+          test "$pushed" = "$(git rev-parse HEAD)"
+          test "$(git rev-parse "${pushed}:crates/ores-stack-core")" = "$EXPECTED_CORE_TREE"
+          test "$(git show "${pushed}:Cargo.lock" | git hash-object --stdin)" = "$EXPECTED_LOCK_BLOB"
