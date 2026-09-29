@@ -1,0 +1,192 @@
+name: Ores CLI PR436 diagnostics certificate
+
+on:
+  push:
+    branches:
+      - DEN-390-ores-cli-pr436-diagnostics-cert
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ores-cli-pr436-diagnostics-certificate
+  cancel-in-progress: true
+
+env:
+  ORES_CLI_SHA: 0785d5f82cca140bfdc5753d6995cdd7d746ddda
+  RUST_TOOLCHAIN: 1.88.0
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: nightly-org-maintenance
+    steps:
+      - name: Check out certificate control
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          path: control
+
+      - name: Mint least-privilege ores-cli read token
+        id: ores-token
+        uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349
+        with:
+          app-id: ${{ vars.PORTFOLIO_GITHUB_APP_ID }}
+          private-key: ${{ secrets.PORTFOLIO_GITHUB_APP_PRIVATE_KEY }}
+          owner: ORESoftware
+          repositories: ores-cli
+          skip-token-revoke: true
+          permission-contents: read
+          permission-metadata: read
+
+      - name: Check out exact ores-cli candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/ores-cli
+          ref: ${{ env.ORES_CLI_SHA }}
+          token: ${{ steps.ores-token.outputs.token }}
+          persist-credentials: false
+          fetch-depth: 1
+          path: ores-cli
+
+      - name: Verify immutable source identity
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          test -z "$(git -C ores-cli status --porcelain=v1 --untracked-files=all)"
+          git -C ores-cli diff --check
+          if grep -RInE '^(<{7}|={7}|>{7})( |$)' ores-cli/src/bin/invocation_diagnostic.rs; then
+            echo 'unresolved conflict marker found' >&2
+            exit 1
+          fi
+
+      - name: Install declared Rust MSRV
+        uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          toolchain: ${{ env.RUST_TOOLCHAIN }}
+          components: clippy,rustfmt
+
+      - name: Run focused compile and unit gates
+        working-directory: ores-cli
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/oresc-target
+        run: |
+          set -euo pipefail
+          cargo fmt --all --check
+          cargo check --locked --bins
+          cargo test --locked --bin oresc invocation_diagnostic -- --nocapture
+          cargo clippy --locked --bin oresc -- -D warnings
+          cargo build --locked --bin oresc
+
+      - name: Verify misspelled flag survives broken runtime contract
+        working-directory: ores-cli
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/oresc-target
+        run: |
+          set -euo pipefail
+          broken="$RUNNER_TEMP/broken-cli-flags.toml"
+          stdout="$RUNNER_TEMP/typo.stdout"
+          stderr="$RUNNER_TEMP/typo.stderr"
+          printf '%s\n' '[parse' > "$broken"
+          set +e
+          FLAGS2ENV_CONFIG="$broken" "$CARGO_TARGET_DIR/debug/oresc" \
+            org --name=litegraph --preix=ltgr list-missing-repos \
+            >"$stdout" 2>"$stderr"
+          status=$?
+          set -e
+          test "$status" -ne 0
+          test ! -s "$stdout"
+          grep -F "ores-cli runtime error: invalid invocation: flag contract audit failed; the flag '--preix' was not recognized" "$stderr"
+          grep -F 'expected: --prefix' "$stderr"
+          grep -F 'hint: did you mean `--prefix`?' "$stderr"
+          grep -F 'example: oresc org --name=<org> --prefix=<prefix> list-missing-repos' "$stderr"
+          if grep -Fq 'ltgr' "$stderr"; then
+            echo 'inline flag value leaked into diagnostic' >&2
+            exit 1
+          fi
+
+      - name: Verify separate typo value does not corrupt command diagnosis
+        working-directory: ores-cli
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/oresc-target
+        run: |
+          set -euo pipefail
+          broken="$RUNNER_TEMP/broken-cli-flags.toml"
+          stderr="$RUNNER_TEMP/typo-separated.stderr"
+          set +e
+          FLAGS2ENV_CONFIG="$broken" "$CARGO_TARGET_DIR/debug/oresc" \
+            org --name litegraph --preix ltgr list-missing-repos \
+            >/dev/null 2>"$stderr"
+          status=$?
+          set -e
+          test "$status" -ne 0
+          grep -F "the flag '--preix' was not recognized" "$stderr"
+          grep -F 'example: oresc org --name=<org> --prefix=<prefix> list-missing-repos' "$stderr"
+          if grep -Fq 'ltgr' "$stderr"; then
+            echo 'separate flag value leaked into diagnostic' >&2
+            exit 1
+          fi
+
+      - name: Verify typed JSON diagnostic is ANSI-free
+        working-directory: ores-cli
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/oresc-target
+        run: |
+          set -euo pipefail
+          broken="$RUNNER_TEMP/broken-cli-flags.toml"
+          stdout="$RUNNER_TEMP/json.stdout"
+          stderr="$RUNNER_TEMP/json.stderr"
+          set +e
+          FLAGS2ENV_CONFIG="$broken" "$CARGO_TARGET_DIR/debug/oresc" \
+            --json=true org --name=litegraph --preix=ltgr list-missing-repos \
+            >"$stdout" 2>"$stderr"
+          status=$?
+          set -e
+          test "$status" -ne 0
+          test ! -s "$stderr"
+          jq -e '.schema == "ores-cli/error/v1" and .ok == false and .error.kind == "unknown-option" and .error.offending == ["--preix"] and .error.expected == ["--prefix"]' "$stdout" >/dev/null
+          if grep -q $'\033' "$stdout"; then
+            echo 'structured JSON diagnostic contains ANSI' >&2
+            exit 1
+          fi
+
+      - name: Verify interactive colors default on and opt-outs work
+        working-directory: ores-cli
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/oresc-target
+        run: |
+          set -euo pipefail
+          broken="$RUNNER_TEMP/broken-cli-flags.toml"
+          bin="$CARGO_TARGET_DIR/debug/oresc"
+          colored="$RUNNER_TEMP/colored.typescript"
+          plain="$RUNNER_TEMP/plain.typescript"
+          no_color="$RUNNER_TEMP/no-color.typescript"
+          set +e
+          script -q -e -c "FLAGS2ENV_CONFIG='$broken' '$bin' org --name=litegraph --preix=ltgr list-missing-repos" "$colored"
+          colored_status=$?
+          script -q -e -c "FLAGS2ENV_CONFIG='$broken' '$bin' --colors=false org --name=litegraph --preix=ltgr list-missing-repos" "$plain"
+          plain_status=$?
+          script -q -e -c "NO_COLOR=1 FLAGS2ENV_CONFIG='$broken' '$bin' org --name=litegraph --preix=ltgr list-missing-repos" "$no_color"
+          no_color_status=$?
+          set -e
+          test "$colored_status" -ne 0
+          test "$plain_status" -ne 0
+          test "$no_color_status" -ne 0
+          grep -Fq $'\033[1;31mores-cli runtime error:\033[0m' "$colored"
+          if grep -Fq $'\033[' "$plain"; then
+            echo '--colors=false did not suppress ANSI' >&2
+            exit 1
+          fi
+          if grep -Fq $'\033[' "$no_color"; then
+            echo 'NO_COLOR did not suppress ANSI' >&2
+            exit 1
+          fi
+
+      - name: Verify source remains clean
+        if: always()
+        run: |
+          set -euo pipefail
+          test "$(git -C ores-cli rev-parse HEAD)" = "$ORES_CLI_SHA"
+          test -z "$(git -C ores-cli status --porcelain=v1 --untracked-files=all)"
